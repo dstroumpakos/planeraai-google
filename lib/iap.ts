@@ -114,6 +114,10 @@ class IAPService {
      * Flush any pending/unfinished transactions
      * This resolves "Item already owned" errors that occur when previous
      * transactions were not properly finished (common in sandbox/review)
+     * 
+     * IMPORTANT: Only flush consumable (in-app) purchases, NOT subscriptions.
+     * Finishing a subscription transaction before the user explicitly purchases
+     * will prevent StoreKit from showing the purchase confirmation dialog.
      */
     async flushPendingTransactions(): Promise<void> {
         if (!this.isAvailable()) return;
@@ -122,20 +126,27 @@ class IAPService {
             const availablePurchases = await ExpoIAP.getAvailablePurchases();
             
             if (availablePurchases && availablePurchases.length > 0) {
-                console.log(`[IAP] Found ${availablePurchases.length} pending transactions, finishing them...`);
+                console.log(`[IAP] Found ${availablePurchases.length} available purchases, checking for pending consumables...`);
                 
                 for (const purchase of availablePurchases) {
-                    try {
-                        const isSubscription = SUBSCRIPTION_PRODUCT_IDS.includes(
-                            (purchase as any).productId || ''
-                        );
-                        await ExpoIAP.finishTransaction({ 
-                            purchase, 
-                            isConsumable: !isSubscription 
-                        });
-                        console.log('[IAP] Finished pending transaction:', (purchase as any).productId, (purchase as any).transactionId);
-                    } catch (finishErr) {
-                        console.warn('[IAP] Could not finish pending transaction:', finishErr);
+                    const productId = (purchase as any).productId || '';
+                    const isSubscription = SUBSCRIPTION_PRODUCT_IDS.includes(productId);
+                    
+                    // Only finish consumable transactions automatically
+                    // Subscriptions should NOT be auto-finished — doing so would prevent
+                    // StoreKit from showing the purchase dialog on next attempt
+                    if (!isSubscription) {
+                        try {
+                            await ExpoIAP.finishTransaction({ 
+                                purchase, 
+                                isConsumable: true 
+                            });
+                            console.log('[IAP] Finished pending consumable transaction:', productId, (purchase as any).transactionId);
+                        } catch (finishErr) {
+                            console.warn('[IAP] Could not finish pending transaction:', finishErr);
+                        }
+                    } else {
+                        console.log('[IAP] Skipping subscription transaction (will not auto-finish):', productId);
                     }
                 }
             } else {
