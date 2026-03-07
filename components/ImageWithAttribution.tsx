@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Linking } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
+import { useTranslation } from "react-i18next";
 
 interface ImageWithAttributionProps {
   imageUrl: string;
@@ -29,6 +30,7 @@ export function ImageWithAttribution({
   blurHash,
   size = "HERO",
 }: ImageWithAttributionProps) {
+  const { t } = useTranslation();
   // Optimize the Unsplash URL for faster loading
   const optimizedUrl = optimizeUnsplashUrl(imageUrl, IMAGE_SIZES[size]);
   const handlePhotographerPress = async () => {
@@ -87,7 +89,7 @@ export function ImageWithAttribution({
         pointerEvents="box-none"
       >
         <View style={[styles.attributionContent, { justifyContent: isTop ? "flex-end" : "flex-start" }]} pointerEvents="auto">
-          <Text style={styles.attributionText}>Photo by </Text>
+          <Text style={styles.attributionText}>{t('imageAttribution.photoBy')}</Text>
           <Pressable
             onPress={handlePhotographerPress}
             hitSlop={{ top: 15, bottom: 15, left: 8, right: 8 }}
@@ -104,7 +106,7 @@ export function ImageWithAttribution({
               </Text>
             )}
           </Pressable>
-          <Text style={styles.attributionText}> on </Text>
+          <Text style={styles.attributionText}>{t('imageAttribution.on')}</Text>
           <Pressable
             onPress={handleUnsplashPress}
             hitSlop={{ top: 15, bottom: 15, left: 8, right: 8 }}

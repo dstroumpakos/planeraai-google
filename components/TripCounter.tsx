@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 const COLORS = {
     primary: "#FFE500",
@@ -17,6 +18,7 @@ const COLORS = {
 
 export default function TripCounter() {
     const router = useRouter();
+    const { t } = useTranslation();
     const { token } = useToken();
     const userPlan = useQuery(api.users.getPlan as any, { token: token || "skip" });
 
@@ -30,7 +32,7 @@ export default function TripCounter() {
     const freeTripsRemaining = Math.max(0, 1 - freeTripsUsed);
     
     // Total available trips
-    const availableTrips = isPremium ? "Unlimited" : (credits + freeTripsRemaining);
+    const availableTrips = isPremium ? t('home.unlimited') : (credits + freeTripsRemaining);
 
     return (
         <TouchableOpacity 
@@ -46,7 +48,7 @@ export default function TripCounter() {
                 />
             </View>
             <View style={styles.textContainer}>
-                <Text style={styles.label}>Available Trips</Text>
+                <Text style={styles.label}>{t('tripCounter.availableTrips')}</Text>
                 <Text style={[
                     styles.count, 
                     isPremium ? styles.premiumText : null

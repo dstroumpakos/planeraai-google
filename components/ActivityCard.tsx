@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native"
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
+import { useTranslation } from "react-i18next";
 
 interface ActivityCardProps {
   activity: any;
@@ -9,6 +10,7 @@ interface ActivityCardProps {
 }
 
 export default function ActivityCard({ activity, destination }: ActivityCardProps) {
+  const { t } = useTranslation();
   // Optimize image URL for thumbnails
   const optimizedImageUrl = activity.image 
     ? optimizeUnsplashUrl(activity.image, IMAGE_SIZES.THUMBNAIL)
@@ -25,7 +27,7 @@ export default function ActivityCard({ activity, destination }: ActivityCardProp
             <Text style={styles.price}>€{activity.price}</Text>
             {activity.skipTheLine && (
               <View style={styles.skipLineBadge}>
-                <Text style={styles.skipLineText}>Skip the Line</Text>
+                <Text style={styles.skipLineText}>{t('activityCard.skipTheLine')}</Text>
               </View>
             )}
           </View>
@@ -49,7 +51,7 @@ export default function ActivityCard({ activity, destination }: ActivityCardProp
           style={styles.bookButton}
           onPress={() => Linking.openURL(activity.bookingUrl)}
         >
-          <Text style={styles.bookButtonText}>Book Now</Text>
+          <Text style={styles.bookButtonText}>{t('activityCard.bookNow')}</Text>
         </TouchableOpacity>
       )}
     </View>

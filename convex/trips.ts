@@ -27,6 +27,8 @@ export const create = authMutation({
         // Arrival/Departure times (ISO datetime strings in destination timezone)
         arrivalTime: v.optional(v.string()),
         departureTime: v.optional(v.string()),
+        // Language preference for AI-generated itinerary content
+        language: v.optional(v.string()),
          // Disabled in V1 - traveler profiles not used
         selectedTravelerIds: v.optional(v.array(v.id("travelers"))),
     },
@@ -125,6 +127,8 @@ export const create = authMutation({
             // Arrival/Departure times for time-aware itineraries
             arrivalTime: args.arrivalTime,
             departureTime: args.departureTime,
+            // Language preference for AI-generated content
+            language: args.language || "en",
             // V1: Disabled - not passing traveler profiles
             selectedTravelerIds: undefined,
         });
@@ -174,6 +178,7 @@ export const create = authMutation({
             preferredFlightTime: args.preferredFlightTime ?? "any",
             arrivalTime: args.arrivalTime,
             departureTime: args.departureTime,
+            language: args.language || "en",
         });
 
         return tripId;
@@ -208,6 +213,8 @@ export const getTripDetails = internalQuery({
             // Arrival/Departure times for time-aware itineraries
             arrivalTime: v.optional(v.string()),
             departureTime: v.optional(v.string()),
+            // Language preference
+            language: v.optional(v.string()),
             selectedTravelerIds: v.optional(v.array(v.id("travelers"))),
             status: v.string(),
             itinerary: v.optional(v.any()),
@@ -504,6 +511,7 @@ export const regenerate = authMutation({
             prompt,
             arrivalTime: trip.arrivalTime,
             departureTime: trip.departureTime,
+            language: trip.language || "en",
         });
     },
 });

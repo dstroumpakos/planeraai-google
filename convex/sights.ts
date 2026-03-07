@@ -87,6 +87,7 @@ export const generateTopSights = mutation({
         await ctx.scheduler.runAfter(0, internal.sightsAction.generateSightsAction, {
             tripId: args.tripId,
             destination: trip.destination,
+            language: trip.language || "en",
         });
         
         return null;

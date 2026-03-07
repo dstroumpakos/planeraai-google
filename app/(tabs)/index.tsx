@@ -19,14 +19,18 @@ import { useConvexAuth } from "@/lib/auth-components";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
+import { LanguagePickerModal } from "@/components/LanguagePickerModal";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { colors, isDarkMode } = useTheme();
   const { token, isLoading: tokenLoading } = useToken();
+  const { t, i18n } = useTranslation();
   const [destinationImages, setDestinationImages] = useState<Record<string, any>>({});
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -39,6 +43,13 @@ export default function HomeScreen() {
   }, [token, tokenLoading, authLoading, isAuthenticated]);
 
   const userSettings = useQuery(api.users.getSettings as any, { token: token || "skip" });
+
+  // Show language picker for first-time users or users who haven't set language yet
+  useEffect(() => {
+    if (userSettings !== undefined && !userSettings?.language) {
+      setShowLanguagePicker(true);
+    }
+  }, [userSettings]);
   const userPlan = useQuery(api.users.getPlan as any, { token: token || "skip" });
   const trips = useQuery(api.trips.list as any, { token: token || "skip" });
   const trendingDestinations = useQuery(api.trips.getTrendingDestinations);
@@ -104,26 +115,26 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.authContainer}>
-          <Text style={[styles.authText, { color: colors.textMuted }]}>Please log in to see your trips</Text>
+          <Text style={[styles.authText, { color: colors.textMuted }]}>{t("home.pleaseLogIn")}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const userName = userSettings?.name?.split(" ")[0] || "Traveler";
+  const userName = userSettings?.name?.split(" ")[0] || t("home.traveler");
 
   const getGreeting = () => {
     const hour = new Date().getHours();
     let greeting = "";
     
     if (hour < 12) {
-      greeting = "Good Morning";
+      greeting = t("home.goodMorning");
     } else if (hour < 18) {
-      greeting = "Good Afternoon";
+      greeting = t("home.goodAfternoon");
     } else if (hour < 21) {
-      greeting = "Good Evening";
+      greeting = t("home.goodEvening");
     } else {
-      greeting = "Good Night";
+      greeting = t("home.goodNight");
     }
     
     return `${greeting}, ${userName}`;
@@ -136,7 +147,7 @@ export default function HomeScreen() {
       return (
         <View style={[styles.creditBadge, { backgroundColor: colors.secondary, borderColor: colors.primary }]}>
           <Ionicons name="infinite" size={16} color={colors.text} />
-          <Text style={[styles.creditText, { color: colors.text }]}>Unlimited</Text>
+          <Text style={[styles.creditText, { color: colors.text }]}>{t("home.unlimited")}</Text>
         </View>
       );
     }
@@ -144,13 +155,17 @@ export default function HomeScreen() {
     return (
       <View style={[styles.creditBadge, { backgroundColor: colors.secondary, borderColor: colors.primary }]}>
         <Ionicons name="ticket-outline" size={16} color={colors.text} />
-        <Text style={[styles.creditText, { color: colors.text }]}>{userPlan.tripCredits} Credits</Text>
+        <Text style={[styles.creditText, { color: colors.text }]}>{t("home.credits", { count: userPlan.tripCredits })}</Text>
       </View>
     );
   };
 
   return (
     <>
+      <LanguagePickerModal
+        visible={showLanguagePicker}
+        onDismiss={() => setShowLanguagePicker(false)}
+      />
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor="transparent" translucent={true} />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView 
@@ -176,7 +191,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.headerTexts}>
               <Text style={[styles.greetingSub, { color: colors.textMuted }]}>{getGreeting()}</Text>
-              <Text style={[styles.greetingMain, { color: colors.text }]}>Ready for your next journey?</Text>
+              <Text style={[styles.greetingMain, { color: colors.text }]}>{t("home.readyForJourney")}</Text>
             </View>
           </View>
           <TouchableOpacity 
@@ -194,7 +209,7 @@ export default function HomeScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="search-outline" size={20} color={colors.textMuted} style={styles.searchIcon} />
-          <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>Where do you want to go?</Text>
+          <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>{t("home.whereToGo")}</Text>
           <View style={[styles.searchButton, { backgroundColor: colors.primary }]}>
             <Ionicons name="arrow-forward" size={20} color={colors.text} />
           </View>
@@ -214,14 +229,14 @@ export default function HomeScreen() {
             <View style={[styles.featureIcon, styles.featureIconPrimary]}>
               <Ionicons name="sparkles" size={20} color="#000000" />
             </View>
-            <Text style={[styles.featureText, { color: "#000000" }]}>AI Trip Planner</Text>
+            <Text style={[styles.featureText, { color: "#000000" }]}>{t("home.aiTripPlanner")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
               <Ionicons name="map-outline" size={20} color={colors.text} />
             </View>
-            <Text style={[styles.featureText, { color: colors.text }]}>Multi-City Route</Text>
+            <Text style={[styles.featureText, { color: colors.text }]}>{t("home.multiCityRoute")}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -229,9 +244,9 @@ export default function HomeScreen() {
         {trendingDestinations && trendingDestinations.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Trending Now</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("home.trendingNow")}</Text>
               <TouchableOpacity onPress={() => router.push("/destinations")}>
-                <Text style={[styles.viewAllText, { color: colors.textMuted }]}>View All</Text>
+                <Text style={[styles.viewAllText, { color: colors.textMuted }]}>{t("common.viewAll")}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView 
@@ -278,13 +293,13 @@ export default function HomeScreen() {
                       <Text style={styles.trendingName}>{destination.destination}</Text>
                       <View style={styles.trendingLocationRow}>
                         <Ionicons name="location-sharp" size={12} color="#FFFFFF" />
-                        <Text style={styles.trendingCountry}>Popular Destination</Text>
+                        <Text style={styles.trendingCountry}>{t("home.popularDestination")}</Text>
                       </View>
                       <View style={styles.trendingFooter}>
                         <View>
-                          <Text style={[styles.trendingPriceLabel, { color: "#000000" }]}>Est. total</Text>
+                          <Text style={[styles.trendingPriceLabel, { color: "#000000" }]}>{t("home.estTotal")}</Text>
                           <Text style={[styles.trendingPrice, { color: colors.primary }]}>€{Math.round(destination.avgBudget)}</Text>
-                          <Text style={[styles.trendingPriceSubtitle, { color: "#000000" }]}>Based on your budget</Text>
+                          <Text style={[styles.trendingPriceSubtitle, { color: "#000000" }]}>{t("home.basedOnBudget")}</Text>
                         </View>
                         <View style={styles.trendingArrow}>
                           <Ionicons name="arrow-forward" size={16} color="#000000" />
@@ -302,9 +317,9 @@ export default function HomeScreen() {
         {trips && trips.length > 0 && (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>My Trips</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("home.myTrips")}</Text>
               <TouchableOpacity onPress={() => router.push("/(tabs)/trips")}>
-                <Text style={[styles.viewAllText, { color: colors.textMuted }]}>View All</Text>
+                <Text style={[styles.viewAllText, { color: colors.textMuted }]}>{t("common.viewAll")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -320,7 +335,7 @@ export default function HomeScreen() {
                 <View style={styles.tripInfo}>
                   <Text style={[styles.tripDestination, { color: colors.text }]}>{trip.destination}</Text>
                   <Text style={[styles.tripDates, { color: colors.textMuted }]}>
-                    {new Date(trip.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {new Date(trip.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    {new Date(trip.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} - {new Date(trip.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

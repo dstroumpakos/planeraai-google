@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -33,6 +34,7 @@ export default function AIConsentModal({
     colors,
 }: AIConsentModalProps) {
     const router = useRouter();
+    const { t } = useTranslation();
 
     return (
         <Modal
@@ -66,11 +68,11 @@ export default function AIConsentModal({
                         </View>
 
                         <Text style={[styles.title, { color: colors.text }]}>
-                            AI Data Sharing Consent
+                            {t('aiConsent.title')}
                         </Text>
 
                         <Text style={[styles.description, { color: colors.textSecondary || "#6B6B6B" }]}>
-                            Planera uses AI to generate personalized travel itineraries, recommend sights, and power the Atlas travel assistant. To provide these features, some of your data is sent to a third-party AI service.
+                            {t('aiConsent.description')}
                         </Text>
 
                         {/* Who receives the data */}
@@ -79,10 +81,10 @@ export default function AIConsentModal({
                                 <Ionicons name="business-outline" size={20} color={colors.text} />
                                 <View style={styles.infoTextContainer}>
                                     <Text style={[styles.infoLabel, { color: colors.text }]}>
-                                        Third-Party AI Provider
+                                        {t('aiConsent.thirdPartyProvider')}
                                     </Text>
                                     <Text style={[styles.infoValue, { color: colors.textSecondary || "#6B6B6B" }]}>
-                                        OpenAI (San Francisco, CA, USA)
+                                        {t('aiConsent.openaiLocation')}
                                     </Text>
                                 </View>
                             </View>
@@ -90,52 +92,52 @@ export default function AIConsentModal({
 
                         {/* What data is shared */}
                         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                            What data is shared
+                            {t('aiConsent.whatDataShared')}
                         </Text>
 
                         <View style={[styles.dataList, { borderColor: colors.border || "#E8E6E1" }]}>
                             <DataItem
                                 icon="location-outline"
-                                label="Trip destinations and origin city"
+                                label={t('aiConsent.dataTrip')}
                                 colors={colors}
                             />
                             <DataItem
                                 icon="calendar-outline"
-                                label="Trip dates, arrival and departure times"
+                                label={t('aiConsent.dataDates')}
                                 colors={colors}
                             />
                             <DataItem
                                 icon="wallet-outline"
-                                label="Budget and number of travelers"
+                                label={t('aiConsent.dataBudget')}
                                 colors={colors}
                             />
                             <DataItem
                                 icon="heart-outline"
-                                label="Travel interests and local experience preferences"
+                                label={t('aiConsent.dataInterests')}
                                 colors={colors}
                             />
                             <DataItem
                                 icon="chatbubble-outline"
-                                label="Messages you send to the Atlas travel assistant"
+                                label={t('aiConsent.dataMessages')}
                                 colors={colors}
                             />
                         </View>
 
                         {/* What is NOT shared */}
                         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                            What is NOT shared
+                            {t('aiConsent.whatNotShared')}
                         </Text>
 
                         <View style={[styles.dataList, { borderColor: colors.border || "#E8E6E1" }]}>
                             <DataItem
                                 icon="close-circle-outline"
-                                label="Your name, email, or account details"
+                                label={t('aiConsent.notName')}
                                 colors={colors}
                                 isExcluded
                             />
                             <DataItem
                                 icon="close-circle-outline"
-                                label="Payment or billing information"
+                                label={t('aiConsent.notPayment')}
                                 colors={colors}
                                 isExcluded
                             />
@@ -143,10 +145,10 @@ export default function AIConsentModal({
 
                         {/* Purpose */}
                         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                            Why we share this data
+                            {t('aiConsent.whyWeShare')}
                         </Text>
                         <Text style={[styles.description, { color: colors.textSecondary || "#6B6B6B" }]}>
-                            Your travel preferences are sent to OpenAI solely to generate personalized itineraries, recommend sights and attractions, and provide helpful travel advice through the Atlas assistant. OpenAI processes data according to their API data usage policy and does not use API data to train their models.
+                            {t('aiConsent.whyDescription')}
                         </Text>
 
                         {/* Privacy Policy link */}
@@ -160,7 +162,7 @@ export default function AIConsentModal({
                         >
                             <Ionicons name="document-text-outline" size={16} color="#007AFF" />
                             <Text style={styles.privacyLinkText}>
-                                Read our full Privacy Policy
+                                {t('aiConsent.readPrivacyPolicy')}
                             </Text>
                         </TouchableOpacity>
 
@@ -171,7 +173,7 @@ export default function AIConsentModal({
                                 onPress={onAccept}
                             >
                                 <Text style={[styles.acceptButtonText, { color: colors.background }]}>
-                                    I Agree — Enable AI Features
+                                    {t('aiConsent.acceptButton')}
                                 </Text>
                             </TouchableOpacity>
 
@@ -180,12 +182,12 @@ export default function AIConsentModal({
                                 onPress={onDecline}
                             >
                                 <Text style={[styles.declineButtonText, { color: colors.textSecondary || "#6B6B6B" }]}>
-                                    Decline
+                                    {t('aiConsent.declineButton')}
                                 </Text>
                             </TouchableOpacity>
 
                             <Text style={[styles.footnote, { color: colors.textSecondary || "#6B6B6B" }]}>
-                                You can change this at any time in Settings → Travel Preferences.
+                                {t('aiConsent.footnote')}
                             </Text>
                         </View>
                     </ScrollView>

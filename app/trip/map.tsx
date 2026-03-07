@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import * as Location from "expo-location";
+import { useTranslation } from "react-i18next";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -260,6 +261,7 @@ export default function TripMap() {
     const router = useRouter();
     const { colors, isDarkMode } = useTheme();
     const { token } = useToken();
+    const { t } = useTranslation();
     const mapRef = useRef<MapView>(null);
     const sightsCacheRef = useRef<Record<string, GeocodedSight[]>>({});
     const [retryCount, setRetryCount] = useState(0);
@@ -325,7 +327,7 @@ export default function TripMap() {
         setError(null);
         setGeocodedActivities([]);
         setRouteSegments([]);
-        setBuildPhase("Finding destination...");
+        setBuildPhase(t('tripMap.findingDestination'));
 
         const geocodeAndRoute = async () => {
             const results: GeocodedActivity[] = [];
@@ -352,7 +354,7 @@ export default function TripMap() {
             for (let i = 0; i < totalActs; i++) {
                 if (cancelled) return;
                 const activity = currentDay.activities[i];
-                setBuildPhase(`Placing pin ${i + 1} of ${totalActs}...`);
+                setBuildPhase(t('tripMap.placingPin', { current: i + 1, total: totalActs }));
 
                 if (i > 0) await new Promise(r => setTimeout(r, 1100));
 
@@ -374,7 +376,7 @@ export default function TripMap() {
             if (cancelled) return;
 
             if (results.length === 0) {
-                setError("We couldn't find locations for these activities. The place names may be too specific or unavailable in our map database.");
+                setError(t('tripMap.noLocationsFound'));
                 setIsBuilding(false);
                 setBuildPhase(null);
                 return;
@@ -385,7 +387,7 @@ export default function TripMap() {
             const segments: RouteSegment[] = [];
             for (let i = 0; i < totalRoutes; i++) {
                 if (cancelled) return;
-                setBuildPhase(`Drawing route ${i + 1} of ${totalRoutes}...`);
+                setBuildPhase(t('tripMap.drawingRoute', { current: i + 1, total: totalRoutes }));
                 const from = results[i];
                 const to = results[i + 1];
                 const coordinates = await fetchWalkingRoute(
@@ -401,7 +403,7 @@ export default function TripMap() {
             }
 
             if (!cancelled) {
-                setBuildPhase("Route complete ✓");
+                setBuildPhase(t('tripMap.routeComplete'));
                 setIsBuilding(false);
                 // Clear the pill after 2 seconds
                 setTimeout(() => { if (!cancelled) setBuildPhase(null); }, 2000);
@@ -544,7 +546,7 @@ export default function TripMap() {
                                 <Ionicons name="location-outline" size={32} color="#EF4444" />
                             </View>
                             <Text style={[styles.errorTitle, { color: colors.text }]}>
-                                Location not found
+                                {t('tripMap.locationNotFound')}
                             </Text>
                             <Text style={[styles.errorBody, { color: colors.textMuted }]}>
                                 {error}
@@ -554,7 +556,7 @@ export default function TripMap() {
                                 onPress={() => setRetryCount(c => c + 1)}
                             >
                                 <Ionicons name="refresh" size={18} color="#1A1A1A" />
-                                <Text style={styles.retryButtonText}>Try again</Text>
+                                <Text style={styles.retryButtonText}>{t('tripMap.tryAgain')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -610,7 +612,7 @@ export default function TripMap() {
                                 key={"sight-" + i}
                                 coordinate={{ latitude: s.lat, longitude: s.lng }}
                                 title={s.name}
-                                description={[s.neighborhoodOrArea, s.bestTimeToVisit ? "Best: " + s.bestTimeToVisit : null, s.estDurationHours ? s.estDurationHours + "h" : null].filter(Boolean).join(" · ")}
+                                description={[s.neighborhoodOrArea, s.bestTimeToVisit ? t('tripMap.bestLabel', { time: s.bestTimeToVisit }) : null, s.estDurationHours ? s.estDurationHours + "h" : null].filter(Boolean).join(" · ")}
                             >
                                 <View style={styles.markerOuter}>
                                     <View style={[styles.sightMarkerContainer]}>
@@ -622,7 +624,7 @@ export default function TripMap() {
                                     <View style={styles.calloutContainer}>
                                         <Text style={styles.calloutTitle}>{s.name}</Text>
                                         {s.neighborhoodOrArea ? <Text style={styles.calloutAddress}>{s.neighborhoodOrArea}</Text> : null}
-                                        {s.bestTimeToVisit ? <Text style={styles.calloutTime}>Best time: {s.bestTimeToVisit}</Text> : null}
+                                        {s.bestTimeToVisit ? <Text style={styles.calloutTime}>{t('tripMap.bestTime', { time: s.bestTimeToVisit })}</Text> : null}
                                     </View>
                                 </Callout>
                             </Marker>
@@ -659,7 +661,7 @@ export default function TripMap() {
             {isLoadingSights && !isBuilding && (
                 <View style={[styles.sightsLoadingBadge, { backgroundColor: isDarkMode ? colors.card : "#FFFFFF" }]}>
                     <ActivityIndicator size="small" color="#6366F1" />
-                    <Text style={[styles.sightsLoadingText, { color: colors.textSecondary }]}>Loading sights...</Text>
+                    <Text style={[styles.sightsLoadingText, { color: colors.textSecondary }]}>{t('tripMap.loadingSights')}</Text>
                 </View>
             )}
 
@@ -678,7 +680,7 @@ export default function TripMap() {
                         </Text>
                         <View style={styles.headerDot} />
                         <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-                            Day {selectedDay}
+                            {t('tripMap.day', { number: selectedDay })}
                         </Text>
                     </View>
                     <View style={{ width: 44 }} />
@@ -721,7 +723,7 @@ export default function TripMap() {
                                                 { color: isActive ? "#FFFFFF" : colors.textMuted },
                                             ]}
                                         >
-                                            Day {day.day}
+                                            {t('tripMap.day', { number: day.day })}
                                         </Text>
                                     </TouchableOpacity>
                                 );

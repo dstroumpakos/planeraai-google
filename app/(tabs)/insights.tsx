@@ -24,6 +24,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import AIConsentModal from "@/components/AIConsentModal";
+import { useTranslation } from "react-i18next";
 
 // Animated typing dots component
 const TypingIndicator = ({ colors }: { colors: any }) => {
@@ -123,6 +124,7 @@ const detectWeatherInResponse = (text: string) => {
 // Weather Card Component
 const WeatherCard = ({ data }: { data: any }) => {
     const { colors } = useTheme();
+    const { t } = useTranslation();
     
     // Choose gradient based on condition/time
     const getTheme = (cond: string, day: boolean) => {
@@ -180,11 +182,11 @@ const WeatherCard = ({ data }: { data: any }) => {
             <View style={formatStyles.weatherStats}>
                 <View style={formatStyles.weatherStatItem}>
                     <Ionicons name="water-outline" size={16} color="#FFF" style={{opacity: 0.8}} />
-                    <Text style={formatStyles.weatherStatText}>{data.humidity}% Humidity</Text>
+                    <Text style={formatStyles.weatherStatText}>{data.humidity}% {t('atlas.humidity')}</Text>
                 </View>
                 <View style={formatStyles.weatherStatItem}>
                     <Ionicons name="speedometer-outline" size={16} color="#FFF" style={{opacity: 0.8}} />
-                    <Text style={formatStyles.weatherStatText}>{data.windSpeed} km/h Wind</Text>
+                    <Text style={formatStyles.weatherStatText}>{data.windSpeed} km/h {t('atlas.wind')}</Text>
                 </View>
             </View>
 
@@ -215,6 +217,7 @@ const WeatherCard = ({ data }: { data: any }) => {
 
 // Restaurant Card Component
 const RestaurantCard = ({ restaurants, colors, isDarkMode }: { restaurants: any[]; colors: any; isDarkMode: boolean }) => {
+    const { t } = useTranslation();
     const getRatingStars = (rating: number) => {
         const full = Math.floor(rating);
         const half = rating % 1 >= 0.3;
@@ -233,7 +236,7 @@ const RestaurantCard = ({ restaurants, colors, isDarkMode }: { restaurants: any[
             <View style={restaurantStyles.header}>
                 <Ionicons name="restaurant" size={20} color={colors.primary} />
                 <Text style={[restaurantStyles.headerText, { color: colors.text }]}>
-                    Top Restaurant Picks
+                    {t('atlas.topRestaurants')}
                 </Text>
                 <View style={[restaurantStyles.badge, { backgroundColor: isDarkMode ? 'rgba(255,229,0,0.2)' : '#FFF3CD' }]}>
                     <Text style={[restaurantStyles.badgeText, { color: colors.primary }]}>TripAdvisor</Text>
@@ -678,17 +681,18 @@ const formatStyles = StyleSheet.create({
 });
 
 const EXAMPLE_PROMPTS = [
-    { text: "Do I need a visa for Japan?", icon: "document-text" as const },
-    { text: "Weather in Rome right now", icon: "partly-sunny" as const },
-    { text: "Best restaurants in Paris", icon: "restaurant" as const },
-    { text: "Is cash needed in South Korea?", icon: "cash" as const },
-    { text: "Vaccines needed for Thailand", icon: "medkit" as const },
-    { text: "Best time to visit Bali?", icon: "calendar" as const },
+    { labelKey: "atlas.visaJapan", icon: "document-text" as const },
+    { labelKey: "atlas.weatherRome", icon: "partly-sunny" as const },
+    { labelKey: "atlas.restaurantsParis", icon: "restaurant" as const },
+    { labelKey: "atlas.cashKorea", icon: "cash" as const },
+    { labelKey: "atlas.vaccinesThailand", icon: "medkit" as const },
+    { labelKey: "atlas.bestTimeBali", icon: "calendar" as const },
 ];
 
 export default function AtlasScreen() {
     const { token, isLoading: tokenLoading } = useToken();
     const { colors, isDarkMode } = useTheme();
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
     const atlasChat = useAuthenticatedAction(api.atlas.chat, token);
@@ -762,7 +766,7 @@ export default function AtlasScreen() {
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "assistant",
-                content: "I'm sorry, I couldn't process your request. Please try again.",
+                content: t('atlas.errorProcessing'),
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -802,18 +806,18 @@ export default function AtlasScreen() {
         );
     };
 
-    const renderExamplePrompt = (prompt: { text: string; icon: keyof typeof Ionicons.glyphMap }, index: number) => (
+    const renderExamplePrompt = (prompt: { labelKey: string; icon: keyof typeof Ionicons.glyphMap }, index: number) => (
         <TouchableOpacity
             key={index}
             style={[styles.examplePrompt, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => sendMessage(prompt.text)}
+            onPress={() => sendMessage(t(prompt.labelKey))}
             activeOpacity={0.7}
         >
             <View style={[styles.examplePromptIcon, { backgroundColor: isDarkMode ? 'rgba(255,229,0,0.15)' : '#FFF8E1' }]}>
                 <Ionicons name={prompt.icon} size={18} color={colors.primary} />
             </View>
             <Text style={[styles.examplePromptText, { color: colors.text }]} numberOfLines={2}>
-                {prompt.text}
+                {t(prompt.labelKey)}
             </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
@@ -829,7 +833,7 @@ export default function AtlasScreen() {
                 <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading...</Text>
+                        <Text style={[styles.loadingText, { color: colors.textMuted }]}>{t('common.loading')}</Text>
                     </View>
                 </SafeAreaView>
             </>
@@ -844,9 +848,9 @@ export default function AtlasScreen() {
                 <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
                     <View style={styles.authContainer}>
                         <Ionicons name="globe-outline" size={64} color={colors.primary} />
-                        <Text style={[styles.authTitle, { color: colors.text }]}>Atlas</Text>
+                        <Text style={[styles.authTitle, { color: colors.text }]}>{t('atlas.atlas')}</Text>
                         <Text style={[styles.authSubtitle, { color: colors.textMuted }]}>
-                            Sign in to access your travel information assistant
+                            {t('atlas.signInToAccess')}
                         </Text>
                     </View>
                 </SafeAreaView>
@@ -865,8 +869,8 @@ export default function AtlasScreen() {
                             <Ionicons name="globe" size={24} color={colors.text} />
                         </View>
                         <View>
-                            <Text style={[styles.headerTitle, { color: colors.text }]}>Atlas</Text>
-                            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>Your travel information assistant</Text>
+                            <Text style={[styles.headerTitle, { color: colors.text }]}>{t('atlas.atlas')}</Text>
+                            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>{t('atlas.travelAssistant')}</Text>
                         </View>
                     </View>
                 </View>
@@ -886,12 +890,12 @@ export default function AtlasScreen() {
                             <View style={[styles.welcomeIconContainer, { backgroundColor: isDarkMode ? 'rgba(255, 229, 0, 0.15)' : '#FFF8E1' }]}>
                                 <Ionicons name="globe" size={48} color={colors.primary} />
                             </View>
-                            <Text style={[styles.welcomeTitle, { color: colors.text }]}>Hi, I'm Atlas!</Text>
+                            <Text style={[styles.welcomeTitle, { color: colors.text }]}>{t('atlas.hiImAtlas')}</Text>
                             <Text style={[styles.welcomeSubtitle, { color: colors.textMuted }]}>
-                                I can help with travel information like visas, weather, local customs, and more. What would you like to know?
+                                {t('atlas.canHelpWith')}
                             </Text>
                             
-                            <Text style={[styles.exampleTitle, { color: colors.text }]}>Try asking about:</Text>
+                            <Text style={[styles.exampleTitle, { color: colors.text }]}>{t('atlas.tryAsking')}</Text>
                             <View style={styles.examplePromptsContainer}>
                                 {EXAMPLE_PROMPTS.map((prompt, index) => renderExamplePrompt(prompt, index))}
                             </View>
@@ -918,7 +922,7 @@ export default function AtlasScreen() {
                             <View style={{ marginLeft: 4 }}>
                                 <TypingIndicator colors={colors} />
                             </View>
-                            <Text style={[styles.typingText, { color: colors.textMuted }]}>Atlas is thinking...</Text>
+                            <Text style={[styles.typingText, { color: colors.textMuted }]}>{t('atlas.thinking')}</Text>
                         </View>
                     )}
 
@@ -934,7 +938,7 @@ export default function AtlasScreen() {
                         <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
                             <TextInput
                                 style={[styles.input, { color: colors.text }]}
-                                placeholder="Ask about visas, weather, customs..."
+                                placeholder={t('atlas.askPlaceholder')}
                                 placeholderTextColor={colors.textMuted}
                                 value={inputText}
                                 onChangeText={setInputText}
@@ -984,8 +988,8 @@ export default function AtlasScreen() {
                     setShowAiConsentModal(false);
                     setPendingMessage(null);
                     Alert.alert(
-                        "AI Features Disabled",
-                        "Atlas requires AI data processing to work. You can enable this in Settings → Travel Preferences at any time.",
+                        t('atlas.aiDisabled'),
+                        t('atlas.aiDisabledMsg'),
                     );
                 }}
             />

@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useTheme, LIGHT_COLORS } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 // Fallback colors
 const COLORS = LIGHT_COLORS;
@@ -27,6 +28,7 @@ type Step = "email" | "verify" | "newPassword";
 export default function ForgotPasswordScreen() {
     const router = useRouter();
     const { colors } = useTheme();
+    const { t } = useTranslation();
     
     // Actions
     const requestCode = useAction(api.passwordReset.requestPasswordResetCode);
@@ -81,13 +83,13 @@ export default function ForgotPasswordScreen() {
     // Handle send code
     const handleSendCode = async () => {
         if (!email.trim()) {
-            setError("Please enter your email address.");
+            setError(t('forgotPassword.enterEmail'));
             return;
         }
         
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
-            setError("Please enter a valid email address.");
+            setError(t('forgotPassword.enterValidEmail'));
             return;
         }
         
@@ -98,7 +100,7 @@ export default function ForgotPasswordScreen() {
             const result = await requestCode({ email: email.trim() });
             
             if (result.ok) {
-                setSuccessMessage("If an account exists for this email, we sent a verification code.");
+                setSuccessMessage(t('forgotPassword.codeSentSuccess'));
                 setStep("verify");
                 startCooldown(60);
                 // Focus code input after transition
@@ -106,11 +108,11 @@ export default function ForgotPasswordScreen() {
                     codeInputRef.current?.focus();
                 }, 100);
             } else {
-                setError(result.message || "Please try again later.");
+                setError(result.message || t('forgotPassword.tryAgainLater'));
             }
         } catch (err: any) {
             console.error("[ForgotPassword] Error sending code:", err);
-            setError("An error occurred. Please try again.");
+            setError(t('forgotPassword.errorOccurred'));
         } finally {
             setLoading(false);
         }
@@ -119,7 +121,7 @@ export default function ForgotPasswordScreen() {
     // Handle verify code
     const handleVerifyCode = async () => {
         if (!code.trim() || code.trim().length !== 6) {
-            setError("Please enter the 6-digit code.");
+            setError(t('forgotPassword.enterCode6'));
             return;
         }
         
@@ -136,11 +138,11 @@ export default function ForgotPasswordScreen() {
                 setSuccessMessage("");
                 setStep("newPassword");
             } else {
-                setError(result.error || "Invalid code. Please try again.");
+                setError(result.error || t('forgotPassword.invalidCode'));
             }
         } catch (err: any) {
             console.error("[ForgotPassword] Error verifying code:", err);
-            setError("An error occurred. Please try again.");
+            setError(t('forgotPassword.errorOccurred'));
         } finally {
             setLoading(false);
         }
@@ -157,15 +159,15 @@ export default function ForgotPasswordScreen() {
             const result = await requestCode({ email: email.trim() });
             
             if (result.ok) {
-                setSuccessMessage("A new code has been sent to your email.");
+                setSuccessMessage(t('forgotPassword.newCodeSent'));
                 setCode("");
                 startCooldown(60);
             } else {
-                setError(result.message || "Please try again later.");
+                setError(result.message || t('forgotPassword.tryAgainLater'));
             }
         } catch (err: any) {
             console.error("[ForgotPassword] Error resending code:", err);
-            setError("An error occurred. Please try again.");
+            setError(t('forgotPassword.errorOccurred'));
         } finally {
             setLoading(false);
         }
@@ -174,17 +176,17 @@ export default function ForgotPasswordScreen() {
     // Handle set new password
     const handleSetPassword = async () => {
         if (!newPassword || !confirmPassword) {
-            setError("Please fill in both password fields.");
+            setError(t('forgotPassword.fillBothPasswords'));
             return;
         }
         
         if (newPassword.length < 8) {
-            setError("Password must be at least 8 characters.");
+            setError(t('forgotPassword.passwordMinLength'));
             return;
         }
         
         if (newPassword !== confirmPassword) {
-            setError("Passwords do not match.");
+            setError(t('forgotPassword.passwordsNoMatch'));
             return;
         }
         
@@ -200,11 +202,11 @@ export default function ForgotPasswordScreen() {
             
             if (result.success) {
                 Alert.alert(
-                    "Password Reset Successful",
-                    "Your password has been updated. Please sign in with your new password.",
+                    t('forgotPassword.passwordResetSuccess'),
+                    t('forgotPassword.passwordUpdated'),
                     [
                         {
-                            text: "Sign In",
+                            text: t('auth.signIn'),
                             onPress: () => {
                                 console.log("[ForgotPassword] Navigating to login screen...");
                                 router.replace("/");
@@ -214,11 +216,11 @@ export default function ForgotPasswordScreen() {
                     { cancelable: false }
                 );
             } else {
-                setError(result.error || "Failed to reset password. Please try again.");
+                setError(result.error || t('forgotPassword.failedReset'));
             }
         } catch (err: any) {
             console.error("[ForgotPassword] Error setting password:", err);
-            setError("An error occurred. Please try again.");
+            setError(t('forgotPassword.errorOccurred'));
         } finally {
             setLoading(false);
         }
@@ -259,9 +261,9 @@ export default function ForgotPasswordScreen() {
                 <Ionicons name="mail-outline" size={48} color={colors.primary} />
             </View>
             
-            <Text style={[styles.title, { color: colors.text }]}>Forgot Password?</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{t('forgotPassword.title')}</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Enter your email address and we'll send you a code to reset your password.
+                {t('forgotPassword.subtitle')}
             </Text>
             
             <TextInput
@@ -270,7 +272,7 @@ export default function ForgotPasswordScreen() {
                     borderColor: colors.border,
                     color: colors.text 
                 }]}
-                placeholder="Email address"
+                placeholder={t('forgotPassword.emailPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
@@ -288,7 +290,7 @@ export default function ForgotPasswordScreen() {
                 {loading ? (
                     <ActivityIndicator color={colors.text} />
                 ) : (
-                    <Text style={[styles.primaryButtonText, { color: colors.text }]}>Send Code</Text>
+                    <Text style={[styles.primaryButtonText, { color: colors.text }]}>{t('forgotPassword.sendCode')}</Text>
                 )}
             </TouchableOpacity>
         </View>
@@ -301,9 +303,9 @@ export default function ForgotPasswordScreen() {
                 <Ionicons name="keypad-outline" size={48} color={colors.primary} />
             </View>
             
-            <Text style={[styles.title, { color: colors.text }]}>Enter Code</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{t('forgotPassword.enterCode')}</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                We sent a 6-digit code to {email}
+                {t('forgotPassword.codeSentTo', { email })}
             </Text>
             
             {successMessage && (
@@ -337,7 +339,7 @@ export default function ForgotPasswordScreen() {
                 {loading ? (
                     <ActivityIndicator color={colors.text} />
                 ) : (
-                    <Text style={[styles.primaryButtonText, { color: colors.text }]}>Verify Code</Text>
+                    <Text style={[styles.primaryButtonText, { color: colors.text }]}>{t('forgotPassword.verifyCode')}</Text>
                 )}
             </TouchableOpacity>
             
@@ -351,8 +353,8 @@ export default function ForgotPasswordScreen() {
                     { color: cooldown > 0 ? colors.textMuted : colors.primary }
                 ]}>
                     {cooldown > 0 
-                        ? `Resend code in ${cooldown}s` 
-                        : "Resend code"}
+                        ? t('forgotPassword.resendCodeIn', { seconds: cooldown })
+                        : t('forgotPassword.resendCode')}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -365,9 +367,9 @@ export default function ForgotPasswordScreen() {
                 <Ionicons name="lock-closed-outline" size={48} color={colors.primary} />
             </View>
             
-            <Text style={[styles.title, { color: colors.text }]}>Set New Password</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{t('forgotPassword.setNewPassword')}</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Create a strong password with at least 8 characters.
+                {t('forgotPassword.createStrongPassword')}
             </Text>
             
             <TextInput
@@ -376,7 +378,7 @@ export default function ForgotPasswordScreen() {
                     borderColor: colors.border,
                     color: colors.text 
                 }]}
-                placeholder="New password"
+                placeholder={t('forgotPassword.newPasswordPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={newPassword}
                 onChangeText={setNewPassword}
@@ -391,7 +393,7 @@ export default function ForgotPasswordScreen() {
                     borderColor: colors.border,
                     color: colors.text 
                 }]}
-                placeholder="Confirm new password"
+                placeholder={t('forgotPassword.confirmPasswordPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -407,7 +409,7 @@ export default function ForgotPasswordScreen() {
                 {loading ? (
                     <ActivityIndicator color={colors.text} />
                 ) : (
-                    <Text style={[styles.primaryButtonText, { color: colors.text }]}>Set New Password</Text>
+                    <Text style={[styles.primaryButtonText, { color: colors.text }]}>{t('forgotPassword.setNewPassword')}</Text>
                 )}
             </TouchableOpacity>
         </View>
@@ -426,7 +428,7 @@ export default function ForgotPasswordScreen() {
                         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                             <Ionicons name="arrow-back" size={24} color={colors.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.headerTitle, { color: colors.text }]}>Reset Password</Text>
+                        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('forgotPassword.resetPassword')}</Text>
                         <View style={{ width: 40 }} />
                     </View>
                     

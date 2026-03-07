@@ -12,19 +12,20 @@ import { INTERESTS } from "@/lib/data";
 import { useTheme } from "@/lib/ThemeContext";
 import { useAuthenticatedMutation, useToken } from "@/lib/useAuthenticatedMutation";
 import AIConsentModal from "@/components/AIConsentModal";
+import { useTranslation } from "react-i18next";
 
 import logoImage from "@/assets/images/appicon-1024x1024-01-1vb1vx.png";
 
 // Local Experiences categories
 const LOCAL_EXPERIENCES = [
-    { id: "local-food", label: "Local food & street food", icon: "restaurant" as const },
-    { id: "markets", label: "Traditional markets", icon: "storefront" as const },
-    { id: "hidden-gems", label: "Hidden gems", icon: "compass" as const },
-    { id: "workshops", label: "Cultural workshops", icon: "color-palette" as const },
-    { id: "nature", label: "Nature & outdoor spots", icon: "leaf" as const },
-    { id: "nightlife", label: "Nightlife & local bars", icon: "wine" as const },
-    { id: "neighborhoods", label: "Neighborhood walks", icon: "walk" as const },
-    { id: "festivals", label: "Festivals & seasonal events", icon: "calendar" as const },
+    { id: "local-food", labelKey: "createTrip.localFood", icon: "restaurant" as const },
+    { id: "markets", labelKey: "createTrip.traditionalMarkets", icon: "storefront" as const },
+    { id: "hidden-gems", labelKey: "createTrip.hiddenGems", icon: "compass" as const },
+    { id: "workshops", labelKey: "createTrip.culturalWorkshops", icon: "color-palette" as const },
+    { id: "nature", labelKey: "createTrip.natureOutdoor", icon: "leaf" as const },
+    { id: "nightlife", labelKey: "createTrip.nightlife", icon: "wine" as const },
+    { id: "neighborhoods", labelKey: "createTrip.neighborhoodWalks", icon: "walk" as const },
+    { id: "festivals", labelKey: "createTrip.festivals", icon: "calendar" as const },
 ];
 
 // Popular destinations list
@@ -213,6 +214,7 @@ export default function CreateTripScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { colors, isDarkMode } = useTheme();
+    const { t, i18n } = useTranslation();
     const prefilledDestination = params.prefilledDestination as string | undefined;
     
     // @ts-ignore
@@ -270,12 +272,12 @@ export default function CreateTripScreen() {
     const tripDays = Math.max(1, Math.ceil((formData.endDate - formData.startDate) / (24 * 60 * 60 * 1000)));
     const dailyBudgetPerPerson = Math.round(perPersonBudget / tripDays);
     const budgetTier = dailyBudgetPerPerson > 300
-        ? { label: 'Premium', icon: 'diamond' as const, color: '#9B59B6', description: '4–5 curated experiences/day • Fine dining • Exclusive activities' }
+        ? { label: t('createTrip.premium'), icon: 'diamond' as const, color: '#9B59B6', description: t('createTrip.premiumDesc') }
         : dailyBudgetPerPerson >= 150
-        ? { label: 'High', icon: 'star' as const, color: '#E67E22', description: '3–4 activities/day • Guided tours • Quality venues' }
+        ? { label: t('createTrip.high'), icon: 'star' as const, color: '#E67E22', description: t('createTrip.highDesc') }
         : dailyBudgetPerPerson > 60
-        ? { label: 'Moderate', icon: 'thumbs-up' as const, color: '#3498DB', description: '2–3 activities/day • Mix of paid & free • Mid-range dining' }
-        : { label: 'Budget', icon: 'wallet' as const, color: '#27AE60', description: 'Max 2 paid activities/day • Free attractions • Affordable food' };
+        ? { label: t('createTrip.moderate'), icon: 'thumbs-up' as const, color: '#3498DB', description: t('createTrip.moderateDesc') }
+        : { label: t('createTrip.budget'), icon: 'wallet' as const, color: '#27AE60', description: t('createTrip.budgetDesc') };
 
 
     // Apply user preferences when loaded
@@ -302,7 +304,7 @@ export default function CreateTripScreen() {
 
     const formatDate = (timestamp: number) => {
         const date = new Date(timestamp);
-        return date.toLocaleDateString('en-US', { 
+        return date.toLocaleDateString(i18n.language, { 
             weekday: 'short', 
             month: 'short', 
             day: 'numeric',
@@ -348,9 +350,9 @@ export default function CreateTripScreen() {
 
     // Format time for display (e.g., "3:30 PM")
     const formatTime = (isoString: string | null) => {
-        if (!isoString) return "Not set";
+        if (!isoString) return t('createTrip.notSet');
         const date = new Date(isoString);
-        return date.toLocaleTimeString('en-US', { 
+        return date.toLocaleTimeString(i18n.language, { 
             hour: 'numeric', 
             minute: '2-digit', 
             hour12: true,
@@ -479,12 +481,12 @@ export default function CreateTripScreen() {
             }
         } else {
             if (selectedTimestamp <= formData.startDate) {
-                Alert.alert("Invalid Date", "End date must be after start date");
+                Alert.alert(t('createTrip.invalidDate'), t('createTrip.endAfterStart'));
                 return;
             }
             const daysDiff = Math.ceil((selectedTimestamp - formData.startDate) / (24 * 60 * 60 * 1000));
             if (daysDiff > MAX_TRIP_DAYS) {
-                Alert.alert("Trip Too Long", "Trips can be up to 15 days. Please choose an earlier return date.");
+                Alert.alert(t('createTrip.tripTooLong'), t('createTrip.tripTooLongReturn'));
                 return;
             }
             setFormData({ ...formData, endDate: selectedTimestamp });
@@ -496,12 +498,12 @@ export default function CreateTripScreen() {
 
     const handleSubmit = async (options?: { skipConsentCheck?: boolean }) => {
         if (!formData.destination) {
-            Alert.alert("Error", "Please enter a destination");
+            Alert.alert(t('common.error'), t('createTrip.pleaseEnterDestination'));
             return;
         }
 
         if (!formData.skipFlights && !formData.origin) {
-            Alert.alert("Error", "Please enter an origin city");
+            Alert.alert(t('common.error'), t('createTrip.pleaseEnterOrigin'));
             return;
         }
 
@@ -513,20 +515,20 @@ export default function CreateTripScreen() {
 
           // V1: Validate travelerCount (1-12)
         if (formData.travelerCount < 1 || formData.travelerCount > 12) {
-            Alert.alert("Error", "Number of travelers must be between 1 and 12");
+            Alert.alert(t('common.error'), t('createTrip.travelersBetween'));
             return;
         }
 
         // Validate trip duration (max 15 days)
         const submitTripDays = Math.ceil((formData.endDate - formData.startDate) / (24 * 60 * 60 * 1000));
         if (submitTripDays > 15) {
-            Alert.alert("Trip Too Long", "Trips can be up to 15 days. Please shorten your trip dates.");
+            Alert.alert(t('createTrip.tripTooLong'), t('createTrip.tripTooLongMsg'));
             return;
         }
 
        // V1: Validate budgetTotal
         if (!formData.budgetTotal || isNaN(Number(formData.budgetTotal)) || Number(formData.budgetTotal) <= 0) {
-            Alert.alert("Error", "Please enter a valid budget amount");
+            Alert.alert(t('common.error'), t('createTrip.validBudget'));
             return;
         }
 
@@ -539,12 +541,12 @@ export default function CreateTripScreen() {
 
             if (!isSubActive && tripCredits <= 0 && !hasFreeTrial) {
                 Alert.alert(
-                    "No Trip Credits",
-                    "You've used all your trip credits. Purchase a trip pack or upgrade to Premium for unlimited trips.",
+                    t('createTrip.noTripCredits'),
+                    t('createTrip.noCreditsAlert'),
                     [
-                        { text: "Cancel", style: "cancel" },
+                        { text: t('common.cancel'), style: "cancel" },
                         {
-                            text: "View Options",
+                            text: t('createTrip.viewOptions'),
                             onPress: () => router.push("/subscription"),
                         },
                     ]
@@ -573,6 +575,8 @@ export default function CreateTripScreen() {
                 // Arrival/Departure times for time-aware itineraries
                 arrivalTime: formData.arrivalTime || undefined,
                 departureTime: formData.departureTime || undefined,
+                // Language preference for AI-generated content
+                language: i18n.language || "en",
             });
             
             router.push(`/trip/${tripId}`);
@@ -597,7 +601,7 @@ export default function CreateTripScreen() {
             
             setIsCreditsError(isNoCredits);
             setErrorMessage(isNoCredits 
-                ? "You've used all your trip credits. Get more credits or upgrade to Premium for unlimited trips."
+                ? t('createTrip.usedAllCredits')
                 : cleanMessage
             );
             setLoading(false);
@@ -626,9 +630,9 @@ export default function CreateTripScreen() {
         return (
             <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 24 }} />
-                <Text style={[styles.loadingTitle, { color: colors.text }]}>Your AI is designing your personalized trip</Text>
+                <Text style={[styles.loadingTitle, { color: colors.text }]}>{t('createTrip.aiDesigning')}</Text>
                 <Text style={[styles.loadingDestination, { color: colors.primary }]}>{formData.destination}</Text>
-                <Text style={[styles.loadingSubtitle, { color: colors.textMuted }]}>We're analyzing your preferences, budget, and destination to build the best possible itinerary.</Text>
+                <Text style={[styles.loadingSubtitle, { color: colors.textMuted }]}>{t('createTrip.analyzingPreferences')}</Text>
             </SafeAreaView>
         );
     }
@@ -644,7 +648,7 @@ export default function CreateTripScreen() {
                         style={{ marginBottom: 24 }} 
                     />
                     <Text style={[styles.errorTitle, { color: colors.text }]}>
-                        {isCreditsError ? "No Trip Credits" : "Trip Generation Failed"}
+                        {isCreditsError ? t('createTrip.noTripCredits') : t('createTrip.tripGenerationFailed')}
                     </Text>
                     <Text style={[styles.errorMessage, { color: colors.textMuted }]}>{errorMessage}</Text>
                     
@@ -659,7 +663,7 @@ export default function CreateTripScreen() {
                                     router.push("/subscription");
                                 }}
                             >
-                                <Text style={[styles.errorButtonText, { color: "#1A1A1A" }]}>Get More Trips</Text>
+                                <Text style={[styles.errorButtonText, { color: "#1A1A1A" }]}>{t('createTrip.getMoreTrips')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={[styles.errorButtonSecondary, { borderColor: colors.border }]}
@@ -669,7 +673,7 @@ export default function CreateTripScreen() {
                                     setIsCreditsError(false);
                                 }}
                             >
-                                <Text style={[styles.errorButtonSecondaryText, { color: colors.text }]}>Go Back</Text>
+                                <Text style={[styles.errorButtonSecondaryText, { color: colors.text }]}>{t('common.goBack')}</Text>
                             </TouchableOpacity>
                         </>
                     ) : (
@@ -680,7 +684,7 @@ export default function CreateTripScreen() {
                                 setErrorMessage("");
                             }}
                         >
-                            <Text style={[styles.errorButtonText, { color: colors.background }]}>Go Back</Text>
+                            <Text style={[styles.errorButtonText, { color: colors.background }]}>{t('common.goBack')}</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -707,9 +711,9 @@ export default function CreateTripScreen() {
                     </View>
                     
                     <View style={styles.titleSection}>
-                        <Text style={[styles.titleMain, { color: colors.text }]}>Design your</Text>
-                        <Text style={[styles.titleHighlight, { color: colors.text, borderBottomColor: colors.primary }]}>perfect escape</Text>
-                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Let AI craft your itinerary.</Text>
+                        <Text style={[styles.titleMain, { color: colors.text }]}>{t('createTrip.designYour')}</Text>
+                        <Text style={[styles.titleHighlight, { color: colors.text, borderBottomColor: colors.primary }]}>{t('createTrip.perfectEscape')}</Text>
+                        <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('createTrip.letAICraft')}</Text>
                     </View>
                 </View>
 
@@ -717,12 +721,12 @@ export default function CreateTripScreen() {
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
                     <View style={styles.locationSection}>
                         <View style={styles.locationItem}>
-                            <Text style={[styles.locationLabel, { color: colors.textMuted }]}>FROM</Text>
+                            <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{t('createTrip.from')}</Text>
                             <View style={styles.locationContent}>
                                 <Ionicons name="location" size={24} color={colors.text} />
                                 <TextInput
                                     style={[styles.locationText, { color: colors.text }]}
-                                    placeholder="Where from?"
+                                    placeholder={t('createTrip.whereFrom')}
                                     placeholderTextColor={colors.textMuted}
                                     value={formData.origin}
                                     onChangeText={(text) => setFormData({ ...formData, origin: text })}
@@ -735,12 +739,12 @@ export default function CreateTripScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.locationItem}>
-                            <Text style={[styles.locationLabel, { color: colors.textMuted }]}>TO</Text>
+                            <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{t('createTrip.to')}</Text>
                             <View style={styles.locationContent}>
                                 <Ionicons name="location" size={24} color={colors.error} />
                                 <TextInput
                                     style={[styles.destinationInput, { color: colors.text }]}
-                                    placeholder="Where to?"
+                                    placeholder={t('createTrip.whereTo')}
                                     placeholderTextColor={colors.textMuted}
                                     value={formData.destination}
                                     onChangeText={(text) => {
@@ -784,24 +788,24 @@ export default function CreateTripScreen() {
                         activeOpacity={0.7}
                     >
                         <Ionicons name="shuffle" size={20} color={colors.text} />
-                        <Text style={[styles.surpriseMeText, { color: colors.text }]}>Surprise Me</Text>
-                        <Text style={[styles.surpriseMeSubtext, { color: colors.text, opacity: 0.7 }]}>Pick a random destination</Text>
+                        <Text style={[styles.surpriseMeText, { color: colors.text }]}>{t('createTrip.surpriseMe')}</Text>
+                        <Text style={[styles.surpriseMeSubtext, { color: colors.text, opacity: 0.7 }]}>{t('createTrip.pickRandom')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.multiCityButton, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} disabled={true}>
                         <View style={styles.multiCityContent}>
                             <Ionicons name="git-merge-outline" size={20} color={colors.text} />
-                            <Text style={[styles.multiCityText, { color: colors.text }]}>Multi-City Trip</Text>
+                            <Text style={[styles.multiCityText, { color: colors.text }]}>{t('createTrip.multiCityTrip')}</Text>
                         </View>
                         <View style={[styles.comingSoonBadge, { backgroundColor: colors.primary }]}>
-                            <Text style={[styles.comingSoonText, { color: colors.text }]}>COMING SOON</Text>
+                            <Text style={[styles.comingSoonText, { color: colors.text }]}>{t('common.comingSoon')}</Text>
                         </View>
                     </TouchableOpacity>
                 </View>
 
                 {/* Dates Section */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>DATES</Text>
+                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.dates')}</Text>
                     <View style={[styles.datesContainer, { backgroundColor: colors.secondary }]}>
                         <TouchableOpacity 
                             style={styles.dateInputButton}
@@ -810,7 +814,7 @@ export default function CreateTripScreen() {
                                 setShowCalendar(true);
                             }}
                         >
-                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>START DATE</Text>
+                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('createTrip.startDate')}</Text>
                             <View style={styles.dateValueContainer}>
                                 <Ionicons name="calendar-outline" size={20} color={colors.text} />
                                 <Text style={[styles.dateValueText, { color: colors.text }]}>{formatDate(formData.startDate)}</Text>
@@ -826,7 +830,7 @@ export default function CreateTripScreen() {
                                 setShowCalendar(true);
                             }}
                         >
-                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>END DATE</Text>
+                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('createTrip.endDate')}</Text>
                             <View style={styles.dateValueContainer}>
                                 <Ionicons name="calendar-outline" size={20} color={colors.text} />
                                 <Text style={[styles.dateValueText, { color: colors.text }]}>{formatDate(formData.endDate)}</Text>
@@ -836,7 +840,7 @@ export default function CreateTripScreen() {
                     <View style={styles.dateLimitHint}>
                         <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
                         <Text style={[styles.dateLimitHintText, { color: colors.textMuted }]}>
-                            {tripDays} day{tripDays !== 1 ? 's' : ''} selected · Max 15 days
+                            {t('createTrip.daysSelected', { count: tripDays })}
                         </Text>
                     </View>
                 </View>
@@ -844,13 +848,13 @@ export default function CreateTripScreen() {
                 {/* Flight Times Section (Optional) - Affects itinerary timing */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
                     <View style={styles.sectionHeaderRow}>
-                        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>FLIGHT TIMES</Text>
+                        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.flightTimes')}</Text>
                         <View style={[styles.optionalBadge, { backgroundColor: colors.secondary }]}>
-                            <Text style={[styles.optionalText, { color: colors.textMuted }]}>OPTIONAL</Text>
+                            <Text style={[styles.optionalText, { color: colors.textMuted }]}>{t('common.optional')}</Text>
                         </View>
                     </View>
                     <Text style={[styles.sectionHelpText, { color: colors.textSecondary }]}>
-                        Add your flight times to get a time-aware itinerary. Activities will be scheduled around your arrival and departure.
+                        {t('createTrip.flightTimesHelp')}
                     </Text>
                     
                     <View style={[styles.datesContainer, { backgroundColor: colors.secondary, marginTop: 12 }]}>
@@ -867,11 +871,11 @@ export default function CreateTripScreen() {
                                 setShowTimePicker(true);
                             }}
                         >
-                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>ARRIVAL AT DESTINATION</Text>
+                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('createTrip.arrivalAtDestination')}</Text>
                             <View style={styles.dateValueContainer}>
                                 <Ionicons name="airplane" size={20} color={colors.text} style={{ transform: [{ rotate: '45deg' }] }} />
                                 <Text style={[styles.dateValueText, { color: formData.arrivalTime ? colors.text : colors.textMuted }]}>
-                                    {formData.arrivalTime ? formatTime(formData.arrivalTime) : "Tap to set"}
+                                    {formData.arrivalTime ? formatTime(formData.arrivalTime) : t('createTrip.tapToSet')}
                                 </Text>
                                 {formData.arrivalTime && (
                                     <TouchableOpacity 
@@ -899,11 +903,11 @@ export default function CreateTripScreen() {
                                 setShowTimePicker(true);
                             }}
                         >
-                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>DEPARTURE FROM DESTINATION</Text>
+                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('createTrip.departureFromDestination')}</Text>
                             <View style={styles.dateValueContainer}>
                                 <Ionicons name="airplane" size={20} color={colors.text} style={{ transform: [{ rotate: '-45deg' }] }} />
                                 <Text style={[styles.dateValueText, { color: formData.departureTime ? colors.text : colors.textMuted }]}>
-                                    {formData.departureTime ? formatTime(formData.departureTime) : "Tap to set"}
+                                    {formData.departureTime ? formatTime(formData.departureTime) : t('createTrip.tapToSet')}
                                 </Text>
                                 {formData.departureTime && (
                                     <TouchableOpacity 
@@ -923,11 +927,11 @@ export default function CreateTripScreen() {
                             <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
                             <Text style={[styles.timeImpactText, { color: colors.textSecondary }]}>
                                 {formData.arrivalTime && !formData.departureTime && 
-                                    "Your first day's activities will start after your arrival time."}
+                                    t('createTrip.firstDayActivities')}
                                 {!formData.arrivalTime && formData.departureTime && 
-                                    "Your last day's activities will end 3 hours before your departure."}
+                                    t('createTrip.lastDayActivities')}
                                 {formData.arrivalTime && formData.departureTime && 
-                                    "Your itinerary will be adjusted to fit your travel schedule."}
+                                    t('createTrip.itineraryAdjusted')}
                             </Text>
                         </View>
                     )}
@@ -935,7 +939,7 @@ export default function CreateTripScreen() {
 
   {/* Who's Going Section - V1: Simple Traveler Count (Profiles Disabled) */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>NUMBER OF TRAVELERS <Text style={{ color: colors.error }}>*</Text></Text>
+                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.numberOfTravelers')} <Text style={{ color: colors.error }}>*</Text></Text>
                     {/* V1: Simple stepper for traveler count */}
                     <View style={[styles.numberInputContainer, { backgroundColor: colors.secondary }]}>
                         <View style={styles.counterContainer}>
@@ -966,7 +970,7 @@ export default function CreateTripScreen() {
 
                 {/* Budget Section */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>TOTAL BUDGET (EUR) <Text style={{ color: colors.error }}>*</Text></Text>
+                        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.totalBudget')} <Text style={{ color: colors.error }}>*</Text></Text>
                     <View style={[styles.budgetInputContainer, { backgroundColor: colors.secondary }]}>
                         <Text style={[styles.currencySymbol, { color: colors.text }]}>€</Text>
                         <TextInput
@@ -977,7 +981,7 @@ export default function CreateTripScreen() {
                                 setFormData({ ...formData, budgetTotal: value });
                             }}
                             keyboardType="numeric"
-                            placeholder="Enter total budget"
+                            placeholder={t('createTrip.enterTotalBudget')}
                             placeholderTextColor={colors.textMuted}
                         />
                     </View>
@@ -985,7 +989,7 @@ export default function CreateTripScreen() {
                     <View style={[styles.perPersonBudgetContainer, { backgroundColor: colors.secondary, marginTop: 12 }]}>
                         <Ionicons name="person-outline" size={18} color={colors.primary} />
                         <Text style={[styles.perPersonBudgetText, { color: colors.text }]}>
-                            Estimated budget per person: <Text style={{ fontWeight: '700', color: colors.primary }}>€{perPersonBudget}</Text>
+                            {t('createTrip.estPerPerson')} <Text style={{ fontWeight: '700', color: colors.primary }}>€{perPersonBudget}</Text>
                         </Text>
                     </View>
 
@@ -1004,7 +1008,7 @@ export default function CreateTripScreen() {
 
                 {/* Travel Style Section */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Travel Style</Text>
+                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.travelStyle')}</Text>
                     <View style={styles.interestsContainer}>
                         {INTERESTS.map((interest) => (
                             <TouchableOpacity
@@ -1036,7 +1040,7 @@ export default function CreateTripScreen() {
                                     styles.interestTagText,
                                     { color: colors.text },
                                 ]}>
-                                    {interest}
+                                    {t(`interests.${interest}`)}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -1045,9 +1049,9 @@ export default function CreateTripScreen() {
 
                 {/* Local Experiences Section (Optional) */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Local Experiences</Text>
+                    <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.localExperiences')}</Text>
                     <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-                        Experience the destination like a local (optional)
+                        {t('createTrip.experienceLikeLocal')}
                     </Text>
                     <View style={styles.localExperiencesContainer}>
                         {LOCAL_EXPERIENCES.map((experience) => (
@@ -1069,7 +1073,7 @@ export default function CreateTripScreen() {
                                     styles.localExperienceTagText,
                                     { color: colors.text },
                                 ]}>
-                                    {experience.label}
+                                    {t(experience.labelKey)}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -1086,7 +1090,7 @@ export default function CreateTripScreen() {
                         <ActivityIndicator color={colors.background} />
                     ) : (
                         <>
-                            <Text style={[styles.generateButtonText, { color: colors.background }]}>Generate with Planera AI</Text>
+                            <Text style={[styles.generateButtonText, { color: colors.background }]}>{t('createTrip.generateWithAI')}</Text>
                             <View style={[styles.sparkleIcon, { backgroundColor: colors.primary }]}>
                                 <Ionicons name="sparkles" size={20} color={colors.text} />
                             </View>
@@ -1105,7 +1109,7 @@ export default function CreateTripScreen() {
                         <View style={[styles.calendarModal, { backgroundColor: colors.card }]}>
                             <View style={[styles.calendarHeader, { borderBottomColor: colors.border }]}>
                                 <Text style={[styles.calendarTitle, { color: colors.text }]}>
-                                    Select {selectingDate === 'start' ? 'Departure' : 'Return'} Date
+                                    {selectingDate === 'start' ? t('createTrip.selectDepartureDate') : t('createTrip.selectReturnDate')}
                                 </Text>
                                 <TouchableOpacity onPress={() => setShowCalendar(false)}>
                                     <Ionicons name="close" size={24} color={colors.text} />
@@ -1157,20 +1161,20 @@ export default function CreateTripScreen() {
                             <View style={[styles.calendarModal, { backgroundColor: colors.card }]}>
                                 <View style={[styles.calendarHeader, { borderBottomColor: colors.border }]}>
                                     <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                                        <Text style={[styles.cancelButtonText, { color: colors.error }]}>Cancel</Text>
+                                        <Text style={[styles.cancelButtonText, { color: colors.error }]}>{t('common.cancel')}</Text>
                                     </TouchableOpacity>
                                     <Text style={[styles.calendarTitle, { color: colors.text }]}>
-                                        {selectingTime === 'arrival' ? 'Arrival Time' : 'Departure Time'}
+                                        {selectingTime === 'arrival' ? t('createTrip.arrivalTime') : t('createTrip.departureTime')}
                                     </Text>
                                     <TouchableOpacity onPress={confirmTimeSelection}>
-                                        <Text style={[styles.doneButtonText, { color: colors.primary }]}>Done</Text>
+                                        <Text style={[styles.doneButtonText, { color: colors.primary }]}>{t('common.done')}</Text>
                                     </TouchableOpacity>
                                 </View>
                                 <View style={styles.timePickerContainer}>
                                     <Text style={[styles.timePickerLabel, { color: colors.textMuted }]}>
                                         {selectingTime === 'arrival' 
-                                            ? 'What time will you arrive at your destination?' 
-                                            : 'What time is your departure flight?'}
+                                            ? t('createTrip.whatTimeArrive') 
+                                            : t('createTrip.whatTimeDeparture')}
                                     </Text>
                                     <DateTimePicker
                                         value={tempTime}
@@ -1182,8 +1186,8 @@ export default function CreateTripScreen() {
                                     />
                                     <Text style={[styles.timePickerHint, { color: colors.textSecondary }]}>
                                         {selectingTime === 'arrival' 
-                                            ? 'Your first day activities will be scheduled after this time.' 
-                                            : 'Your last day will end ~3 hours before this time.'}
+                                            ? t('createTrip.firstDayScheduled') 
+                                            : t('createTrip.lastDayEnd')}
                                     </Text>
                                 </View>
                             </View>
@@ -1219,8 +1223,8 @@ export default function CreateTripScreen() {
             onDecline={() => {
                 setShowAiConsentModal(false);
                 Alert.alert(
-                    "AI Features Disabled",
-                    "Trip generation requires AI data processing. You can enable this in Settings → Travel Preferences at any time.",
+                    t('createTrip.aiDisabled'),
+                    t('createTrip.aiDisabledMsg'),
                 );
             }}
         />

@@ -9,6 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme, LIGHT_COLORS } from "@/lib/ThemeContext";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useTranslation } from "react-i18next";
 
 // Fallback colors for when theme is not available (e.g., during initial load)
 const COLORS = LIGHT_COLORS;
@@ -17,6 +18,7 @@ const ENABLE_GOOGLE = false;
 // Component to handle authenticated user redirect based on onboarding status
 function AuthenticatedRedirect() {
     const { token } = useToken();
+    const { t } = useTranslation();
     // @ts-ignore
     const settings = useQuery(api.users.getSettings as any, token ? { token } : "skip");
 
@@ -26,7 +28,7 @@ function AuthenticatedRedirect() {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading your profile...</Text>
+                <Text style={styles.loadingText}>{t('auth.loadingProfile')}</Text>
             </View>
         );
     }
@@ -44,6 +46,7 @@ function AuthenticatedRedirect() {
 
 export default function Index() {
     const { colors } = useTheme();
+    const { t } = useTranslation();
     const { isAuthenticated, isLoading } = useConvexAuth();
     const [currentStep, setCurrentStep] = useState(0); // 0: splash, 1: onboarding, 2: auth
     const [isEmailAuth, setIsEmailAuth] = useState(false);
@@ -73,7 +76,7 @@ export default function Index() {
 
     const handleEmailAuth = async () => {
         if (!email || !password || (isSignUp && !name)) {
-            Alert.alert("Error", "Please fill in all fields");
+            Alert.alert(t('common.error'), t('auth.errorFillFields'));
             return;
         }
 
@@ -84,10 +87,10 @@ export default function Index() {
                 if (result.error) {
                     // Check if user already exists
                     if (result.error.message?.includes("already exists") || result.error.message?.includes("already registered")) {
-                        Alert.alert("Account Exists", "An account with this email already exists. Please sign in instead.");
+                        Alert.alert(t('auth.accountExists'), t('auth.accountExistsMsg'));
                         setIsSignUp(false);
                     } else {
-                        Alert.alert("Error", result.error.message || "Sign up failed");
+                        Alert.alert(t('common.error'), result.error.message || t('auth.signUpFailed'));
                     }
                 } else {
                     // Sign-up successful - let AuthenticatedRedirect handle navigation
@@ -98,12 +101,12 @@ export default function Index() {
                 if (result.error) {
                     // Check if account doesn't exist
                     if (result.error.message?.includes("not found") || result.error.message?.includes("Invalid credentials")) {
-                        Alert.alert("Account Not Found", "No account found with this email. Would you like to create one?", [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Sign Up", onPress: () => setIsSignUp(true) }
+                        Alert.alert(t('auth.accountNotFound'), t('auth.accountNotFoundMsg'), [
+                            { text: t('common.cancel'), style: "cancel" },
+                            { text: t('auth.signUp'), onPress: () => setIsSignUp(true) }
                         ]);
                     } else {
-                        Alert.alert("Error", result.error.message || "Sign in failed");
+                        Alert.alert(t('common.error'), result.error.message || t('auth.signInFailed'));
                     }
                 } else {
                     // Sign-in successful - AuthenticatedRedirect will check onboarding
@@ -112,7 +115,7 @@ export default function Index() {
                 }
             }
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Authentication failed");
+            Alert.alert(t('common.error'), error.message || t('auth.authFailed'));
         } finally {
             setLoading(false);
         }
@@ -126,7 +129,7 @@ export default function Index() {
             if (result.error) {
                 // Don't show error for cancellation
                 if (result.error.message !== "Sign-in cancelled") {
-                    Alert.alert("Error", result.error.message || "Google sign in failed");
+                    Alert.alert(t('common.error'), result.error.message || t('auth.googleSignInFailed'));
                 }
                 setOauthLoading(null);
             } else {
@@ -137,7 +140,7 @@ export default function Index() {
                 }, 1000);
             }
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Google sign in failed");
+            Alert.alert(t('common.error'), error.message || t('auth.googleSignInFailed'));
             setOauthLoading(null);
         }
     };
@@ -145,7 +148,7 @@ export default function Index() {
     const handleAppleSignIn = async () => {
         // Apple Sign-In only available on iOS
         if (Platform.OS !== "ios") {
-            Alert.alert("Not Available", "Apple Sign-In is only available on iOS devices");
+            Alert.alert(t('auth.notAvailable'), t('auth.appleSignInIOS'));
             return;
         }
         
@@ -156,7 +159,7 @@ export default function Index() {
             if (result.error) {
                 // Don't show error for cancellation
                 if (result.error.message !== "Sign-in cancelled") {
-                    Alert.alert("Error", result.error.message || "Apple sign in failed");
+                    Alert.alert(t('common.error'), result.error.message || t('auth.appleSignInFailed'));
                 }
                 setOauthLoading(null);
             } else {
@@ -167,7 +170,7 @@ export default function Index() {
                 // Force a small delay to ensure auth state updates, then the component will re-render
             }
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Apple sign in failed");
+            Alert.alert(t('common.error'), error.message || t('auth.appleSignInFailed'));
             setOauthLoading(null);
         }
     };
@@ -177,7 +180,7 @@ export default function Index() {
         try {
             const result = await authClient.signIn.anonymous();
             if (result.error) {
-                Alert.alert("Error", result.error.message || "Anonymous sign in failed");
+                Alert.alert(t('common.error'), result.error.message || t('auth.anonymousSignInFailed'));
                 setOauthLoading(null);
             } else {
                 // Success - navigate after a brief delay to let auth state update
@@ -188,19 +191,19 @@ export default function Index() {
                 }, 2000);  // Increased to 2 seconds
             }
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Anonymous sign in failed");
+            Alert.alert(t('common.error'), error.message || t('auth.anonymousSignInFailed'));
             setOauthLoading(null);
         }
     };
 
     const onboardingData = [
         {
-            title: "Plan Smarter,\nTravel Further",
-            subtitle: "Experience the future of travel planning with our intelligent tools.",
+            title: t('preAuth.planSmarter'),
+            subtitle: t('preAuth.experienceFuture'),
             features: [
-                { icon: "help-circle", title: "AI Trip Planner", desc: "Generate personalized itineraries in seconds based on your unique interests." },
-                { icon: "git-compare", title: "Multi-City Routing", desc: "Seamlessly connect destinations with the most efficient travel paths." },
-                { icon: "star", title: "Smart Recommendations", desc: "Discover hidden gems and top-rated spots curated just for you." },
+                { icon: "help-circle", title: t('preAuth.aiTripPlanner'), desc: t('preAuth.aiTripPlannerDesc') },
+                { icon: "git-compare", title: t('preAuth.multiCityRouting'), desc: t('preAuth.multiCityRoutingDesc') },
+                { icon: "star", title: t('preAuth.smartRecommendations'), desc: t('preAuth.smartRecommendationsDesc') },
             ]
         }
     ];
@@ -217,8 +220,8 @@ export default function Index() {
                         />
                     </View>
                 </View>
-                <Text style={styles.splashTitle}>PLANERA</Text>
-                <Text style={styles.splashSubtitle}>AI-Powered Journeys, tailored{"\n"}just for you.</Text>
+                <Text style={styles.splashTitle}>{t('auth.planera')}</Text>
+                <Text style={styles.splashSubtitle}>{t('auth.tagline')}</Text>
             </View>
             
             <View style={styles.splashBottom}>
@@ -226,13 +229,13 @@ export default function Index() {
                     style={styles.getStartedButton}
                     onPress={() => setCurrentStep(1)}
                 >
-                    <Text style={styles.getStartedText}>Get Started</Text>
+                    <Text style={styles.getStartedText}>{t('auth.getStarted')}</Text>
                     <Ionicons name="arrow-forward" size={20} color={colors.text} />
                 </TouchableOpacity>
                 
                 <TouchableOpacity onPress={() => setCurrentStep(2)}>
                     <Text style={styles.loginLink}>
-                        Already have an account? <Text style={styles.loginLinkBold}>Log in</Text>
+                        {t('auth.alreadyHaveAccount')} <Text style={styles.loginLinkBold}>{t('auth.logIn')}</Text>
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -268,7 +271,7 @@ export default function Index() {
                     style={styles.nextButton}
                     onPress={() => setCurrentStep(2)}
                 >
-                    <Text style={styles.nextButtonText}>Continue</Text>
+                    <Text style={styles.nextButtonText}>{t('common.continue')}</Text>
                     <Ionicons name="arrow-forward" size={20} color={colors.text} />
                 </TouchableOpacity>
             </View>
@@ -292,15 +295,15 @@ export default function Index() {
                     />
                 </View>
                 
-                <Text style={styles.authTitle}>Unlock Smart Travel</Text>
-                <Text style={styles.authSubtitle}>Plan complex trips in seconds with AI-powered routing.</Text>
+                <Text style={styles.authTitle}>{t('auth.unlockSmartTravel')}</Text>
+                <Text style={styles.authSubtitle}>{t('auth.planComplexTrips')}</Text>
                 
                 {isEmailAuth ? (
                     <View style={styles.formContainer}>
                         {isSignUp && (
                             <TextInput
                                 style={styles.input}
-                                placeholder="Full Name"
+                                placeholder={t('auth.fullName')}
                                 placeholderTextColor={colors.textMuted}
                                 value={name}
                                 onChangeText={setName}
@@ -309,7 +312,7 @@ export default function Index() {
                         )}
                         <TextInput
                             style={styles.input}
-                            placeholder="Email"
+                            placeholder={t('auth.email')}
                             placeholderTextColor={colors.textMuted}
                             value={email}
                             onChangeText={setEmail}
@@ -318,7 +321,7 @@ export default function Index() {
                         />
                         <TextInput
                             style={styles.input}
-                            placeholder="Password"
+                            placeholder={t('auth.password')}
                             placeholderTextColor={colors.textMuted}
                             value={password}
                             onChangeText={setPassword}
@@ -331,7 +334,7 @@ export default function Index() {
                                 onPress={() => router.push("/forgot-password")}
                                 style={styles.forgotPassword}
                             >
-                                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                                <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
                             </TouchableOpacity>
                         )}
                         
@@ -344,21 +347,21 @@ export default function Index() {
                                 <ActivityIndicator color={colors.text} />
                             ) : (
                                 <Text style={styles.primaryButtonText}>
-                                    {isSignUp ? "Create Account" : "Sign In"}
+                                    {isSignUp ? t('auth.createAccount') : t('auth.signIn')}
                                 </Text>
                             )}
                         </TouchableOpacity>
 
                         <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)} style={styles.switchButton}>
                             <Text style={styles.switchText}>
-                                {isSignUp ? "Already have an account? " : "Don't have an account? "}
-                                <Text style={styles.switchTextBold}>{isSignUp ? "Sign In" : "Sign Up"}</Text>
+                                {isSignUp ? t('auth.alreadyHaveAccountQ') : t('auth.dontHaveAccountQ')}
+                                <Text style={styles.switchTextBold}>{isSignUp ? t('auth.signIn') : t('auth.signUp')}</Text>
                             </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity onPress={() => setIsEmailAuth(false)} style={styles.backButton}>
                             <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
-                            <Text style={styles.backText}>Back to options</Text>
+                            <Text style={styles.backText}>{t('auth.backToOptions')}</Text>
                         </TouchableOpacity>
                     </View>
              ) : (
@@ -376,7 +379,7 @@ export default function Index() {
         <View style={styles.googleIcon}>
           <Text style={styles.googleG}>G</Text>
         </View>
-        <Text style={styles.socialButtonText}>Continue with Google</Text>
+        <Text style={styles.socialButtonText}>{t('auth.continueWithGoogle')}</Text>
       </>
     )}
   </TouchableOpacity>
@@ -395,7 +398,7 @@ export default function Index() {
                                 ) : (
                                     <>
                                         <Ionicons name="logo-apple" size={20} color={colors.text} style={styles.socialIcon} />
-                                        <Text style={styles.socialButtonText}>Continue with Apple</Text>
+                                        <Text style={styles.socialButtonText}>{t('auth.continueWithApple')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -406,21 +409,21 @@ export default function Index() {
                             onPress={() => setIsEmailAuth(true)}
                         >
                             <Ionicons name="mail-outline" size={20} color={colors.text} style={styles.socialIcon} />
-                            <Text style={styles.primaryButtonText}>Sign Up with Email</Text>
+                            <Text style={styles.primaryButtonText}>{t('auth.signUpWithEmail')}</Text>
                         </TouchableOpacity>
 
 
 
                         <TouchableOpacity onPress={() => { setIsEmailAuth(true); setIsSignUp(false); }}>
                             <Text style={styles.memberText}>
-                                Already a member? <Text style={styles.memberTextBold}>Log In</Text>
+                                {t('auth.alreadyAMember')} <Text style={styles.memberTextBold}>{t('auth.logIn')}</Text>
                             </Text>
                         </TouchableOpacity>
                     </View>
                 )}
                 
                 <Text style={styles.termsText}>
-                    By continuing, you agree to our <Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")}>Terms of Use (EULA)</Text> and{"\n"}<Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>Privacy Policy</Text>.
+                    {t('auth.byContinuing')} <Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")}>{t('auth.termsOfUse')}</Text> &{"\n"}<Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>{t('auth.privacyPolicy')}</Text>.
                 </Text>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -431,7 +434,7 @@ export default function Index() {
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading...</Text>
+                <Text style={styles.loadingText}>{t('common.loading')}</Text>
             </View>
         );
     }

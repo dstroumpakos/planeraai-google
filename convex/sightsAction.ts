@@ -10,11 +10,29 @@ export const generateSightsAction = internalAction({
     args: {
         tripId: v.id("trips"),
         destination: v.string(),
+        language: v.optional(v.string()),
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const { tripId, destination } = args;
-        const destinationKey = normalizeDestinationKey(destination);
+        const { tripId, destination, language } = args;
+        
+        // Language mapping for the AI prompt
+        const LANGUAGE_NAMES: Record<string, string> = {
+            en: "English",
+            el: "Greek",
+            es: "Spanish",
+            fr: "French",
+            de: "German",
+            ar: "Arabic",
+        };
+        const contentLanguage = language || "en";
+        const languageName = LANGUAGE_NAMES[contentLanguage] || "English";
+        const isNonEnglish = contentLanguage !== "en";
+        
+        // Include language in cache key so each language gets its own cached sights
+        const destinationKey = isNonEnglish 
+            ? normalizeDestinationKey(destination) + `-${contentLanguage}`
+            : normalizeDestinationKey(destination);
         
         console.log(`🏛️ Generating sights for: ${destination}`);
         
@@ -47,13 +65,17 @@ export const generateSightsAction = internalAction({
         try {
             const openai = new OpenAI({ apiKey: openaiKey });
             
-            const prompt = `Generate a comprehensive list of ALL the must-see sights, attractions, and noteworthy places for ${destination}. Include as many as you can — aim for 20 to 30 sights.
+            const languageInstruction = isNonEnglish 
+                ? `\n\n**LANGUAGE REQUIREMENT:** ALL text content (name, shortDescription, neighborhoodOrArea, bestTimeToVisit) MUST be written in ${languageName}. JSON keys/field names stay in English. Only the string VALUES should be in ${languageName}.`
+                : '';
+            
+            const prompt = `Generate a comprehensive list of ALL the must-see sights, attractions, and noteworthy places for ${destination}. Include as many as you can — aim for 20 to 30 sights.${languageInstruction}
             
 For each sight, provide:
-1. name: The official name of the sight
-2. shortDescription: 1-2 sentences describing what makes it special
-3. neighborhoodOrArea: The neighborhood or area where it's located (if applicable)
-4. bestTimeToVisit: Best time of day or season to visit
+1. name: The official name of the sight${isNonEnglish ? ` (in ${languageName})` : ''}
+2. shortDescription: 1-2 sentences describing what makes it special${isNonEnglish ? ` (in ${languageName})` : ''}
+3. neighborhoodOrArea: The neighborhood or area where it's located (if applicable)${isNonEnglish ? ` (in ${languageName})` : ''}
+4. bestTimeToVisit: Best time of day or season to visit${isNonEnglish ? ` (in ${languageName})` : ''}
 5. estDurationHours: Estimated time to spend there (e.g., "2-3" or "1-2")
 6. latitude: The exact latitude of the sight (decimal number, e.g. 48.8584)
 7. longitude: The exact longitude of the sight (decimal number, e.g. 2.2945)
@@ -85,7 +107,7 @@ IMPORTANT: The latitude and longitude MUST be the exact coordinates of each sigh
 
             const completion = await openai.chat.completions.create({
                 messages: [
-                    { role: "system", content: "You are a travel expert providing informational recommendations. Return only valid JSON." },
+                    { role: "system", content: `You are a travel expert providing informational recommendations. Return only valid JSON.${isNonEnglish ? ` All text content in the response must be written in ${languageName}. Keep JSON field names in English.` : ''}` },
                     { role: "user", content: prompt },
                 ],
                 model: "gpt-5.2",

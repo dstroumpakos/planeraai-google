@@ -6,60 +6,59 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
+import { useTheme } from "@/lib/ThemeContext";
 
 export default function Language() {
     const router = useRouter();
+    const { t, i18n } = useTranslation();
     const { token } = useToken();
+    const { colors, isDarkMode } = useTheme();
     const settings = useQuery(api.users.getSettings as any, { token: token || "skip" });
     const updateAppSettings = useMutation(api.users.updateAppSettings);
 
-    const [selectedLanguage, setSelectedLanguage] = useState("en");
+    const [selectedLanguage, setSelectedLanguage] = useState(i18n.language || "en");
     const [selectedCurrency, setSelectedCurrency] = useState("USD");
 
     useEffect(() => {
         if (settings) {
-            setSelectedLanguage(settings.language || "en");
+            setSelectedLanguage(settings.language || i18n.language || "en");
             setSelectedCurrency(settings.currency || "USD");
         }
     }, [settings]);
 
     const handleSave = async () => {
         try {
+            // Change the app language immediately
+            await i18n.changeLanguage(selectedLanguage);
+            
             await updateAppSettings({
                 token: token || "",
                 language: selectedLanguage,
                 currency: selectedCurrency,
             });
-            Alert.alert("Success", "Language and currency updated successfully!");
+            Alert.alert(t("common.success"), t("settings.updatedSuccess"));
             router.back();
         } catch (error) {
             console.error("Update failed:", error);
-            Alert.alert("Error", "Failed to update settings");
+            Alert.alert(t("common.error"), t("settings.failedUpdate"));
         }
     };
 
     if (settings === undefined) {
         return (
-            <SafeAreaView style={styles.container}>
-                <Text>Loading...</Text>
+            <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+                <Text style={{ color: colors.text }}>{t("common.loading")}</Text>
             </SafeAreaView>
         );
     }
 
-    const languages = [
-        { code: "en", name: "English", flag: "🇬🇧" },
-        { code: "es", name: "Español", flag: "🇪🇸" },
-        { code: "fr", name: "Français", flag: "🇫🇷" },
-        { code: "de", name: "Deutsch", flag: "🇩🇪" },
-        { code: "it", name: "Italiano", flag: "🇮🇹" },
-        { code: "pt", name: "Português", flag: "🇵🇹" },
-        { code: "nl", name: "Nederlands", flag: "🇳🇱" },
-        { code: "pl", name: "Polski", flag: "🇵🇱" },
-        { code: "ru", name: "Русский", flag: "🇷🇺" },
-        { code: "ja", name: "日本語", flag: "🇯🇵" },
-        { code: "zh", name: "中文", flag: "🇨🇳" },
-        { code: "ar", name: "العربية", flag: "🇸🇦" },
-    ];
+    const languages = SUPPORTED_LANGUAGES.map(lang => ({
+        code: lang.code,
+        name: lang.nativeName,
+        flag: lang.flag,
+    }));
 
     const currencies = [
         { code: "USD", name: "US Dollar", symbol: "$" },
@@ -75,30 +74,35 @@ export default function Language() {
     ];
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#1B3F92" />
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Language & Currency</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{t("settings.languageCurrency")}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             <ScrollView style={styles.content}>
                 {/* Language Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Language</Text>
-                    <View style={styles.listContainer}>
-                        {languages.map((language) => (
+                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t("settings.language")}</Text>
+                    <View style={[styles.listContainer, { backgroundColor: colors.card }]}>
+                        {languages.map((language, index) => (
                             <TouchableOpacity
                                 key={language.code}
-                                style={styles.listItem}
+                                style={[
+                                    styles.listItem,
+                                    { borderBottomColor: colors.border },
+                                    index === languages.length - 1 && { borderBottomWidth: 0 },
+                                    selectedLanguage === language.code && { backgroundColor: isDarkMode ? colors.secondary : colors.secondary },
+                                ]}
                                 onPress={() => setSelectedLanguage(language.code)}
                             >
                                 <Text style={styles.flag}>{language.flag}</Text>
-                                <Text style={styles.listItemText}>{language.name}</Text>
+                                <Text style={[styles.listItemText, { color: colors.text }]}>{language.name}</Text>
                                 {selectedLanguage === language.code && (
-                                    <Ionicons name="checkmark-circle" size={24} color="#1B3F92" />
+                                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                                 )}
                             </TouchableOpacity>
                         ))}
@@ -107,29 +111,34 @@ export default function Language() {
 
                 {/* Currency Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Currency</Text>
-                    <View style={styles.listContainer}>
-                        {currencies.map((currency) => (
+                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t("settings.currency")}</Text>
+                    <View style={[styles.listContainer, { backgroundColor: colors.card }]}>
+                        {currencies.map((currency, index) => (
                             <TouchableOpacity
                                 key={currency.code}
-                                style={styles.listItem}
+                                style={[
+                                    styles.listItem,
+                                    { borderBottomColor: colors.border },
+                                    index === currencies.length - 1 && { borderBottomWidth: 0 },
+                                    selectedCurrency === currency.code && { backgroundColor: isDarkMode ? colors.secondary : colors.secondary },
+                                ]}
                                 onPress={() => setSelectedCurrency(currency.code)}
                             >
-                                <Text style={styles.currencySymbol}>{currency.symbol}</Text>
+                                <Text style={[styles.currencySymbol, { color: colors.primary }]}>{currency.symbol}</Text>
                                 <View style={styles.currencyInfo}>
-                                    <Text style={styles.listItemText}>{currency.name}</Text>
-                                    <Text style={styles.currencyCode}>{currency.code}</Text>
+                                    <Text style={[styles.listItemText, { color: colors.text }]}>{currency.name}</Text>
+                                    <Text style={[styles.currencyCode, { color: colors.textMuted }]}>{currency.code}</Text>
                                 </View>
                                 {selectedCurrency === currency.code && (
-                                    <Ionicons name="checkmark-circle" size={24} color="#1B3F92" />
+                                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                                 )}
                             </TouchableOpacity>
                         ))}
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+                    <Text style={styles.saveButtonText}>{t("settings.saveChanges")}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
@@ -139,17 +148,14 @@ export default function Language() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F4F6F8',
     },
     header: {
-        backgroundColor: '#FFFFFF',
         paddingHorizontal: 20,
         paddingVertical: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
     },
     backButton: {
         padding: 4,
@@ -157,7 +163,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#1B3F92',
     },
     content: {
         flex: 1,
@@ -169,11 +174,9 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#37474F',
         marginBottom: 12,
     },
     listContainer: {
-        backgroundColor: '#FFFFFF',
         borderRadius: 12,
         overflow: 'hidden',
     },
@@ -182,7 +185,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F5F5F5',
     },
     flag: {
         fontSize: 24,
@@ -191,7 +193,6 @@ const styles = StyleSheet.create({
     currencySymbol: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#1B3F92',
         width: 40,
         textAlign: 'center',
         marginRight: 12,
@@ -201,24 +202,21 @@ const styles = StyleSheet.create({
     },
     listItemText: {
         fontSize: 16,
-        color: '#37474F',
         flex: 1,
     },
     currencyCode: {
         fontSize: 13,
-        color: '#78909C',
         marginTop: 2,
     },
     saveButton: {
-        backgroundColor: '#1B3F92',
-        borderRadius: 8,
+        borderRadius: 12,
         padding: 16,
         alignItems: 'center',
         marginBottom: 40,
     },
     saveButtonText: {
-        color: '#FFFFFF',
+        color: '#1A1A1A',
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
     },
 });

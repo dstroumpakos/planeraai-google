@@ -333,10 +333,12 @@ export const generate = internalAction({
         // Arrival/Departure times for time-aware itineraries
         arrivalTime: v.optional(v.string()),
         departureTime: v.optional(v.string()),
+        // Language for AI-generated content
+        language: v.optional(v.string()),
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const { tripId, skipFlights, skipHotel, preferredFlightTime, arrivalTime, departureTime } = args;
+        const { tripId, skipFlights, skipHotel, preferredFlightTime, arrivalTime, departureTime, language } = args;
 
         console.log("=".repeat(80));
         console.log("🚀 TRIP GENERATION STARTED");
@@ -348,6 +350,20 @@ export const generate = internalAction({
         console.log("Preferred Flight Time:", preferredFlightTime || "any");
         console.log("Arrival Time:", arrivalTime || "Not specified");
         console.log("Departure Time:", departureTime || "Not specified");
+        console.log("Language:", language || "en");
+
+        // Map language codes to full language names for the AI prompt
+        const LANGUAGE_NAMES: Record<string, string> = {
+            en: "English",
+            el: "Greek",
+            es: "Spanish",
+            fr: "French",
+            de: "German",
+            ar: "Arabic",
+        };
+        const contentLanguage = language || "en";
+        const languageName = LANGUAGE_NAMES[contentLanguage] || "English";
+        const isNonEnglish = contentLanguage !== "en";
 
         // Get trip details
         const trip = await ctx.runQuery(internal.trips.getTripDetails, { tripId });
@@ -617,7 +633,7 @@ export const generate = internalAction({
                         : '';
 
                     const itineraryPrompt = `Create a detailed day-by-day itinerary for a ${tripDays}-day trip to ${trip.destination} from ${new Date(trip.startDate).toDateString()} to ${new Date(trip.endDate).toDateString()}.
-
+${isNonEnglish ? `\n**LANGUAGE REQUIREMENT:** ALL text content (activity titles, descriptions, tips, whyThisFits, duration text, day titles, travelFromPrevious descriptions, culinaryTags labels) MUST be written in ${languageName}. JSON keys/field names stay in English. Only the string VALUES should be in ${languageName}.\n` : ''}
 **CRITICAL: ${daysInstructions}**${arrivalDayHardConstraint}
 
 ${budgetHeader}
@@ -795,9 +811,14 @@ Make sure prices are realistic for ${trip.destination} and aligned with the ${bu
                         ? ` Include guided tours, unique experiences, and higher-quality venues.${hasCulinaryInterest ? ' Always start each day with a morning café/bakery.' : ''} Suggest ${hasCulinaryInterest ? '5' : '4'} items per day with convenience optimization.`
                         : ` Curate ${hasCulinaryInterest ? '6' : '5'} premium items per day (${hasCulinaryInterest ? '1 morning café + ' : ''}3-4 experiences + 1-2 dining).${hasCulinaryInterest ? ' Always start each day with a curated morning café/bakery.' : ''} Include exclusive activities, fine dining, and time-efficient routing. Focus on comfort and quality.`;
                     
+                    // Language instruction for the system prompt
+                    const languageInstruction = isNonEnglish 
+                        ? ` LANGUAGE: All text content in the JSON (titles, descriptions, tips, whyThisFits, duration text, travelFromPrevious descriptions, day titles) MUST be written in ${languageName}. Keep all JSON field names/keys in English. Only the VALUES of text fields should be in ${languageName}.`
+                        : '';
+                    
                     const systemPrompt = timeAwareGuidance.skipLastDay
-                        ? `You are a travel itinerary planner. Return only valid JSON. Always include realistic prices and booking information for activities. IMPORTANT: Generate ${effectiveTripDays} days of activities (Days 1-${effectiveTripDays}). Day ${tripDays} is departure day with no activities. Respect arrival and departure time constraints.${budgetSystemNote} The traveler's budget tier is ${budgetGuidance.budgetTier.toUpperCase()} (€${budgetGuidance.dailyBudgetPerPerson}/person/day). All recommendations must respect this budget.`
-                        : `You are a travel itinerary planner. Return only valid JSON. Always include realistic prices and booking information for activities. IMPORTANT: You must generate the complete itinerary for ALL ${tripDays} days requested. If arrival/departure times are specified, adjust activities accordingly - fewer activities on partial days.${budgetSystemNote} The traveler's budget tier is ${budgetGuidance.budgetTier.toUpperCase()} (€${budgetGuidance.dailyBudgetPerPerson}/person/day). All recommendations must respect this budget.`;
+                        ? `You are a travel itinerary planner. Return only valid JSON. Always include realistic prices and booking information for activities. IMPORTANT: Generate ${effectiveTripDays} days of activities (Days 1-${effectiveTripDays}). Day ${tripDays} is departure day with no activities. Respect arrival and departure time constraints.${budgetSystemNote} The traveler's budget tier is ${budgetGuidance.budgetTier.toUpperCase()} (€${budgetGuidance.dailyBudgetPerPerson}/person/day). All recommendations must respect this budget.${languageInstruction}`
+                        : `You are a travel itinerary planner. Return only valid JSON. Always include realistic prices and booking information for activities. IMPORTANT: You must generate the complete itinerary for ALL ${tripDays} days requested. If arrival/departure times are specified, adjust activities accordingly - fewer activities on partial days.${budgetSystemNote} The traveler's budget tier is ${budgetGuidance.budgetTier.toUpperCase()} (€${budgetGuidance.dailyBudgetPerPerson}/person/day). All recommendations must respect this budget.${languageInstruction}`;
                     
                     const completion = await openai.chat.completions.create({
                         messages: [

@@ -26,6 +26,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/ThemeContext";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 // Format currency
 const formatCurrency = (amount: number, currency: string): string => {
@@ -152,6 +153,7 @@ interface FlightBooking {
 export default function MyFlightsScreen() {
   const router = useRouter();
   const { colors, isDarkMode } = useTheme();
+  const { t } = useTranslation();
   const styles = createStyles(colors, isDarkMode);
 
   const bookings = useQuery(api.flightBookingMutations.getUserFlightBookings);
@@ -179,12 +181,12 @@ export default function MyFlightsScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Flights</Text>
+          <Text style={styles.headerTitle}>{t('settings.myFlights.title')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading your flights...</Text>
+          <Text style={styles.loadingText}>{t('settings.myFlights.loadingFlights')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -294,7 +296,7 @@ export default function MyFlightsScreen() {
         {/* Booking Reference */}
         {booking.bookingReference && (
           <View style={styles.referenceRow}>
-            <Text style={styles.referenceLabel}>Booking Reference:</Text>
+            <Text style={styles.referenceLabel}>{t('settings.myFlights.bookingReference')}</Text>
             <Text style={styles.referenceValue}>{booking.bookingReference}</Text>
           </View>
         )}
@@ -304,14 +306,14 @@ export default function MyFlightsScreen() {
           <View style={styles.expandedContent}>
             {/* Flight Segments */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Flight Details</Text>
-              {renderFlightSegment(booking.outboundFlight, "Outbound")}
-              {booking.returnFlight && renderFlightSegment(booking.returnFlight, "Return")}
+              <Text style={styles.sectionTitle}>{t('settings.myFlights.flightDetails')}</Text>
+              {renderFlightSegment(booking.outboundFlight, t('flights.outbound'))}
+              {booking.returnFlight && renderFlightSegment(booking.returnFlight, t('flights.return'))}
             </View>
 
             {/* Passengers */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Passengers</Text>
+              <Text style={styles.sectionTitle}>{t('settings.myFlights.passengers')}</Text>
               {booking.passengers.map((passenger, index) => (
                 <View key={index} style={styles.passengerRow}>
                   <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
@@ -332,7 +334,7 @@ export default function MyFlightsScreen() {
             {/* Policies */}
             {booking.policies && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Cancellation & Change Policy</Text>
+                <Text style={styles.sectionTitle}>{t('settings.myFlights.cancellationPolicy')}</Text>
                 <View style={styles.policyCard}>
                   {/* Change Policy */}
                   <View style={styles.policyRow}>
@@ -344,7 +346,7 @@ export default function MyFlightsScreen() {
                       />
                     </View>
                     <View style={styles.policyContent}>
-                      <Text style={styles.policyLabel}>Changes</Text>
+                      <Text style={styles.policyLabel}>{t('settings.myFlights.changes')}</Text>
                       <Text style={styles.policyText}>{booking.policies.changePolicy}</Text>
                     </View>
                   </View>
@@ -359,7 +361,7 @@ export default function MyFlightsScreen() {
                       />
                     </View>
                     <View style={styles.policyContent}>
-                      <Text style={styles.policyLabel}>Refunds</Text>
+                      <Text style={styles.policyLabel}>{t('settings.myFlights.refunds')}</Text>
                       <Text style={styles.policyText}>{booking.policies.refundPolicy}</Text>
                     </View>
                   </View>
@@ -370,12 +372,12 @@ export default function MyFlightsScreen() {
             {/* Baggage */}
             {(booking.includedBaggage || booking.paidBaggage) && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Baggage</Text>
+                <Text style={styles.sectionTitle}>{t('settings.myFlights.baggage')}</Text>
                 
                 {/* Included Baggage */}
                 {booking.includedBaggage && booking.includedBaggage.length > 0 && (
                   <View style={styles.baggageSection}>
-                    <Text style={styles.baggageSubtitle}>Included with Ticket</Text>
+                    <Text style={styles.baggageSubtitle}>{t('settings.myFlights.includedWithTicket')}</Text>
                     {booking.includedBaggage.map((bag, index) => (
                       <View key={index} style={styles.baggageRow}>
                         <Ionicons name="bag-outline" size={16} color={colors.textSecondary} />
@@ -388,7 +390,7 @@ export default function MyFlightsScreen() {
                               <View style={styles.baggageChip}>
                                 <Ionicons name="briefcase-outline" size={12} color="#059669" />
                                 <Text style={styles.baggageChipText}>
-                                  {Number(bag.cabinBags)} cabin bag{Number(bag.cabinBags) > 1 ? "s" : ""}
+                                  {Number(bag.cabinBags)} {t('settings.myFlights.cabinBag', { count: Number(bag.cabinBags) })}
                                 </Text>
                               </View>
                             )}
@@ -396,7 +398,7 @@ export default function MyFlightsScreen() {
                               <View style={styles.baggageChip}>
                                 <Ionicons name="cube-outline" size={12} color="#059669" />
                                 <Text style={styles.baggageChipText}>
-                                  {Number(bag.checkedBags)} checked bag{Number(bag.checkedBags) > 1 ? "s" : ""}
+                                  {Number(bag.checkedBags)} {t('settings.myFlights.checkedBag', { count: Number(bag.checkedBags) })}
                                   {bag.checkedBagWeight && ` (${bag.checkedBagWeight.amount}${bag.checkedBagWeight.unit})`}
                                 </Text>
                               </View>
@@ -411,7 +413,7 @@ export default function MyFlightsScreen() {
                 {/* Paid Baggage */}
                 {booking.paidBaggage && booking.paidBaggage.length > 0 && (
                   <View style={styles.baggageSection}>
-                    <Text style={styles.baggageSubtitle}>Purchased Extra Bags</Text>
+                    <Text style={styles.baggageSubtitle}>{t('settings.myFlights.purchasedExtras')}</Text>
                     {booking.paidBaggage.map((bag, index) => (
                       <View key={index} style={styles.baggageRow}>
                         <Ionicons name="bag-add-outline" size={16} color={colors.primary} />
@@ -422,7 +424,7 @@ export default function MyFlightsScreen() {
                           <View style={styles.baggageDetails}>
                             <View style={[styles.baggageChip, styles.paidBaggageChip]}>
                               <Text style={styles.paidBaggageChipText}>
-                                {Number(bag.quantity)}x {bag.type === "checked" ? "Checked" : "Cabin"} bag
+                                {Number(bag.quantity)}x {bag.type === "checked" ? t('settings.myFlights.checkedBagType') : t('settings.myFlights.cabinBagType')}
                                 {bag.weight && ` (${bag.weight.amount}${bag.weight.unit})`}
                               </Text>
                             </View>
@@ -441,7 +443,7 @@ export default function MyFlightsScreen() {
             {/* Seat Selections */}
             {booking.seatSelections && booking.seatSelections.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Seat Selections</Text>
+                <Text style={styles.sectionTitle}>{t('settings.myFlights.seatSelections')}</Text>
                 {booking.seatSelections.map((seat, index) => (
                   <View key={index} style={styles.seatRow}>
                     <View style={styles.seatIcon}>
@@ -451,7 +453,7 @@ export default function MyFlightsScreen() {
                       {seat.passengerName && (
                         <Text style={styles.seatPassenger}>{seat.passengerName}</Text>
                       )}
-                      <Text style={styles.seatDesignator}>Seat {seat.seatDesignator}</Text>
+                      <Text style={styles.seatDesignator}>{t('settings.myFlights.seat', { designator: seat.seatDesignator })}</Text>
                     </View>
                     <Text style={styles.seatPrice}>
                       {formatCurrency(Number(seat.priceCents) / 100, seat.currency)}
@@ -463,11 +465,11 @@ export default function MyFlightsScreen() {
 
             {/* Price Breakdown */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Price Breakdown</Text>
+              <Text style={styles.sectionTitle}>{t('settings.myFlights.priceBreakdown')}</Text>
               <View style={styles.priceBreakdown}>
                 {booking.basePriceCents !== undefined && (
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Flight fare</Text>
+                    <Text style={styles.priceLabel}>{t('settings.myFlights.flightFare')}</Text>
                     <Text style={styles.priceValue}>
                       {formatCurrency(Number(booking.basePriceCents) / 100, booking.currency)}
                     </Text>
@@ -475,14 +477,14 @@ export default function MyFlightsScreen() {
                 )}
                 {booking.extrasTotalCents !== undefined && Number(booking.extrasTotalCents) > 0 && (
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Extras (bags, seats)</Text>
+                    <Text style={styles.priceLabel}>{t('settings.myFlights.extras')}</Text>
                     <Text style={styles.priceValue}>
                       {formatCurrency(Number(booking.extrasTotalCents) / 100, booking.currency)}
                     </Text>
                   </View>
                 )}
                 <View style={[styles.priceRow, styles.totalRow]}>
-                  <Text style={styles.totalLabel}>Total Paid</Text>
+                  <Text style={styles.totalLabel}>{t('settings.myFlights.totalPaid')}</Text>
                   <Text style={styles.totalValue}>
                     {formatCurrency(booking.totalAmount, booking.currency)}
                   </Text>
@@ -493,10 +495,10 @@ export default function MyFlightsScreen() {
             {/* Booking Info */}
             <View style={styles.bookingInfo}>
               <Text style={styles.bookingInfoText}>
-                Booked on {formatTimestamp(booking.createdAt)}
+                {t('settings.myFlights.bookedOn', { date: formatTimestamp(booking.createdAt) })}
               </Text>
               <Text style={styles.bookingInfoText}>
-                Order ID: {booking.duffelOrderId}
+                {t('settings.myFlights.orderId', { id: booking.duffelOrderId })}
               </Text>
             </View>
           </View>
@@ -505,7 +507,7 @@ export default function MyFlightsScreen() {
         {/* Quick Price (when collapsed) */}
         {!isExpanded && (
           <View style={styles.quickPrice}>
-            <Text style={styles.quickPriceLabel}>Total</Text>
+            <Text style={styles.quickPriceLabel}>{t('flights.total')}</Text>
             <Text style={styles.quickPriceValue}>
               {formatCurrency(booking.totalAmount, booking.currency)}
             </Text>
@@ -521,7 +523,7 @@ export default function MyFlightsScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Flights</Text>
+        <Text style={styles.headerTitle}>{t('settings.myFlights.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -537,7 +539,7 @@ export default function MyFlightsScreen() {
             color={activeTab === "upcoming" ? colors.primary : colors.textSecondary}
           />
           <Text style={[styles.tabText, activeTab === "upcoming" && styles.tabTextActive]}>
-            Upcoming ({upcomingBookings.length})
+            {t('settings.myFlights.upcoming')} ({upcomingBookings.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -550,7 +552,7 @@ export default function MyFlightsScreen() {
             color={activeTab === "past" ? colors.primary : colors.textSecondary}
           />
           <Text style={[styles.tabText, activeTab === "past" && styles.tabTextActive]}>
-            Past ({pastBookings.length})
+            {t('settings.myFlights.past')} ({pastBookings.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -572,19 +574,19 @@ export default function MyFlightsScreen() {
               />
             </View>
             <Text style={styles.emptyTitle}>
-              No {activeTab} flights
+              {activeTab === "upcoming" ? t('settings.myFlights.noUpcoming') : t('settings.myFlights.noPast')}
             </Text>
             <Text style={styles.emptySubtitle}>
               {activeTab === "upcoming"
-                ? "Book a flight to see it here"
-                : "Your completed flights will appear here"}
+                ? t('settings.myFlights.bookToSee')
+                : t('settings.myFlights.completedFlightsHere')}
             </Text>
             {activeTab === "upcoming" && (
               <TouchableOpacity
                 style={styles.browseButton}
                 onPress={() => router.push("/(tabs)")}
               >
-                <Text style={styles.browseButtonText}>Plan a Trip</Text>
+                <Text style={styles.browseButtonText}>{t('settings.myFlights.planTrip')}</Text>
                 <Ionicons name="arrow-forward" size={18} color={colors.text} />
               </TouchableOpacity>
             )}

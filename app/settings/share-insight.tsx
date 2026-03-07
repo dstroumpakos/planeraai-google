@@ -20,15 +20,16 @@ import { useToken, useAuthenticatedMutation } from "@/lib/useAuthenticatedMutati
 import { useTheme } from "@/lib/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { Id } from "@/convex/_generated/dataModel";
+import { useTranslation } from "react-i18next";
 
 const INSIGHT_CATEGORIES = [
-    { id: "food", label: "Food & Drink", icon: "restaurant", description: "Restaurants, cafes, local cuisine" },
-    { id: "transport", label: "Transport", icon: "bus", description: "Getting around the city" },
-    { id: "neighborhoods", label: "Neighborhoods", icon: "map", description: "Best areas to explore" },
-    { id: "timing", label: "Best Time", icon: "time", description: "When to visit places" },
-    { id: "hidden_gem", label: "Hidden Gems", icon: "diamond", description: "Off-the-beaten-path spots" },
-    { id: "avoid", label: "What to Avoid", icon: "warning", description: "Tourist traps & scams" },
-    { id: "other", label: "Other", icon: "information-circle", description: "General tips" },
+    { id: "food", labelKey: "profile.foodDrink", icon: "restaurant", descriptionKey: "settings.shareInsight.catFoodDesc" },
+    { id: "transport", labelKey: "profile.transport", icon: "bus", descriptionKey: "settings.shareInsight.catTransportDesc" },
+    { id: "neighborhoods", labelKey: "profile.neighborhoods", icon: "map", descriptionKey: "settings.shareInsight.catNeighborhoodsDesc" },
+    { id: "timing", labelKey: "profile.bestTime", icon: "time", descriptionKey: "settings.shareInsight.catTimingDesc" },
+    { id: "hidden_gem", labelKey: "profile.hiddenGems", icon: "diamond", descriptionKey: "settings.shareInsight.catHiddenGemDesc" },
+    { id: "avoid", labelKey: "profile.whatToAvoid", icon: "warning", descriptionKey: "settings.shareInsight.catAvoidDesc" },
+    { id: "other", labelKey: "profile.other", icon: "information-circle", descriptionKey: "settings.shareInsight.catOtherDesc" },
 ];
 
 interface CompletedTrip {
@@ -43,6 +44,7 @@ export default function ShareInsightPage() {
     const router = useRouter();
     const { token } = useToken();
     const { colors, isDarkMode } = useTheme();
+    const { t } = useTranslation();
     
     const completedTrips: CompletedTrip[] | undefined = useQuery(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,12 +96,12 @@ export default function ShareInsightPage() {
 
     const handleSubmit = async () => {
         if (!selectedTrip || !selectedCategory || !content.trim()) {
-            Alert.alert("Missing Information", "Please complete all fields before submitting.");
+            Alert.alert(t('onboarding.missingInfo'), t('settings.shareInsight.completeAllFields'));
             return;
         }
 
         if (content.trim().length < 20) {
-            Alert.alert("Too Short", "Please write at least 20 characters to help other travelers.");
+            Alert.alert(t('settings.shareInsight.tooShort'), t('settings.shareInsight.write20Chars'));
             return;
         }
 
@@ -118,13 +120,13 @@ export default function ShareInsightPage() {
             }
             
             Alert.alert(
-                "Thank You! 🎉",
-                "Your insight has been submitted and will help other travelers discover amazing experiences.",
-                [{ text: "Done", onPress: () => router.back() }]
+                t('settings.shareInsight.thankYou'),
+                t('settings.shareInsight.thankYouMsg'),
+                [{ text: t('common.done'), onPress: () => router.back() }]
             );
         } catch (error) {
             console.error(error);
-            Alert.alert("Error", "Failed to share insight. Please try again.");
+            Alert.alert(t('common.error'), t('settings.shareInsight.failedSubmit'));
         } finally {
             setIsSubmitting(false);
         }
@@ -152,8 +154,8 @@ export default function ShareInsightPage() {
                             <Ionicons name="chevron-back" size={24} color={colors.text} />
                         </TouchableOpacity>
                         <View style={styles.headerCenter}>
-                            <Text style={styles.headerTitle}>Share Insight</Text>
-                            <Text style={styles.headerSubtitle}>Step {getStepProgress()} of 3</Text>
+                            <Text style={styles.headerTitle}>{t('settings.shareInsight.title')}</Text>
+                            <Text style={styles.headerSubtitle}>{t('settings.shareInsight.stepOf', { step: getStepProgress() })}</Text>
                         </View>
                         <View style={{ width: 40 }} />
                     </View>
@@ -177,9 +179,9 @@ export default function ShareInsightPage() {
                                     <View style={[styles.stepIconContainer, { backgroundColor: colors.primary }]}>
                                         <Ionicons name="airplane" size={28} color={colors.text} />
                                     </View>
-                                    <Text style={styles.stepTitle}>Select Your Trip</Text>
+                                    <Text style={styles.stepTitle}>{t('settings.shareInsight.selectTrip')}</Text>
                                     <Text style={styles.stepSubtitle}>
-                                        Choose a completed trip to share your experience
+                                        {t('settings.shareInsight.selectTripSubtitle')}
                                     </Text>
                                 </View>
 
@@ -204,7 +206,7 @@ export default function ShareInsightPage() {
                                                         <View style={styles.tripMeta}>
                                                             <Ionicons name="people" size={14} color={colors.textMuted} />
                                                             <Text style={styles.tripMetaText}>
-                                                                {trip.travelers} traveler{trip.travelers !== 1 ? 's' : ''}
+                                                                {trip.travelers} {trip.travelers !== 1 ? t('settings.shareInsight.travelers') : t('settings.shareInsight.traveler')}
                                                             </Text>
                                                         </View>
                                                     </View>
@@ -216,9 +218,9 @@ export default function ShareInsightPage() {
                                 ) : (
                                     <View style={styles.emptyState}>
                                         <Ionicons name="airplane-outline" size={64} color={colors.textMuted} />
-                                        <Text style={styles.emptyTitle}>No Completed Trips</Text>
+                                        <Text style={styles.emptyTitle}>{t('settings.shareInsight.noCompletedTrips')}</Text>
                                         <Text style={styles.emptySubtitle}>
-                                            Complete a trip first to share your travel insights with others.
+                                            {t('settings.shareInsight.completeTripFirst')}
                                         </Text>
                                     </View>
                                 )}
@@ -232,9 +234,9 @@ export default function ShareInsightPage() {
                                     <View style={[styles.stepIconContainer, { backgroundColor: colors.primary }]}>
                                         <Ionicons name="grid" size={28} color={colors.text} />
                                     </View>
-                                    <Text style={styles.stepTitle}>Choose a Category</Text>
+                                    <Text style={styles.stepTitle}>{t('settings.shareInsight.chooseCategory')}</Text>
                                     <Text style={styles.stepSubtitle}>
-                                        What type of insight are you sharing about {selectedTrip?.destination}?
+                                        {t('settings.shareInsight.categorySubtitle', { destination: selectedTrip?.destination })}
                                     </Text>
                                 </View>
 
@@ -263,9 +265,9 @@ export default function ShareInsightPage() {
                                                 styles.categoryLabel,
                                                 selectedCategory === category.id && styles.categoryLabelSelected,
                                             ]}>
-                                                {category.label}
+                                                {t(category.labelKey)}
                                             </Text>
-                                            <Text style={styles.categoryDescription}>{category.description}</Text>
+                                            <Text style={styles.categoryDescription}>{t(category.descriptionKey)}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
@@ -279,9 +281,9 @@ export default function ShareInsightPage() {
                                     <View style={[styles.stepIconContainer, { backgroundColor: colors.primary }]}>
                                         <Ionicons name="create" size={28} color={colors.text} />
                                     </View>
-                                    <Text style={styles.stepTitle}>Share Your Insight</Text>
+                                    <Text style={styles.stepTitle}>{t('settings.shareInsight.shareYourInsight')}</Text>
                                     <Text style={styles.stepSubtitle}>
-                                        {INSIGHT_CATEGORIES.find(c => c.id === selectedCategory)?.label} tip for {selectedTrip?.destination}
+                                        {t(INSIGHT_CATEGORIES.find(c => c.id === selectedCategory)?.labelKey || '')} {t('settings.shareInsight.tipFor')} {selectedTrip?.destination}
                                     </Text>
                                 </View>
 
@@ -298,15 +300,15 @@ export default function ShareInsightPage() {
                                                 color={colors.primary} 
                                             />
                                             <Text style={styles.selectedInfoText}>
-                                                {INSIGHT_CATEGORIES.find(c => c.id === selectedCategory)?.label}
+                                                {t(INSIGHT_CATEGORIES.find(c => c.id === selectedCategory)?.labelKey || '')}
                                             </Text>
                                         </View>
                                     </View>
 
-                                    <Text style={styles.inputLabel}>Your Experience & Tips</Text>
+                                    <Text style={styles.inputLabel}>{t('settings.shareInsight.experienceAndTips')}</Text>
                                     <TextInput
                                         style={styles.textArea}
-                                        placeholder={`Share what you learned about ${INSIGHT_CATEGORIES.find(c => c.id === selectedCategory)?.label.toLowerCase()} in ${selectedTrip?.destination}...\n\nExample: "The best time to visit the main market is early morning around 7am - you'll avoid crowds and get the freshest produce!"`}
+                                        placeholder={t('settings.shareInsight.placeholder', { category: t(INSIGHT_CATEGORIES.find(c => c.id === selectedCategory)?.labelKey || '').toLowerCase(), destination: selectedTrip?.destination })}
                                         placeholderTextColor={colors.textMuted}
                                         value={content}
                                         onChangeText={setContent}
@@ -315,13 +317,13 @@ export default function ShareInsightPage() {
                                         textAlignVertical="top"
                                     />
                                     <Text style={styles.charCount}>
-                                        {content.length} characters {content.length < 20 && "(minimum 20)"}
+                                        {content.length} {t('settings.shareInsight.characters')} {content.length < 20 && t('settings.shareInsight.minimum20')}
                                     </Text>
 
                                     <View style={styles.tipsBox}>
                                         <Ionicons name="bulb" size={20} color={colors.primary} />
                                         <Text style={styles.tipsText}>
-                                            Great insights are specific, actionable, and help travelers avoid mistakes or discover hidden gems!
+                                            {t('settings.shareInsight.tipsText')}
                                         </Text>
                                     </View>
                                 </View>
@@ -341,11 +343,11 @@ export default function ShareInsightPage() {
                                 disabled={!content.trim() || content.trim().length < 20 || isSubmitting}
                             >
                                 {isSubmitting ? (
-                                    <Text style={styles.submitButtonText}>Submitting...</Text>
+                                    <Text style={styles.submitButtonText}>{t('settings.shareInsight.submitting')}</Text>
                                 ) : (
                                     <>
                                         <Ionicons name="paper-plane" size={20} color={colors.text} />
-                                        <Text style={styles.submitButtonText}>Share Insight</Text>
+                                        <Text style={styles.submitButtonText}>{t('settings.shareInsight.title')}</Text>
                                     </>
                                 )}
                             </TouchableOpacity>

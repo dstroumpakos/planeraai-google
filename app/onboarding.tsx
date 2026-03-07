@@ -9,6 +9,7 @@ import { INTERESTS, COUNTRIES } from "@/lib/data";
 import { AIRPORTS } from "@/lib/airports";
 import * as Haptics from "expo-haptics";
 import { useToken } from "@/lib/useAuthenticatedMutation";
+import { useTranslation } from "react-i18next";
 
 type OnboardingStep = "welcome" | "traveler-choice" | "my-profile" | "add-travelers" | "preferences";
 type TravelerChoice = "just-me" | "me-others" | "skip-profile";
@@ -41,6 +42,7 @@ const emptyForm: TravelerForm = {
 
 export default function Onboarding() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [step, setStep] = useState<OnboardingStep>("preferences");
   const [travelerChoice, setTravelerChoice] = useState<TravelerChoice>("just-me");
   const [myProfile, setMyProfile] = useState<TravelerForm>(emptyForm);
@@ -139,26 +141,26 @@ export default function Onboarding() {
   };
 
   const validateProfileForm = (form: TravelerForm): string | null => {
-    if (!form.firstName.trim()) return "First name is required";
-    if (!form.lastName.trim()) return "Last name is required";
-    if (!form.dateOfBirth) return "Date of birth is required";
-    if (!form.gender) return "Gender is required";
-    if (!form.passportNumber.trim()) return "Passport number is required";
-    if (!form.passportIssuingCountry) return "Passport issuing country is required";
-    if (!form.passportExpiryDate) return "Passport expiry date is required";
+    if (!form.firstName.trim()) return t('onboarding.firstNameRequired');
+    if (!form.lastName.trim()) return t('onboarding.lastNameRequired');
+    if (!form.dateOfBirth) return t('onboarding.dobRequired');
+    if (!form.gender) return t('onboarding.genderRequired');
+    if (!form.passportNumber.trim()) return t('onboarding.passportRequired');
+    if (!form.passportIssuingCountry) return t('onboarding.passportCountryRequired');
+    if (!form.passportExpiryDate) return t('onboarding.passportExpiryRequired');
 
     const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dobRegex.test(form.dateOfBirth)) return "Date of birth format: YYYY-MM-DD";
-    if (!dobRegex.test(form.passportExpiryDate)) return "Passport expiry format: YYYY-MM-DD";
+    if (!dobRegex.test(form.dateOfBirth)) return t('onboarding.dobFormat');
+    if (!dobRegex.test(form.passportExpiryDate)) return t('onboarding.passportExpiryFormat');
 
     const expiryDate = new Date(form.passportExpiryDate);
     const today = new Date();
-    if (expiryDate < today) return "Passport has expired";
+    if (expiryDate < today) return t('onboarding.passportExpired');
 
     const dob = new Date(form.dateOfBirth);
     const minDate = new Date();
     minDate.setFullYear(minDate.getFullYear() - 120);
-    if (dob < minDate || dob > today) return "Invalid date of birth";
+    if (dob < minDate || dob > today) return t('onboarding.invalidDob');
 
     return null;
   };
@@ -167,7 +169,7 @@ export default function Onboarding() {
     const error = validateProfileForm(myProfile);
     if (error) {
       if (Platform.OS !== "web") {
-        Alert.alert("Missing Information", error);
+        Alert.alert(t('onboarding.missingInfo'), error);
       } else {
         alert(error);
       }
@@ -201,9 +203,9 @@ export default function Onboarding() {
     } catch (error) {
       console.error("Error saving profile:", error);
       if (Platform.OS !== "web") {
-        Alert.alert("Error", "Failed to save profile. Please try again.");
+        Alert.alert(t('common.error'), t('onboarding.failedSaveProfile'));
       } else {
-        alert("Failed to save profile. Please try again.");
+        alert(t('onboarding.failedSaveProfile'));
       }
     } finally {
       setSaving(false);
@@ -214,7 +216,7 @@ export default function Onboarding() {
     const error = validateProfileForm(travelerForm);
     if (error) {
       if (Platform.OS !== "web") {
-        Alert.alert("Missing Information", error);
+        Alert.alert(t('onboarding.missingInfo'), error);
       } else {
         alert(error);
       }
@@ -245,9 +247,9 @@ export default function Onboarding() {
     } catch (error) {
       console.error("Error adding traveler:", error);
       if (Platform.OS !== "web") {
-        Alert.alert("Error", "Failed to add traveler. Please try again.");
+        Alert.alert(t('common.error'), t('onboarding.failedAddTraveler'));
       } else {
-        alert("Failed to add traveler. Please try again.");
+        alert(t('onboarding.failedAddTraveler'));
       }
     } finally {
       setSaving(false);
@@ -263,9 +265,9 @@ export default function Onboarding() {
         setSelectedInterests([...selectedInterests, interest]);
       } else {
         if (Platform.OS !== "web") {
-          Alert.alert("Maximum Reached", "You can select up to 5 interests");
+          Alert.alert(t('onboarding.maxReached'), t('onboarding.maxInterests'));
         } else {
-          alert("You can select up to 5 interests");
+          alert(t('onboarding.maxInterests'));
         }
       }
     }
@@ -291,9 +293,9 @@ export default function Onboarding() {
     } catch (error) {
       console.error("Error completing onboarding:", error);
       if (Platform.OS !== "web") {
-        Alert.alert("Error", "Failed to save preferences. Please try again.");
+        Alert.alert(t('common.error'), t('onboarding.failedSavePreferences'));
       } else {
-        alert("Failed to save preferences. Please try again.");
+        alert(t('onboarding.failedSavePreferences'));
       }
     } finally {
       setSaving(false);
@@ -303,7 +305,7 @@ export default function Onboarding() {
   // Progress indicator component
   const ProgressIndicator = () => (
     <View style={styles.progressContainer}>
-      <Text style={styles.progressText}>Step {getStepNumber()} of {getTotalSteps()}</Text>
+      <Text style={styles.progressText}>{t('onboarding.stepOf', { current: getStepNumber(), total: getTotalSteps() })}</Text>
       <View style={styles.progressBarContainer}>
         {Array.from({ length: getTotalSteps() }, (_, i) => i + 1).map((num) => (
           <View
@@ -330,9 +332,9 @@ export default function Onboarding() {
             </View>
           </View>
           
-          <Text style={styles.welcomeTitle}>Welcome to Planera</Text>
+          <Text style={styles.welcomeTitle}>{t('onboarding.welcomeToPlanera')}</Text>
           <Text style={styles.welcomeSubtitle}>
-            Let's set things up so your trips are accurate and personalized.
+            {t('onboarding.letsSetup')}
           </Text>
           
           <View style={styles.infoCard}>
@@ -340,9 +342,9 @@ export default function Onboarding() {
               <Ionicons name="information-circle" size={22} color="#1A1A1A" />
             </View>
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoTitle}>Why we need this</Text>
+              <Text style={styles.infoTitle}>{t('onboarding.whyWeNeedThis')}</Text>
               <Text style={styles.infoText}>
-                Airlines require correct traveler details for booking. Your preferences help us tailor every trip to your style. You can edit everything anytime.
+                {t('onboarding.whyWeNeedExplanation')}
               </Text>
             </View>
           </View>
@@ -354,19 +356,19 @@ export default function Onboarding() {
               <View style={styles.featureIcon}>
                 <Ionicons name="person-outline" size={18} color="#1A1A1A" />
               </View>
-              <Text style={styles.featureText}>Create your traveler profile</Text>
+              <Text style={styles.featureText}>{t('onboarding.createTravelerProfile')}</Text>
             </View>
             <View style={styles.featureItem}>
               <View style={styles.featureIcon}>
                 <Ionicons name="settings-outline" size={18} color="#1A1A1A" />
               </View>
-              <Text style={styles.featureText}>Set travel preferences</Text>
+              <Text style={styles.featureText}>{t('onboarding.setTravelPreferences')}</Text>
             </View>
             <View style={styles.featureItem}>
               <View style={styles.featureIcon}>
                 <Ionicons name="sparkles-outline" size={18} color="#1A1A1A" />
               </View>
-              <Text style={styles.featureText}>Get personalized trips</Text>
+              <Text style={styles.featureText}>{t('onboarding.getPersonalizedTrips')}</Text>
             </View>
           </View>
           
@@ -377,7 +379,7 @@ export default function Onboarding() {
               setStep("traveler-choice");
             }}
           >
-            <Text style={styles.primaryButtonText}>Start Setup</Text>
+            <Text style={styles.primaryButtonText}>{t('onboarding.startSetup')}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -401,9 +403,9 @@ export default function Onboarding() {
         </View>
         
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.stepTitle}>Who's traveling?</Text>
+          <Text style={styles.stepTitle}>{t('onboarding.whosTraveling')}</Text>
           <Text style={styles.stepSubtitle}>
-            This helps us set up the right profiles for your trips
+            {t('onboarding.helpsSetupProfiles')}
           </Text>
           
           <TouchableOpacity
@@ -420,12 +422,12 @@ export default function Onboarding() {
               </View>
               <View style={styles.choiceTextContainer}>
                 <View style={styles.choiceTitleRow}>
-                  <Text style={styles.choiceTitle}>Just me</Text>
+                  <Text style={styles.choiceTitle}>{t('onboarding.justMe')}</Text>
                   <View style={styles.recommendedBadge}>
-                    <Text style={styles.recommendedText}>Recommended</Text>
+                    <Text style={styles.recommendedText}>{t('common.recommended')}</Text>
                   </View>
                 </View>
-                <Text style={styles.choiceHelper}>Create your personal traveler profile</Text>
+                <Text style={styles.choiceHelper}>{t('onboarding.createPersonalProfile')}</Text>
               </View>
             </View>
             <View style={[styles.radioOuter, travelerChoice === "just-me" && styles.radioOuterActive]}>
@@ -446,8 +448,8 @@ export default function Onboarding() {
                 <Ionicons name="people" size={28} color={travelerChoice === "me-others" ? "#1A1A1A" : "#6B7280"} />
               </View>
               <View style={styles.choiceTextContainer}>
-                <Text style={styles.choiceTitle}>Me + others</Text>
-                <Text style={styles.choiceHelper}>Add family or friends you often book for</Text>
+                <Text style={styles.choiceTitle}>{t('onboarding.mePlusOthers')}</Text>
+                <Text style={styles.choiceHelper}>{t('onboarding.addFamilyFriends')}</Text>
               </View>
             </View>
             <View style={[styles.radioOuter, travelerChoice === "me-others" && styles.radioOuterActive]}>
@@ -471,8 +473,8 @@ export default function Onboarding() {
                 <Ionicons name="flash" size={28} color={travelerChoice === "skip-profile" ? "#1A1A1A" : "#6B7280"} />
               </View>
               <View style={styles.choiceTextContainer}>
-                <Text style={styles.choiceTitle}>Skip for now</Text>
-                <Text style={styles.choiceHelper}>Explore destinations without booking flights or hotels</Text>
+                <Text style={styles.choiceTitle}>{t('onboarding.skipForNow')}</Text>
+                <Text style={styles.choiceHelper}>{t('onboarding.exploreWithoutBooking')}</Text>
               </View>
             </View>
             <View style={[styles.radioOuter, travelerChoice === "skip-profile" && styles.radioOuterActive]}>
@@ -484,7 +486,7 @@ export default function Onboarding() {
             <View style={styles.warningCard}>
               <Ionicons name="information-circle" size={20} color="#92400E" />
               <Text style={styles.warningText}>
-                Without a traveler profile, flight and hotel searches will be skipped. You can add your profile later in Settings to enable these features.
+                {t('onboarding.withoutTravelerWarning')}
               </Text>
             </View>
           )}
@@ -493,8 +495,8 @@ export default function Onboarding() {
             <Ionicons name="bulb-outline" size={20} color="#92400E" />
             <Text style={styles.noteText}>
               {travelerChoice === "skip-profile" 
-                ? "You can create a traveler profile anytime from your Settings."
-                : "You'll always create your profile first. Additional travelers can be added after."
+                ? t('onboarding.canCreateAnytime')
+                : t('onboarding.alwaysCreateFirst')
               }
             </Text>
           </View>
@@ -512,7 +514,7 @@ export default function Onboarding() {
               }
             }}
           >
-            <Text style={styles.primaryButtonText}>Continue</Text>
+            <Text style={styles.primaryButtonText}>{t('common.continue')}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -544,17 +546,17 @@ export default function Onboarding() {
               <View style={styles.profileAvatarLarge}>
                 <Ionicons name="person" size={32} color="#1A1A1A" />
               </View>
-              <Text style={styles.stepTitle}>My Traveler Profile</Text>
-              <Text style={styles.stepSubtitle}>Enter your details as shown on your passport</Text>
+              <Text style={styles.stepTitle}>{t('onboarding.myTravelerProfile')}</Text>
+              <Text style={styles.stepSubtitle}>{t('onboarding.enterPassportDetails')}</Text>
             </View>
             
             {/* Personal Information */}
             <View style={styles.formSection}>
-              <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
+              <Text style={styles.sectionLabel}>{t('onboarding.personalInformation')}</Text>
               
               <View style={styles.inputRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.inputLabel}>First Name <Text style={styles.required}>*</Text></Text>
+                  <Text style={styles.inputLabel}>{t('onboarding.firstName')} <Text style={styles.required}>*</Text></Text>
                   <TextInput
                     style={styles.input}
                     value={myProfile.firstName}
@@ -564,7 +566,7 @@ export default function Onboarding() {
                   />
                 </View>
                 <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={styles.inputLabel}>Last Name <Text style={styles.required}>*</Text></Text>
+                  <Text style={styles.inputLabel}>{t('onboarding.lastName')} <Text style={styles.required}>*</Text></Text>
                   <TextInput
                     style={styles.input}
                     value={myProfile.lastName}
@@ -576,7 +578,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Date of Birth <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.dateOfBirth')} <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
                   value={myProfile.dateOfBirth}
@@ -588,7 +590,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Gender <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.gender')} <Text style={styles.required}>*</Text></Text>
                 <View style={styles.genderRow}>
                   <TouchableOpacity
                     style={[styles.genderOption, myProfile.gender === "male" && styles.genderOptionActive]}
@@ -598,7 +600,7 @@ export default function Onboarding() {
                     }}
                   >
                     <Ionicons name="male" size={20} color={myProfile.gender === "male" ? "#1A1A1A" : "#6B7280"} />
-                    <Text style={[styles.genderText, myProfile.gender === "male" && styles.genderTextActive]}>Male</Text>
+                    <Text style={[styles.genderText, myProfile.gender === "male" && styles.genderTextActive]}>{t('onboarding.male')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.genderOption, myProfile.gender === "female" && styles.genderOptionActive]}
@@ -608,7 +610,7 @@ export default function Onboarding() {
                     }}
                   >
                     <Ionicons name="female" size={20} color={myProfile.gender === "female" ? "#1A1A1A" : "#6B7280"} />
-                    <Text style={[styles.genderText, myProfile.gender === "female" && styles.genderTextActive]}>Female</Text>
+                    <Text style={[styles.genderText, myProfile.gender === "female" && styles.genderTextActive]}>{t('onboarding.female')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -616,10 +618,10 @@ export default function Onboarding() {
             
             {/* Passport Information */}
             <View style={styles.formSection}>
-              <Text style={styles.sectionLabel}>PASSPORT INFORMATION</Text>
+              <Text style={styles.sectionLabel}>{t('onboarding.passportInformation')}</Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Passport Number <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.passportNumber')} <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
                   value={myProfile.passportNumber}
@@ -631,7 +633,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Issuing Country <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.issuingCountry')} <Text style={styles.required}>*</Text></Text>
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setShowCountryPicker(true)}
@@ -639,7 +641,7 @@ export default function Onboarding() {
                   <View style={styles.selectInputInner}>
                     <Ionicons name="flag-outline" size={20} color="#6B7280" />
                     <Text style={myProfile.passportIssuingCountry ? styles.selectValue : styles.selectPlaceholder}>
-                      {myProfile.passportIssuingCountry ? getCountryName(myProfile.passportIssuingCountry) : "Select country"}
+                      {myProfile.passportIssuingCountry ? getCountryName(myProfile.passportIssuingCountry) : t('onboarding.selectCountry')}
                     </Text>
                   </View>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -647,7 +649,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Expiry Date <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.expiryDate')} <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
                   value={myProfile.passportExpiryDate}
@@ -661,10 +663,10 @@ export default function Onboarding() {
             
             {/* Contact Information */}
             <View style={styles.formSection}>
-              <Text style={styles.sectionLabel}>CONTACT (OPTIONAL)</Text>
+              <Text style={styles.sectionLabel}>{t('onboarding.contactOptional')}</Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>{t('auth.email')}</Text>
                 <TextInput
                   style={styles.input}
                   value={myProfile.email}
@@ -677,7 +679,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
+                <Text style={styles.inputLabel}>{t('onboarding.phoneNumber')}</Text>
                 <View style={styles.phoneInputRow}>
                   <TextInput
                     style={styles.phoneCountryCode}
@@ -711,7 +713,7 @@ export default function Onboarding() {
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>Save & Continue</Text>
+                  <Text style={styles.primaryButtonText}>{t('onboarding.saveAndContinue')}</Text>
                   <Ionicons name="arrow-forward" size={20} color="#FFF" />
                 </>
               )}
@@ -733,7 +735,7 @@ export default function Onboarding() {
           >
             <View style={styles.pickerContainer} onStartShouldSetResponder={() => true}>
               <View style={styles.pickerHeader}>
-                <Text style={styles.pickerTitle}>Select Country</Text>
+                <Text style={styles.pickerTitle}>{t('onboarding.selectCountryTitle')}</Text>
                 <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
                   <Ionicons name="close" size={24} color="#1A1A1A" />
                 </TouchableOpacity>
@@ -742,7 +744,7 @@ export default function Onboarding() {
                 <Ionicons name="search" size={20} color="#6B7280" />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search countries..."
+                  placeholder={t('onboarding.searchCountries')}
                   value={countrySearch}
                   onChangeText={setCountrySearch}
                   placeholderTextColor="#9B9B9B"
@@ -797,9 +799,9 @@ export default function Onboarding() {
           </View>
           
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <Text style={styles.stepTitle}>Add Travelers</Text>
+            <Text style={styles.stepTitle}>{t('onboarding.addTravelers')}</Text>
             <Text style={styles.stepSubtitle}>
-              Add family or friends you often travel with
+              {t('onboarding.addFamilyOrFriends')}
             </Text>
             
             {/* Primary traveler (locked) */}
@@ -812,12 +814,12 @@ export default function Onboarding() {
                 </View>
                 <View style={styles.travelerCardInfo}>
                   <Text style={styles.travelerName}>{myProfile.firstName} {myProfile.lastName}</Text>
-                  <Text style={styles.travelerMeta}>Primary Traveler</Text>
+                  <Text style={styles.travelerMeta}>{t('onboarding.primaryTraveler')}</Text>
                 </View>
               </View>
               <View style={styles.primaryTravelerBadge}>
                 <Ionicons name="star" size={14} color="#1A1A1A" />
-                <Text style={styles.primaryTravelerBadgeText}>Me</Text>
+                <Text style={styles.primaryTravelerBadgeText}>{t('onboarding.me')}</Text>
               </View>
             </View>
             
@@ -832,7 +834,7 @@ export default function Onboarding() {
                   </View>
                   <View style={styles.travelerCardInfo}>
                     <Text style={styles.travelerName}>{traveler.firstName} {traveler.lastName}</Text>
-                    <Text style={styles.travelerMeta}>Additional Traveler</Text>
+                    <Text style={styles.travelerMeta}>{t('onboarding.additionalTraveler')}</Text>
                   </View>
                 </View>
                 <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
@@ -851,7 +853,7 @@ export default function Onboarding() {
               <View style={styles.addTravelerIconContainer}>
                 <Ionicons name="add" size={24} color="#1A1A1A" />
               </View>
-              <Text style={styles.addTravelerText}>Add Another Traveler</Text>
+              <Text style={styles.addTravelerText}>{t('onboarding.addAnotherTraveler')}</Text>
             </TouchableOpacity>
             
             <View style={{ height: 100 }} />
@@ -865,7 +867,7 @@ export default function Onboarding() {
                 setStep("preferences");
               }}
             >
-              <Text style={styles.primaryButtonText}>Continue to Preferences</Text>
+              <Text style={styles.primaryButtonText}>{t('onboarding.continueToPreferences')}</Text>
               <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -881,24 +883,24 @@ export default function Onboarding() {
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setShowTravelerModal(false)}>
-                <Text style={styles.modalCancel}>Cancel</Text>
+                <Text style={styles.modalCancel}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Add Traveler</Text>
+              <Text style={styles.modalTitle}>{t('onboarding.addTraveler')}</Text>
               <TouchableOpacity onPress={handleAddTraveler} disabled={saving}>
                 {saving ? (
                   <ActivityIndicator size="small" color="#FFE500" />
                 ) : (
-                  <Text style={styles.modalSave}>Save</Text>
+                  <Text style={styles.modalSave}>{t('common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
             
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
+              <Text style={styles.sectionLabel}>{t('onboarding.personalInformation')}</Text>
               
               <View style={styles.inputRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                  <Text style={styles.inputLabel}>First Name <Text style={styles.required}>*</Text></Text>
+                  <Text style={styles.inputLabel}>{t('onboarding.firstName')} <Text style={styles.required}>*</Text></Text>
                   <TextInput
                     style={styles.input}
                     value={travelerForm.firstName}
@@ -908,7 +910,7 @@ export default function Onboarding() {
                   />
                 </View>
                 <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={styles.inputLabel}>Last Name <Text style={styles.required}>*</Text></Text>
+                  <Text style={styles.inputLabel}>{t('onboarding.lastName')} <Text style={styles.required}>*</Text></Text>
                   <TextInput
                     style={styles.input}
                     value={travelerForm.lastName}
@@ -920,7 +922,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Date of Birth <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.dateOfBirth')} <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
                   value={travelerForm.dateOfBirth}
@@ -932,29 +934,29 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Gender <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.gender')} <Text style={styles.required}>*</Text></Text>
                 <View style={styles.genderRow}>
                   <TouchableOpacity
                     style={[styles.genderOption, travelerForm.gender === "male" && styles.genderOptionActive]}
                     onPress={() => setTravelerForm({ ...travelerForm, gender: "male" })}
                   >
                     <Ionicons name="male" size={20} color={travelerForm.gender === "male" ? "#1A1A1A" : "#6B7280"} />
-                    <Text style={[styles.genderText, travelerForm.gender === "male" && styles.genderTextActive]}>Male</Text>
+                    <Text style={[styles.genderText, travelerForm.gender === "male" && styles.genderTextActive]}>{t('onboarding.male')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.genderOption, travelerForm.gender === "female" && styles.genderOptionActive]}
                     onPress={() => setTravelerForm({ ...travelerForm, gender: "female" })}
                   >
                     <Ionicons name="female" size={20} color={travelerForm.gender === "female" ? "#1A1A1A" : "#6B7280"} />
-                    <Text style={[styles.genderText, travelerForm.gender === "female" && styles.genderTextActive]}>Female</Text>
+                    <Text style={[styles.genderText, travelerForm.gender === "female" && styles.genderTextActive]}>{t('onboarding.female')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
               
-              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>PASSPORT INFORMATION</Text>
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>{t('onboarding.passportInformation')}</Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Passport Number <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.passportNumber')} <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
                   value={travelerForm.passportNumber}
@@ -966,7 +968,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Issuing Country <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.issuingCountry')} <Text style={styles.required}>*</Text></Text>
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setShowTravelerCountryPicker(true)}
@@ -974,7 +976,7 @@ export default function Onboarding() {
                   <View style={styles.selectInputInner}>
                     <Ionicons name="flag-outline" size={20} color="#6B7280" />
                     <Text style={travelerForm.passportIssuingCountry ? styles.selectValue : styles.selectPlaceholder}>
-                      {travelerForm.passportIssuingCountry ? getCountryName(travelerForm.passportIssuingCountry) : "Select country"}
+                      {travelerForm.passportIssuingCountry ? getCountryName(travelerForm.passportIssuingCountry) : t('onboarding.selectCountry')}
                     </Text>
                   </View>
                   <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -982,7 +984,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Expiry Date <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputLabel}>{t('onboarding.expiryDate')} <Text style={styles.required}>*</Text></Text>
                 <TextInput
                   style={styles.input}
                   value={travelerForm.passportExpiryDate}
@@ -993,10 +995,10 @@ export default function Onboarding() {
                 />
               </View>
               
-              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>CONTACT (OPTIONAL)</Text>
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>{t('onboarding.contactOptional')}</Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>{t('auth.email')}</Text>
                 <TextInput
                   style={styles.input}
                   value={travelerForm.email}
@@ -1009,7 +1011,7 @@ export default function Onboarding() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
+                <Text style={styles.inputLabel}>{t('onboarding.phoneNumber')}</Text>
                 <View style={styles.phoneInputRow}>
                   <TextInput
                     style={styles.phoneCountryCode}
@@ -1048,7 +1050,7 @@ export default function Onboarding() {
               >
                 <View style={styles.pickerContainer} onStartShouldSetResponder={() => true}>
                   <View style={styles.pickerHeader}>
-                    <Text style={styles.pickerTitle}>Select Country</Text>
+                    <Text style={styles.pickerTitle}>{t('onboarding.selectCountryTitle')}</Text>
                     <TouchableOpacity onPress={() => setShowTravelerCountryPicker(false)}>
                       <Ionicons name="close" size={24} color="#1A1A1A" />
                     </TouchableOpacity>
@@ -1057,7 +1059,7 @@ export default function Onboarding() {
                     <Ionicons name="search" size={20} color="#6B7280" />
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="Search countries..."
+                      placeholder={t('onboarding.searchCountries')}
                       value={travelerCountrySearch}
                       onChangeText={setTravelerCountrySearch}
                       placeholderTextColor="#9B9B9B"
@@ -1097,10 +1099,10 @@ export default function Onboarding() {
   // PREFERENCES SCREEN
   if (step === "preferences") {
     const flightTimeOptions = [
-      { value: "any", label: "Any Time", icon: "time-outline" as const },
-      { value: "morning", label: "Morning", icon: "sunny-outline" as const },
-      { value: "afternoon", label: "Afternoon", icon: "partly-sunny-outline" as const },
-      { value: "evening", label: "Evening", icon: "moon-outline" as const },
+      { value: "any", label: t('onboarding.anyTime'), icon: "time-outline" as const },
+      { value: "morning", label: t('onboarding.morning'), icon: "sunny-outline" as const },
+      { value: "afternoon", label: t('onboarding.afternoon'), icon: "partly-sunny-outline" as const },
+      { value: "evening", label: t('onboarding.evening'), icon: "moon-outline" as const },
     ];
 
     return (
@@ -1123,22 +1125,22 @@ export default function Onboarding() {
               <View style={styles.preferencesIconContainer}>
                 <Ionicons name="options" size={28} color="#1A1A1A" />
               </View>
-              <Text style={styles.stepTitle}>Travel Preferences</Text>
+              <Text style={styles.stepTitle}>{t('onboarding.travelPreferences')}</Text>
               <Text style={styles.stepSubtitle}>
-                These will be automatically applied when you create a new trip
+                {t('onboarding.autoApplied')}
               </Text>
             </View>
             
             {/* Home Airport */}
             <View style={[styles.formSection, { zIndex: 10 }]}>
-              <Text style={styles.sectionLabel}>DEFAULT LOCATION</Text>
+              <Text style={styles.sectionLabel}>{t('onboarding.defaultLocation')}</Text>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Home Airport</Text>
+                <Text style={styles.inputLabel}>{t('onboarding.homeAirport')}</Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="airplane-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                   <TextInput
                     style={styles.inputWithIcon}
-                    placeholder="e.g. Athens, ATH"
+                    placeholder={t('onboarding.homeAirportPlaceholder')}
                     value={homeAirport}
                     onChangeText={(text) => {
                       setHomeAirport(text);
@@ -1176,9 +1178,9 @@ export default function Onboarding() {
             
             {/* Budget */}
             <View style={styles.formSection}>
-              <Text style={styles.sectionLabel}>DEFAULTS</Text>
+              <Text style={styles.sectionLabel}>{t('onboarding.defaults')}</Text>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Budget ($)</Text>
+                <Text style={styles.inputLabel}>{t('onboarding.budgetLabel')}</Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="cash-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                   <TextInput
@@ -1196,8 +1198,8 @@ export default function Onboarding() {
             {/* Interests */}
             <View style={styles.formSection}>
               <View style={styles.sectionLabelRow}>
-                <Text style={styles.sectionLabel}>DEFAULT INTERESTS</Text>
-                <Text style={styles.sectionLabelHint}>{selectedInterests.length}/5 selected</Text>
+                <Text style={styles.sectionLabel}>{t('onboarding.defaultInterests')}</Text>
+                <Text style={styles.sectionLabelHint}>{t('onboarding.selectedOf5', { count: selectedInterests.length })}</Text>
               </View>
               <View style={styles.interestsContainer}>
                 {INTERESTS.map((interest) => {
@@ -1328,7 +1330,7 @@ export default function Onboarding() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#FFF" />
-                  <Text style={styles.primaryButtonText}>Save & Go to Home</Text>
+                  <Text style={styles.primaryButtonText}>{t('onboarding.saveAndGoHome')}</Text>
                 </>
               )}
             </TouchableOpacity>

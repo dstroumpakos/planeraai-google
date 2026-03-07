@@ -17,15 +17,16 @@ import { Id } from "@/convex/_generated/dataModel";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { useMutation } from "convex/react";
+import { useTranslation } from "react-i18next";
 
 const INSIGHT_CATEGORIES = [
-  { id: "food", label: "Food & Drink", icon: "restaurant" },
-  { id: "transport", label: "Transport", icon: "bus" },
-  { id: "neighborhoods", label: "Neighborhoods", icon: "map" },
-  { id: "timing", label: "Best Time", icon: "time" },
-  { id: "hidden_gem", label: "Hidden Gems", icon: "diamond" },
-  { id: "avoid", label: "What to Avoid", icon: "warning" },
-  { id: "other", label: "Other", icon: "information-circle" },
+  { id: "food", labelKey: "profile.foodDrink", icon: "restaurant" },
+  { id: "transport", labelKey: "profile.transport", icon: "bus" },
+  { id: "neighborhoods", labelKey: "profile.neighborhoods", icon: "map" },
+  { id: "timing", labelKey: "profile.bestTime", icon: "time" },
+  { id: "hidden_gem", labelKey: "profile.hiddenGems", icon: "diamond" },
+  { id: "avoid", labelKey: "profile.whatToAvoid", icon: "warning" },
+  { id: "other", labelKey: "profile.other", icon: "information-circle" },
 ];
 
 export default function Profile() {
@@ -69,6 +70,7 @@ export default function Profile() {
     const deleteAccount = useAuthenticatedMutation(api.users.deleteAccount as any);
     
     const { isDarkMode, toggleDarkMode, colors } = useTheme();
+    const { t, i18n } = useTranslation();
     const [menuVisible, setMenuVisible] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -132,22 +134,22 @@ export default function Profile() {
 
     const handleDeleteAccount = () => {
         Alert.alert(
-            "Delete Account",
-            "Are you sure you want to permanently delete your account? This will remove all your trips, bookings, settings, and personal data. This action cannot be undone.",
+            t('profile.deleteAccountTitle'),
+            t('profile.deleteAccountConfirm'),
             [
-                { text: "Cancel", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 {
-                    text: "Delete Account",
+                    text: t('profile.deleteAccountButton'),
                     style: "destructive",
                     onPress: () => {
                         // Second confirmation
                         Alert.alert(
-                            "Final Confirmation",
-                            "This is irreversible. All your data will be permanently deleted. Are you absolutely sure?",
+                            t('profile.finalConfirmation'),
+                            t('profile.irreversible'),
                             [
-                                { text: "Cancel", style: "cancel" },
+                                { text: t('common.cancel'), style: "cancel" },
                                 {
-                                    text: "Yes, Delete Everything",
+                                    text: t('profile.yesDeleteEverything'),
                                     style: "destructive",
                                     onPress: async () => {
                                         try {
@@ -155,7 +157,7 @@ export default function Profile() {
                                             await authClient.signOut();
                                         } catch (error) {
                                             console.error("Account deletion failed:", error);
-                                            Alert.alert("Error", "Failed to delete account. Please try again or contact support@planeraai.app.");
+                                            Alert.alert(t('common.error'), t('profile.failedDeleteAccount'));
                                             return;
                                         }
                                         navigateToLogin();
@@ -182,7 +184,7 @@ export default function Profile() {
             
             if (!permissionResult.granted) {
                 if (Platform.OS !== 'web') {
-                    Alert.alert("Permission Required", "Please allow access to your photo library to upload a profile picture.");
+                    Alert.alert(t('profile.permissionRequired'), t('profile.allowPhotoAccess'));
                 }
                 return;
             }
@@ -222,7 +224,7 @@ export default function Profile() {
                 } catch (error) {
                     console.error("Upload failed:", error);
                     if (Platform.OS !== 'web') {
-                        Alert.alert("Error", "Failed to upload profile picture");
+                        Alert.alert(t('common.error'), t('profile.failedUploadPicture'));
                     }
                 } finally {
                     setUploading(false);
@@ -243,7 +245,7 @@ export default function Profile() {
 
     const handleSaveName = async () => {
         if (!editedName.trim()) {
-            Alert.alert("Error", "Name cannot be empty");
+            Alert.alert(t('common.error'), t('profile.nameCannotBeEmpty'));
             return;
         }
         
@@ -256,7 +258,7 @@ export default function Profile() {
             }
         } catch (error) {
             console.error("Failed to update name:", error);
-            Alert.alert("Error", "Failed to update name");
+            Alert.alert(t('common.error'), t('profile.failedUpdateName'));
         }
     };
 
@@ -268,7 +270,7 @@ export default function Profile() {
     // Insights handlers
     const handleSubmitInsight = async () => {
         if (!selectedInsightTrip || !insightContent) {
-            Alert.alert("Error", "Please select a trip and write your insight");
+            Alert.alert(t('common.error'), t('profile.selectTripAndWrite'));
             return;
         }
 
@@ -281,10 +283,10 @@ export default function Profile() {
             });
             resetInsightForm();
             setShowInsightsModal(false);
-            Alert.alert("Success", "Thank you for sharing your insight! It will help other travelers.");
+            Alert.alert(t('common.success'), t('profile.thankYouSharing'));
         } catch (error) {
             console.error(error);
-            Alert.alert("Error", "Failed to share insight");
+            Alert.alert(t('common.error'), t('profile.failedShareInsight'));
         }
     };
 
@@ -301,7 +303,7 @@ export default function Profile() {
     };
 
     const formatInsightDate = (timestamp: number) => {
-        return new Date(timestamp).toLocaleDateString("en-US", {
+        return new Date(timestamp).toLocaleDateString(i18n.language, {
             month: "short",
             year: "numeric",
         });
@@ -317,8 +319,8 @@ export default function Profile() {
         //     action: () => router.push("/settings/my-flights")
         // },
         {
-            title: "Saved Trips",
-            subtitle: `${upcomingTripsCount} upcoming, ${pastTripsCount} past`,
+            title: t('profile.savedTrips'),
+            subtitle: t('profile.upcomingPast', { upcoming: upcomingTripsCount, past: pastTripsCount }),
             icon: "bookmark-outline",
             iconBg: isDarkMode ? "#3D3D00" : "#FFF8E1",
             iconColor: colors.primary,
@@ -333,20 +335,28 @@ export default function Profile() {
         //     action: () => router.push("/settings/traveler-profiles")
         // },
         {
-            title: "Travel Preferences",
-            subtitle: "Airport, Budget, Interests",
+            title: t('profile.travelPreferences'),
+            subtitle: t('profile.airportBudget'),
             icon: "options-outline",
             iconBg: isDarkMode ? "#3D3D00" : "#FFF8E1",
             iconColor: colors.primary,
             action: () => router.push("/settings/travel-preferences")
         },
         {
-            title: "Notifications",
-            subtitle: "Push, email & trip reminders",
+            title: t('profile.notifications'),
+            subtitle: t('profile.pushEmailReminders'),
             icon: "notifications-outline",
             iconBg: isDarkMode ? "#3D3D00" : "#FFF8E1",
             iconColor: colors.primary,
             action: () => router.push("/settings/notifications")
+        },
+        {
+            title: t('profile.languageCurrency'),
+            subtitle: t('profile.languageCurrencySubtitle'),
+            icon: "language-outline",
+            iconBg: isDarkMode ? "#3D3D00" : "#FFF8E1",
+            iconColor: colors.primary,
+            action: () => router.push("/settings/language")
         },
         // {
         //     title: "Payment Methods",
@@ -368,7 +378,7 @@ export default function Profile() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Profile</Text>
+                <Text style={styles.headerTitle}>{t('profile.profile')}</Text>
                 <TouchableOpacity onPress={() => setMenuVisible(true)}>
                     <Ionicons name="menu" size={24} color={colors.text} />
                 </TouchableOpacity>
@@ -398,7 +408,7 @@ export default function Profile() {
                                 color={colors.text} 
                             />
                             <Text style={styles.menuDropdownText}>
-                                {isDarkMode ? "Light Mode" : "Dark Mode"}
+                                {isDarkMode ? t('profile.lightMode') : t('profile.darkMode')}
                             </Text>
                             <View style={[
                                 styles.toggleSwitch,
@@ -423,7 +433,7 @@ export default function Profile() {
                             }}
                         >
                             <Ionicons name="help-circle-outline" size={20} color={colors.text} />
-                            <Text style={styles.menuDropdownText}>Help & Support</Text>
+                            <Text style={styles.menuDropdownText}>{t('profile.helpSupport')}</Text>
                         </TouchableOpacity>
 
                         {/* Privacy Policy */}
@@ -435,7 +445,7 @@ export default function Profile() {
                             }}
                         >
                             <Ionicons name="shield-checkmark-outline" size={20} color={colors.text} />
-                            <Text style={styles.menuDropdownText}>Privacy Policy</Text>
+                            <Text style={styles.menuDropdownText}>{t('auth.privacyPolicy')}</Text>
                         </TouchableOpacity>
 
                         {/* Terms of Use (EULA) */}
@@ -447,7 +457,7 @@ export default function Profile() {
                             }}
                         >
                             <Ionicons name="document-text-outline" size={20} color={colors.text} />
-                            <Text style={styles.menuDropdownText}>Terms of Use (EULA)</Text>
+                            <Text style={styles.menuDropdownText}>{t('auth.termsOfUse')}</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -493,14 +503,14 @@ export default function Profile() {
                                 setIsEditingName(true);
                             }}
                         >
-                            <Text style={styles.userName}>{userSettings?.name || user?.name || "Planera User"}</Text>
+                            <Text style={styles.userName}>{userSettings?.name || user?.name || t('profile.planeraUser')}</Text>
                             <Ionicons name="pencil-outline" size={16} color={colors.primary} />
                         </TouchableOpacity>
                     ) : (
                         <View style={styles.editNameFieldContainer}>
                             <TextInput
                                 style={[styles.editNameField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
-                                placeholder="Enter your name"
+                                placeholder={t('profile.enterName')}
                                 placeholderTextColor={colors.textMuted}
                                 value={editedName}
                                 onChangeText={setEditedName}
@@ -526,7 +536,7 @@ export default function Profile() {
                     <View style={styles.memberBadge}>
                         <Ionicons name="diamond-outline" size={14} color={colors.textMuted} />
                         <Text style={styles.memberText}>
-                            Planera {isPremium ? "Premium" : "Free"} Member
+                            {isPremium ? t('profile.premiumMember') : t('profile.freeMember')}
                         </Text>
                     </View>
                 </View>
@@ -534,7 +544,7 @@ export default function Profile() {
                 {/* Travel Interests */}
                 {userSettings?.interests && userSettings.interests.length > 0 && (
                     <View style={styles.interestsSection}>
-                        <Text style={styles.interestsSectionTitle}>Travel Interests</Text>
+                        <Text style={styles.interestsSectionTitle}>{t('profile.travelInterests')}</Text>
                         <View style={styles.interestsTags}>
                             {userSettings.interests.map((interest: string) => (
                                 <View 
@@ -558,7 +568,7 @@ export default function Profile() {
                                         color="#1A1A1A"
                                         style={{ marginRight: 6 }}
                                     />
-                                    <Text style={styles.interestTagText}>{interest}</Text>
+                                    <Text style={styles.interestTagText}>{t('interests.' + interest)}</Text>
                                 </View>
                             ))}
                         </View>
@@ -573,13 +583,13 @@ export default function Profile() {
                     >
                         <View style={styles.premiumHeader}>
                             <Ionicons name="sparkles" size={20} color={colors.primary} />
-                            <Text style={styles.premiumTitle}>Planera Premium</Text>
+                            <Text style={styles.premiumTitle}>{t('profile.planeraPremium')}</Text>
                         </View>
                         <Text style={styles.premiumDescription}>
-                            Unlock AI superpowers for unlimited routing and smart travel recommendations.
+                            {t('profile.unlockAI')}
                         </Text>
                         <View style={styles.upgradeButton}>
-                            <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
+                            <Text style={styles.upgradeButtonText}>{t('profile.upgradeNow')}</Text>
                             <Ionicons name="arrow-forward" size={18} color={colors.text} />
                         </View>
                     </TouchableOpacity>
@@ -588,7 +598,7 @@ export default function Profile() {
                 {/* Admin Section - Only visible to admins */}
                 {isAdmin && (
                     <>
-                        <Text style={styles.sectionTitle}>ADMIN</Text>
+                        <Text style={styles.sectionTitle}>{t('profile.admin')}</Text>
                         <TouchableOpacity 
                             style={[styles.insightsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                             onPress={() => router.push("/admin" as any)}
@@ -597,9 +607,9 @@ export default function Profile() {
                                 <Ionicons name="shield" size={24} color="#4F46E5" />
                             </View>
                             <View style={styles.insightsTextContainer}>
-                                <Text style={[styles.insightsTitle, { color: colors.text }]}>Admin Dashboard</Text>
+                                <Text style={[styles.insightsTitle, { color: colors.text }]}>{t('profile.adminDashboard')}</Text>
                                 <Text style={[styles.insightsSubtitle, { color: colors.textMuted }]}>
-                                    Moderate content and manage users
+                                    {t('profile.moderateContent')}
                                 </Text>
                             </View>
                             <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -608,7 +618,7 @@ export default function Profile() {
                 )}
 
                 {/* Account Settings */}
-                <Text style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
+                <Text style={styles.sectionTitle}>{t('profile.accountSettings')}</Text>
                 <View style={styles.menuContainer}>
                     {menuItems.map((item, index) => (
                         <TouchableOpacity 
@@ -633,7 +643,7 @@ export default function Profile() {
 
                 {/* Share Travel Insights Section */}
                 <>
-                    <Text style={styles.sectionTitle}>SHARE YOUR EXPERIENCE</Text>
+                    <Text style={styles.sectionTitle}>{t('profile.shareExperience')}</Text>
                     <TouchableOpacity 
                         style={[styles.insightsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                         onPress={() => router.push("/settings/share-insight")}
@@ -642,9 +652,9 @@ export default function Profile() {
                             <Ionicons name="bulb" size={24} color={colors.primary} />
                         </View>
                         <View style={styles.insightsTextContainer}>
-                            <Text style={[styles.insightsTitle, { color: colors.text }]}>Share Travel Tips</Text>
+                            <Text style={[styles.insightsTitle, { color: colors.text }]}>{t('profile.shareTravelTips')}</Text>
                             <Text style={[styles.insightsSubtitle, { color: colors.textMuted }]}>
-                                Help other travelers with insights from your trips
+                                {t('profile.helpOtherTravelers')}
                             </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -654,7 +664,7 @@ export default function Profile() {
                 {/* My Traveler Insights Section */}
                 {myInsights && myInsights.length > 0 && (
                     <>
-                        <Text style={styles.sectionTitle}>MY TRAVELER INSIGHTS</Text>
+                        <Text style={styles.sectionTitle}>{t('profile.myTravelerInsights')}</Text>
                         <ScrollView 
                             horizontal 
                             showsHorizontalScrollIndicator={false}
@@ -704,7 +714,7 @@ export default function Profile() {
                                     </Text>
                                     <View style={styles.myInsightFooter}>
                                         <Text style={[styles.myInsightDate, { color: colors.textMuted }]}>
-                                            {new Date(insight.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                            {new Date(insight.createdAt).toLocaleDateString(i18n.language, { month: 'short', year: 'numeric' })}
                                         </Text>
                                         <View style={[
                                             styles.myInsightStatusBadge,
@@ -726,8 +736,8 @@ export default function Profile() {
                                                         : '#DC2626'
                                                 }
                                             ]}>
-                                                {insight.moderationStatus === 'approved' ? 'Published' : 
-                                                 insight.moderationStatus === 'pending' ? 'Pending' : 'Rejected'}
+                                                {insight.moderationStatus === 'approved' ? t('profile.published') : 
+                                                 insight.moderationStatus === 'pending' ? t('profile.pending') : t('profile.rejected')}
                                             </Text>
                                         </View>
                                     </View>
@@ -744,19 +754,19 @@ export default function Profile() {
                         onPress={() => Linking.openURL('mailto:support@planeraai.app?subject=Planera%20Support%20Request')}
                     >
                         <Ionicons name="help-circle-outline" size={20} color={colors.textSecondary} />
-                        <Text style={styles.helpText}>Help & Support</Text>
+                        <Text style={styles.helpText}>{t('profile.helpSupport')}</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity style={styles.helpItem} onPress={handleLogout}>
                         <Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />
-                        <Text style={styles.helpText}>Log Out</Text>
+                        <Text style={styles.helpText}>{t('profile.logOut')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* Delete Account */}
                 <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
                     <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-                    <Text style={styles.deleteAccountText}>Delete Account</Text>
+                    <Text style={styles.deleteAccountText}>{t('profile.deleteAccount')}</Text>
                 </TouchableOpacity>
 
                 {/* Version */}
@@ -790,16 +800,16 @@ export default function Profile() {
                         >
                             <Ionicons name={insightStep === "form" ? "chevron-back" : "close"} size={24} color={colors.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.insightsModalTitle, { color: colors.text }]}>Share Your Tips</Text>
+                        <Text style={[styles.insightsModalTitle, { color: colors.text }]}>{t('profile.shareYourTips')}</Text>
                         <View style={{ width: 24 }} />
                     </View>
 
                     <ScrollView style={styles.insightsModalContent} contentContainerStyle={styles.insightsModalScrollContent}>
                         {insightStep === "trips" ? (
                             <>
-                                <Text style={[styles.insightsModalSectionTitle, { color: colors.text }]}>Select a Completed Trip</Text>
+                                <Text style={[styles.insightsModalSectionTitle, { color: colors.text }]}>{t('profile.selectCompletedTrip')}</Text>
                                 <Text style={[styles.insightsModalSectionSubtitle, { color: colors.textMuted }]}>
-                                    Choose a trip you've taken to share your experience
+                                    {t('profile.chooseTrip')}
                                 </Text>
                                 {completedTrips?.map((trip: any) => (
                                     <TouchableOpacity
@@ -823,10 +833,10 @@ export default function Profile() {
                         ) : (
                             <>
                                 <Text style={[styles.insightsModalSectionSubtitle, { color: colors.textMuted, marginBottom: 20 }]}>
-                                    Sharing insights for: <Text style={{ color: colors.primary, fontWeight: '600' }}>{selectedInsightTrip?.destination}</Text>
+                                    {t('profile.sharingInsightsFor')} <Text style={{ color: colors.primary, fontWeight: '600' }}>{selectedInsightTrip?.destination}</Text>
                                 </Text>
 
-                                <Text style={[styles.insightFormLabel, { color: colors.text }]}>Category</Text>
+                                <Text style={[styles.insightFormLabel, { color: colors.text }]}>{t('profile.category')}</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.insightCategoryScroll}>
                                     {INSIGHT_CATEGORIES.map((cat) => (
                                         <TouchableOpacity
@@ -850,16 +860,16 @@ export default function Profile() {
                                                     insightCategory === cat.id && { color: colors.text },
                                                 ]}
                                             >
-                                                {cat.label}
+                                                {t(cat.labelKey)}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
 
-                                <Text style={[styles.insightFormLabel, { color: colors.text, marginTop: 20 }]}>Your Insight</Text>
+                                <Text style={[styles.insightFormLabel, { color: colors.text, marginTop: 20 }]}>{t('profile.yourInsight')}</Text>
                                 <TextInput
                                     style={[styles.insightTextArea, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]}
-                                    placeholder="Share your experience, tips, or recommendations..."
+                                    placeholder={t('profile.sharePlaceholder')}
                                     placeholderTextColor={colors.textMuted}
                                     value={insightContent}
                                     onChangeText={setInsightContent}
@@ -872,7 +882,7 @@ export default function Profile() {
                                     onPress={handleSubmitInsight}
                                 >
                                     <Ionicons name="send" size={18} color={colors.text} />
-                                    <Text style={[styles.insightSubmitText, { color: colors.text }]}>Share Insight</Text>
+                                    <Text style={[styles.insightSubmitText, { color: colors.text }]}>{t('profile.shareInsight')}</Text>
                                 </TouchableOpacity>
                             </>
                         )}

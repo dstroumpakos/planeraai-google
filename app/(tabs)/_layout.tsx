@@ -3,10 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 export default function TabLayout() {
     const router = useRouter();
     const { colors } = useTheme();
+    const { t } = useTranslation();
     
     return (
         <Tabs
@@ -43,7 +45,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: "Home",
+                    title: t("tabs.home"),
                     tabBarIcon: ({ color, focused }) => (
                         <View style={[styles.iconContainer, focused && { backgroundColor: colors.primary }]}>
                             <Ionicons name={focused ? "home" : "home-outline"} size={24} color={focused ? colors.tabBar : color} />
@@ -54,7 +56,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="trips"
                 options={{
-                    title: "Trips",
+                    title: t("tabs.trips"),
                     tabBarIcon: ({ color, focused }) => (
                         <View style={[styles.iconContainer, focused && { backgroundColor: colors.primary }]}>
                             <Ionicons name={focused ? "map" : "map-outline"} size={24} color={focused ? colors.tabBar : color} />
@@ -82,7 +84,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="insights"
                 options={{
-                    title: "Atlas",
+                    title: t("tabs.atlas"),
                     tabBarIcon: ({ color, focused }) => (
                         <View style={[styles.iconContainer, focused && { backgroundColor: colors.primary }]}>
                             <Ionicons name={focused ? "globe" : "globe-outline"} size={24} color={focused ? colors.tabBar : color} />
@@ -93,7 +95,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="profile"
                 options={{
-                    title: "Profile",
+                    title: t("tabs.profile"),
                     tabBarIcon: ({ color, focused }) => (
                         <View style={[styles.iconContainer, focused && { backgroundColor: colors.primary }]}>
                             <Ionicons name={focused ? "person" : "person-outline"} size={24} color={focused ? colors.tabBar : color} />

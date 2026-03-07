@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { DEALS } from "@/lib/data";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
+import { useTranslation } from "react-i18next";
 
 // NOTE: Using fixed width for hotel cards instead of Dimensions
 // This avoids top-level native API calls
@@ -12,6 +13,7 @@ import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
 export default function DealDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { t } = useTranslation();
     
     const deal = DEALS.find(d => d.id === id);
 
@@ -30,7 +32,7 @@ export default function DealDetails() {
                     </TouchableOpacity>
                 </View>
                 <View style={styles.centerContent}>
-                    <Text>Deal not found</Text>
+                    <Text>{t('deal.dealNotFound')}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -68,7 +70,7 @@ export default function DealDetails() {
                         <View style={styles.priceRow}>
                             <Text style={styles.originalPrice}>${deal.originalPrice}</Text>
                             <Text style={styles.price}>${deal.price}</Text>
-                            <Text style={styles.perPerson}>/ person</Text>
+                            <Text style={styles.perPerson}>{t('deal.perPerson')}</Text>
                         </View>
                         <View style={styles.dateRow}>
                             <Ionicons name="calendar-outline" size={16} color="#8E8E93" />
@@ -79,7 +81,7 @@ export default function DealDetails() {
 
                     {/* Flights */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Flights</Text>
+                        <Text style={styles.sectionTitle}>{t('deal.flights')}</Text>
                         <View style={styles.card}>
                             {/* Outbound */}
                             <View style={styles.flightRow}>
@@ -124,7 +126,7 @@ export default function DealDetails() {
 
                     {/* Accommodation */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Accommodation Options</Text>
+                        <Text style={styles.sectionTitle}>{t('deal.accommodationOptions')}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotelList}>
                             {deal.hotels.map((hotel, index) => (
                                 <View key={index} style={styles.hotelCard}>
@@ -148,7 +150,7 @@ export default function DealDetails() {
                                             style={styles.miniBookButton}
                                             onPress={() => openBookingLink(hotel.name + " " + deal.destination)}
                                         >
-                                            <Text style={styles.miniBookButtonText}>View Deal</Text>
+                                            <Text style={styles.miniBookButtonText}>{t('deal.viewDeal')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -158,10 +160,10 @@ export default function DealDetails() {
 
                     {/* Itinerary Preview */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Itinerary Highlights</Text>
+                        <Text style={styles.sectionTitle}>{t('deal.itineraryHighlights')}</Text>
                         {deal.itinerary.map((day) => (
                             <View key={day.day} style={styles.dayContainer}>
-                                <Text style={styles.dayTitle}>Day {day.day}</Text>
+                                <Text style={styles.dayTitle}>{t('deal.day', { number: day.day })}</Text>
                                 {day.activities.map((activity, index) => (
                                     <View key={index} style={styles.activityRow}>
                                         <Text style={styles.activityTime}>{activity.time}</Text>
@@ -180,14 +182,14 @@ export default function DealDetails() {
             {/* Bottom Action Bar */}
             <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
                 <View style={styles.priceContainer}>
-                    <Text style={styles.totalPriceLabel}>Total Price</Text>
+                    <Text style={styles.totalPriceLabel}>{t('deal.totalPrice')}</Text>
                     <Text style={styles.totalPrice}>${deal.price}</Text>
                 </View>
                 <TouchableOpacity 
                     style={styles.bookButton}
                     onPress={() => openBookingLink(deal.destination)}
                 >
-                    <Text style={styles.bookButtonText}>Book This Deal</Text>
+                    <Text style={styles.bookButtonText}>{t('deal.bookThisDeal')}</Text>
                 </TouchableOpacity>
             </SafeAreaView>
         </View>

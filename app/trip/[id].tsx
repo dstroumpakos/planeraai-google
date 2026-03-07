@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Platform, Alert, Modal, TextInput, KeyboardAvoidingView, Keyboard, StatusBar } from "react-native";
 import { Image } from "expo-image";
 import { useQuery, useMutation, useAction } from "convex/react";
@@ -39,14 +40,14 @@ import { INTERESTS } from "@/lib/data";
 
 // Local Experiences categories (same as create-trip)
 const LOCAL_EXPERIENCES = [
-    { id: "local-food", label: "Local food & street food", icon: "restaurant" as const },
-    { id: "markets", label: "Traditional markets", icon: "storefront" as const },
-    { id: "hidden-gems", label: "Hidden gems", icon: "compass" as const },
-    { id: "workshops", label: "Cultural workshops", icon: "color-palette" as const },
-    { id: "nature", label: "Nature & outdoor spots", icon: "leaf" as const },
-    { id: "nightlife", label: "Nightlife & local bars", icon: "wine" as const },
-    { id: "neighborhoods", label: "Neighborhood walks", icon: "walk" as const },
-    { id: "festivals", label: "Festivals & seasonal events", icon: "calendar" as const },
+    { id: "local-food", labelKey: "createTrip.localFood", icon: "restaurant" as const },
+    { id: "markets", labelKey: "createTrip.traditionalMarkets", icon: "storefront" as const },
+    { id: "hidden-gems", labelKey: "createTrip.hiddenGems", icon: "compass" as const },
+    { id: "workshops", labelKey: "createTrip.culturalWorkshops", icon: "color-palette" as const },
+    { id: "nature", labelKey: "createTrip.natureOutdoor", icon: "leaf" as const },
+    { id: "nightlife", labelKey: "createTrip.nightlife", icon: "wine" as const },
+    { id: "neighborhoods", labelKey: "createTrip.neighborhoodWalks", icon: "walk" as const },
+    { id: "festivals", labelKey: "createTrip.festivals", icon: "calendar" as const },
 ];
 
 // Cart item type for local state
@@ -584,6 +585,125 @@ const CITY_TO_AIRPORT: Record<string, string> = {
     "saint petersburg": "LED",
 };
 
+// Skyscanner hotel entity_id mapping (verified from Skyscanner autosuggest API)
+const CITY_TO_SKYSCANNER_ENTITY: Record<string, string> = {
+    // Greece
+    "athens": "27548174",
+    "thessaloniki": "27546367",
+    "heraklion": "27542028",
+    "rhodes": "27546162",
+    "corfu": "27539767",
+    "chania": "27539789",
+    "mykonos": "38304360",
+    "santorini": "27543032",
+    "crete": "27542028",
+    // UK
+    "london": "27544008",
+    "manchester": "27544856",
+    "edinburgh": "27540851",
+    "glasgow": "27541852",
+    // France
+    "paris": "27539733",
+    "nice": "27545091",
+    "lyon": "27544221",
+    "marseille": "32030366",
+    // Germany
+    "frankfurt": "27541706",
+    "munich": "27545034",
+    "berlin": "27547053",
+    // Italy
+    "rome": "27539793",
+    "milan": "27544068",
+    "venice": "27547373",
+    "naples": "27545086",
+    "florence": "27541640",
+    // Spain
+    "madrid": "27544850",
+    "barcelona": "27548283",
+    "malaga": "27547484",
+    "málaga": "27547484",
+    "seville": "27547022",
+    "sevilla": "27547022",
+    // Netherlands
+    "amsterdam": "27536561",
+    // Belgium
+    "brussels": "27539565",
+    // Portugal
+    "lisbon": "27544072",
+    "porto": "27545236",
+    // Switzerland
+    "zurich": "27537524",
+    "zürich": "27537524",
+    "geneva": "33735985",
+    "genève": "33735985",
+    // Austria
+    "vienna": "27547395",
+    "wien": "27547395",
+    "salzburg": "27547109",
+    // Ireland
+    "dublin": "27540823",
+    // Turkey
+    "istanbul": "27542903",
+    "antalya": "27548233",
+    "bodrum": "27539433",
+    // UAE
+    "dubai": "27540839",
+    "abu dhabi": "27548192",
+    // Qatar
+    "doha": "27540785",
+    // Israel
+    "tel aviv": "27546296",
+    // USA
+    "new york": "27537542",
+    "los angeles": "27536211",
+    "miami": "27536644",
+    "chicago": "27544891",
+    "san francisco": "27546320",
+    // Mexico
+    "cancun": "27540602",
+    "cancún": "27540602",
+    // Africa
+    "cairo": "27539681",
+    "marrakech": "27546125",
+    "cape town": "27539908",
+    // East Asia
+    "tokyo": "27542089",
+    "seoul": "27538638",
+    "hong kong": "27542065",
+    // Southeast Asia
+    "bangkok": "27536671",
+    "phuket": "27542069",
+    "bali": "27540795",
+    "singapore": "27546111",
+    // Oceania
+    "sydney": "27547097",
+    "melbourne": "27544894",
+    // Scandinavia
+    "copenhagen": "27539902",
+    "stockholm": "27539477",
+    "oslo": "27538634",
+    "helsinki": "27542027",
+    // Eastern Europe
+    "warsaw": "27547454",
+    "krakow": "27543787",
+    "kraków": "27543787",
+    "prague": "27546033",
+    "budapest": "27539604",
+    "dubrovnik": "39377069",
+    "split": "27547071",
+};
+
+// Helper to get Skyscanner entity_id for a city
+const getSkyscannerEntityId = (cityName: string | undefined): string | null => {
+    if (!cityName) return null;
+    const lower = cityName.toLowerCase().trim();
+    if (CITY_TO_SKYSCANNER_ENTITY[lower]) return CITY_TO_SKYSCANNER_ENTITY[lower];
+    for (const [city, id] of Object.entries(CITY_TO_SKYSCANNER_ENTITY)) {
+        if (lower.includes(city) || city.includes(lower)) return id;
+    }
+    return null;
+};
+
 // Helper function to get full airport name
 const getAirportName = (codeOrCity: string | undefined): string => {
     if (!codeOrCity) return "Unknown";
@@ -619,9 +739,28 @@ const getAirportName = (codeOrCity: string | undefined): string => {
     return codeOrCity;
 };
 
+// Helper to get IATA airport code from city name or code
+const getAirportCode = (codeOrCity: string | undefined): string => {
+    if (!codeOrCity) return '';
+    const upper = codeOrCity.toUpperCase().trim();
+    // Already an IATA code
+    if (upper.length === 3 && AIRPORT_NAMES[upper]) return upper;
+    // Check parentheses like "Athens (ATH)"
+    const codeMatch = codeOrCity.match(/\(([A-Z]{3})\)/);
+    if (codeMatch) return codeMatch[1];
+    // City name lookup
+    const lower = codeOrCity.toLowerCase().trim();
+    if (CITY_TO_AIRPORT[lower]) return CITY_TO_AIRPORT[lower];
+    for (const [city, code] of Object.entries(CITY_TO_AIRPORT)) {
+        if (lower.includes(city)) return code;
+    }
+    return codeOrCity;
+};
+
 export default function TripDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { t, i18n } = useTranslation();
     const { colors, isDarkMode } = useTheme();
     const { token } = useToken();
     // @ts-ignore
@@ -674,9 +813,9 @@ export default function TripDetails() {
     const imageInterval = useRef<ReturnType<typeof setInterval> | null>(null);
     const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
     const loadingMessages = [
-        "Finding hidden gems and local favorites...",
-        "Building the best flow between locations...",
-        "Optimizing your daily schedule for the best experience.",
+        t('tripDetail.loadingMsg1'),
+        t('tripDetail.loadingMsg2'),
+        t('tripDetail.loadingMsg3'),
     ];
 
     const [selectedHotelIndex, setSelectedHotelIndex] = useState<number | null>(null);
@@ -761,7 +900,7 @@ export default function TripDetails() {
         
         // Only apply regeneration limit to free users (those without active subscription)
         if (!trip.isSubscriptionActive && regenerationCount >= 1) {
-            Alert.alert("Limit Reached", "Free users can only regenerate their trip once. Upgrade to premium for unlimited regenerations.");
+            Alert.alert(t('tripDetail.limitReached'), t('tripDetail.freeRegenLimit'));
             return;
         }
         
@@ -825,7 +964,7 @@ export default function TripDetails() {
         } else {
             const daysDiff = Math.ceil((timestamp - editForm.startDate) / (24 * 60 * 60 * 1000));
             if (daysDiff > MAX_TRIP_DAYS) {
-                Alert.alert("Trip Too Long", "Trips can be up to 15 days. Please choose an earlier return date.");
+                Alert.alert(t('tripDetail.tripTooLong'), t('tripDetail.tripTooLongMsg'));
                 return;
             }
             setEditForm(prev => ({
@@ -846,7 +985,7 @@ export default function TripDetails() {
 
     // Format time for display (e.g., "3:30 PM")
     const formatTime = (isoString: string | null) => {
-        if (!isoString) return "Not set";
+        if (!isoString) return t('tripDetail.notSet');
         const date = new Date(isoString);
         return date.toLocaleTimeString('en-US', { 
             hour: 'numeric', 
@@ -1012,7 +1151,7 @@ export default function TripDetails() {
     if (!trip) {
         return (
             <View style={[styles.center, { backgroundColor: colors.background }]}>
-                <Text style={{ color: colors.text }}>Trip not found</Text>
+                <Text style={{ color: colors.text }}>{t('tripDetail.tripNotFound')}</Text>
             </View>
         );
     }
@@ -1059,7 +1198,7 @@ export default function TripDetails() {
                     >
                         {/* Trip Title with Route */}
                         <View style={styles.loadingTitleContainer}>
-                            <Text style={styles.loadingDestination}>{trip.origin || "Unknown"}</Text>
+                            <Text style={styles.loadingDestination}>{trip.origin || t('tripDetail.unknown')}</Text>
                             <Ionicons name="arrow-down" size={20} color="#FFE500" style={styles.loadingArrow} />
                             <Text style={styles.loadingDestination}>{trip.destination}</Text>
                         </View>
@@ -1067,7 +1206,7 @@ export default function TripDetails() {
                         {/* Trip Details */}
                         <View style={styles.loadingTripDetails}>
                             <Text style={styles.loadingTripDetailText}>
-                                {trip.travelers || 1} traveler{(trip.travelers || 1) !== 1 ? 's' : ''} • {Math.ceil((trip.endDate - trip.startDate) / (1000 * 60 * 60 * 24))} days
+                                {t('tripDetail.travelerCount', { count: trip.travelers || 1 })} • {t('tripDetail.daysCount', { count: Math.ceil((trip.endDate - trip.startDate) / (1000 * 60 * 60 * 24)) })}
                             </Text>
                         </View>
                         
@@ -1077,7 +1216,7 @@ export default function TripDetails() {
                         </View>
                         
                         {/* Status Text */}
-                        <Text style={styles.loadingTitle}>Your AI is designing your personalized trip</Text>
+                        <Text style={styles.loadingTitle}>{t('tripDetail.aiDesigning')}</Text>
                         <Text style={styles.loadingSubtitle}>
                             {loadingMessages[loadingMessageIndex]}
                         </Text>
@@ -1104,7 +1243,7 @@ export default function TripDetails() {
                                     color={loadingProgress > 15 ? "#10B981" : "rgba(255,255,255,0.5)"} 
                                 />
                                 <Text style={[styles.loadingStepText, loadingProgress > 15 && styles.loadingStepComplete]}>
-                                    Analyzing your travel preferences
+                                    {t('tripDetail.analyzingPreferences')}
                                 </Text>
                             </View>
                             <View style={styles.loadingStep}>
@@ -1114,7 +1253,7 @@ export default function TripDetails() {
                                     color={loadingProgress > 35 ? "#10B981" : "rgba(255,255,255,0.5)"} 
                                 />
                                 <Text style={[styles.loadingStepText, loadingProgress > 35 && styles.loadingStepComplete]}>
-                                    Selecting top sights and experiences
+                                    {t('tripDetail.selectingSights')}
                                 </Text>
                             </View>
                             <View style={styles.loadingStep}>
@@ -1124,7 +1263,7 @@ export default function TripDetails() {
                                     color={loadingProgress > 55 ? "#10B981" : "rgba(255,255,255,0.5)"} 
                                 />
                                 <Text style={[styles.loadingStepText, loadingProgress > 55 && styles.loadingStepComplete]}>
-                                    Planning your day-by-day schedule
+                                    {t('tripDetail.planningSchedule')}
                                 </Text>
                             </View>
                             <View style={styles.loadingStep}>
@@ -1134,7 +1273,7 @@ export default function TripDetails() {
                                     color={loadingProgress > 75 ? "#10B981" : "rgba(255,255,255,0.5)"} 
                                 />
                                 <Text style={[styles.loadingStepText, loadingProgress > 75 && styles.loadingStepComplete]}>
-                                    Optimizing routes between locations
+                                    {t('tripDetail.optimizingRoutes')}
                                 </Text>
                             </View>
                             <View style={styles.loadingStep}>
@@ -1144,14 +1283,14 @@ export default function TripDetails() {
                                     color={loadingProgress > 90 ? "#10B981" : "rgba(255,255,255,0.5)"} 
                                 />
                                 <Text style={[styles.loadingStepText, loadingProgress > 90 && styles.loadingStepComplete]}>
-                                    Finalizing your smart itinerary
+                                    {t('tripDetail.finalizingItinerary')}
                                 </Text>
                             </View>
                         </View>
                         
                         {/* Helper Text */}
                         <Text style={styles.loadingHelperText}>
-                            This usually takes about 1–2 minutes.
+                            {t('tripDetail.usuallyTakes')}
                         </Text>
                         
                     </ScrollView>
@@ -1166,7 +1305,7 @@ export default function TripDetails() {
                         >
                             <Ionicons name="notifications-outline" size={16} color="rgba(255,255,255,0.7)" />
                             <Text style={styles.leaveHintText}>
-                                You can leave this screen — we'll notify you when your trip is ready!
+                                {t('tripDetail.leaveScreenHint')}
                             </Text>
                         </TouchableOpacity>
                         
@@ -1174,7 +1313,7 @@ export default function TripDetails() {
                         {currentImage && (
                             <View style={styles.loadingAttribution}>
                                 <Text style={styles.loadingAttributionText}>
-                                    Photo by {currentImage.photographer} on Unsplash
+                                    {t('tripDetail.photoBy', { photographer: currentImage.photographer })}
                                 </Text>
                             </View>
                         )}
@@ -1204,15 +1343,15 @@ export default function TripDetails() {
             <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
                 <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={64} color={colors.error} />
-                    <Text style={[styles.errorTitle, { color: colors.text }]}>Failed to Generate Trip</Text>
+                    <Text style={[styles.errorTitle, { color: colors.text }]}>{t('tripDetail.failedToGenerate')}</Text>
                     <Text style={[styles.errorMessage, { color: colors.textSecondary }]}>
-                        We encountered an error while generating your itinerary. Please try again.
+                        {t('tripDetail.failedErrorMsg')}
                     </Text>
                     <TouchableOpacity 
                         style={[styles.errorButton, { backgroundColor: colors.primary }]}
                         onPress={() => router.back()}
                     >
-                        <Text style={[styles.errorButtonText, { color: colors.text }]}>Go Back</Text>
+                        <Text style={[styles.errorButtonText, { color: colors.text }]}>{t('tripDetail.goBack')}</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -1300,15 +1439,15 @@ export default function TripDetails() {
 
         // Show alert to confirm tracking (User Flow Requirement)
         Alert.alert(
-            "Redirecting to Supplier",
-            "We are taking you to the booking page. Your booking will be tracked for rewards!",
+            t('tripDetail.redirectingToSupplier'),
+            t('tripDetail.redirectMsg'),
             [
                 { 
-                    text: "Continue", 
+                    text: t('tripDetail.continue'), 
                     onPress: () => Linking.openURL(url)
                 },
                 {
-                    text: "Cancel",
+                    text: t('tripDetail.cancel'),
                     style: "cancel"
                 }
             ]
@@ -1327,12 +1466,12 @@ export default function TripDetails() {
         // In a real app, this would trigger a re-generation of the itinerary
         // For now, we'll just show an alert or navigate back to create-trip with pre-filled data
         Alert.alert(
-            "Regenerate Trip",
-            "Do you want to regenerate this itinerary? This will create a new version of your trip.",
+            t('tripDetail.regenerateTrip'),
+            t('tripDetail.regenerateMsg'),
             [
-                { text: "Cancel", style: "cancel" },
+                { text: t('tripDetail.cancel'), style: "cancel" },
                 { 
-                    text: "Regenerate", 
+                    text: t('tripDetail.regenerate'), 
                     onPress: () => {
                         // Navigate to create-trip with params to pre-fill
                         router.push({
@@ -1360,14 +1499,14 @@ export default function TripDetails() {
                 <View style={styles.card}>
                     <View style={styles.skippedFlightsContainer}>
                         <Ionicons name="airplane" size={32} color="#5EEAD4" />
-                        <Text style={styles.skippedFlightsTitle}>Flights Not Included</Text>
+                        <Text style={styles.skippedFlightsTitle}>{t('tripDetail.flightsNotIncluded')}</Text>
                         <Text style={styles.skippedFlightsText}>
-                            {itinerary.flights.message || "You indicated you already have flights booked."}
+                            {itinerary.flights.message || t('tripDetail.flightsAlreadyBooked')}
                         </Text>
                     </View>
                     <TouchableOpacity style={styles.viewMapButton} onPress={() => router.push({ pathname: '/trip/map', params: { id: id as string } })}>
                         <Ionicons name="map" size={20} color="#F9F506" />
-                        <Text style={styles.viewMapText}>Explore Route</Text>
+                        <Text style={styles.viewMapText}>{t('tripDetail.exploreRoute')}</Text>
                     </TouchableOpacity>
                 </View>
             );
@@ -1383,10 +1522,10 @@ export default function TripDetails() {
                 <View style={styles.card}>
                     <View style={styles.bestPriceBanner}>
                         <Ionicons name="pricetag" size={16} color="#10B981" />
-                        <Text style={styles.bestPriceText}>Best price from €{Math.round(bestPrice)}/person</Text>
+                        <Text style={styles.bestPriceText}>{t('tripDetail.bestPriceFrom', { price: Math.round(bestPrice) })}</Text>
                     </View>
                     
-                    <Text style={styles.flightOptionsLabel}>Select your flight:</Text>
+                    <Text style={styles.flightOptionsLabel}>{t('tripDetail.selectYourFlight')}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.flightOptionsScroll}>
                         {flightOptions.map((option: any, index: number) => (
                             <TouchableOpacity
@@ -1399,14 +1538,14 @@ export default function TripDetails() {
                             >
                                 {option.isBestPrice && (
                                     <View style={styles.bestPriceBadge}>
-                                        <Text style={styles.bestPriceBadgeText}>Best Price</Text>
+                                        <Text style={styles.bestPriceBadgeText}>{t('tripDetail.bestPrice')}</Text>
                                     </View>
                                 )}
                                 <Text style={styles.flightOptionAirline}>{option.outbound.airline}</Text>
                                 <Text style={styles.flightOptionTime}>{option.outbound.departure}</Text>
                                 <Text style={styles.flightOptionPrice}>€{Math.round(option.pricePerPerson)}</Text>
                                 <Text style={styles.flightOptionStops}>
-                                    {option.outbound.stops === 0 ? 'Direct' : `${option.outbound.stops} stop`}
+                                    {option.outbound.stops === 0 ? t('tripDetail.directFlight') : t('tripDetail.stops', { count: option.outbound.stops })}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -1431,7 +1570,7 @@ export default function TripDetails() {
                         </View>
 
                         <View style={styles.flightHeader}>
-                            <Text style={styles.flightPrice}>€{Math.round(selectedFlight.pricePerPerson)}/person</Text>
+                            <Text style={styles.flightPrice}>€{Math.round(selectedFlight.pricePerPerson)}{t('tripDetail.perPerson')}</Text>
                             <View style={styles.luggageBadge}>
                                 <Ionicons name="briefcase-outline" size={14} color="#14B8A6" />
                                 <Text style={styles.luggageText}>{selectedFlight.luggage}</Text>
@@ -1441,14 +1580,14 @@ export default function TripDetails() {
                         {itinerary.flights.dataSource === "ai-generated" && (
                             <View style={styles.dataSourceBadge}>
                                 <Ionicons name="sparkles" size={14} color="#FF9500" />
-                                <Text style={styles.dataSourceText}>AI-Generated Flight Data</Text>
+                                <Text style={styles.dataSourceText}>{t('tripDetail.aiGeneratedFlightData')}</Text>
                             </View>
                         )}
                         
                         <View style={styles.flightSegment}>
                             <View style={styles.segmentHeader}>
                                 <Ionicons name="airplane" size={20} color="#14B8A6" />
-                                <Text style={styles.segmentTitle}>Outbound</Text>
+                                <Text style={styles.segmentTitle}>{t('tripDetail.outbound')}</Text>
                             </View>
                             <View style={styles.row}>
                                 <View style={styles.flightInfo}>
@@ -1469,7 +1608,7 @@ export default function TripDetails() {
                         <View style={styles.flightSegment}>
                             <View style={styles.segmentHeader}>
                                 <Ionicons name="airplane" size={20} color="#14B8A6" style={{ transform: [{ rotate: '180deg' }] }} />
-                                <Text style={styles.segmentTitle}>Return</Text>
+                                <Text style={styles.segmentTitle}>{t('tripDetail.return')}</Text>
                             </View>
                             <View style={styles.row}>
                                 <View style={styles.flightInfo}>
@@ -1487,20 +1626,20 @@ export default function TripDetails() {
 
                         {/* Baggage Options */}
                         <View style={styles.baggageSection}>
-                            <Text style={styles.baggageSectionTitle}>Baggage Options</Text>
+                            <Text style={styles.baggageSectionTitle}>{t('tripDetail.baggageOptions')}</Text>
                             
                             {/* Included Cabin Bag */}
                             <View style={styles.baggageOption}>
                                 <View style={styles.baggageOptionLeft}>
                                     <Ionicons name="briefcase-outline" size={20} color="#14B8A6" />
                                     <View style={styles.baggageOptionInfo}>
-                                        <Text style={styles.baggageOptionTitle}>Cabin Bag (8kg)</Text>
-                                        <Text style={styles.baggageOptionDesc}>Included in fare</Text>
+                                        <Text style={styles.baggageOptionTitle}>{t('tripDetail.cabinBag8kg')}</Text>
+                                        <Text style={styles.baggageOptionDesc}>{t('tripDetail.includedInFare')}</Text>
                                     </View>
                                 </View>
                                 <View style={styles.includedBadge}>
                                     <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                                    <Text style={styles.includedText}>Included</Text>
+                                    <Text style={styles.includedText}>{t('tripDetail.included')}</Text>
                                 </View>
                             </View>
 
@@ -1510,13 +1649,13 @@ export default function TripDetails() {
                                     <View style={styles.baggageOptionLeft}>
                                         <Ionicons name="bag-handle-outline" size={20} color="#14B8A6" />
                                         <View style={styles.baggageOptionInfo}>
-                                            <Text style={styles.baggageOptionTitle}>Checked Bag (23kg)</Text>
-                                            <Text style={styles.baggageOptionDesc}>Included in fare</Text>
+                                            <Text style={styles.baggageOptionTitle}>{t('tripDetail.checkedBag23kg')}</Text>
+                                            <Text style={styles.baggageOptionDesc}>{t('tripDetail.includedInFare')}</Text>
                                         </View>
                                     </View>
                                     <View style={styles.includedBadge}>
                                         <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                                        <Text style={styles.includedText}>Included</Text>
+                                        <Text style={styles.includedText}>{t('tripDetail.included')}</Text>
                                     </View>
                                 </View>
                             ) : (
@@ -1533,9 +1672,9 @@ export default function TripDetails() {
                                         <Ionicons name="bag-handle-outline" size={20} color={checkedBaggageSelected ? "#14B8A6" : "#546E7A"} />
                                         <View style={styles.baggageOptionInfo}>
                                             <Text style={[styles.baggageOptionTitle, checkedBaggageSelected && styles.baggageOptionTitleSelected]}>
-                                                Checked Bag (23kg)
+                                                {t('tripDetail.checkedBag23kg')}
                                             </Text>
-                                            <Text style={styles.baggageOptionDesc}>Per person, round trip</Text>
+                                            <Text style={styles.baggageOptionDesc}>{t('tripDetail.perPersonRoundTrip')}</Text>
                                         </View>
                                     </View>
                                     <View style={styles.baggageOptionRight}>
@@ -1554,7 +1693,7 @@ export default function TripDetails() {
                             {checkedBaggageSelected && !selectedFlight.checkedBaggageIncluded && (
                                 <View style={styles.baggageSummary}>
                                     <Text style={styles.baggageSummaryText}>
-                                        Checked baggage for {travelers} traveler{travelers > 1 ? 's' : ''}: €{(selectedFlight.checkedBaggagePrice || 30) * travelers}
+                                        {t('tripDetail.checkedBaggageFor', { count: travelers, price: (selectedFlight.checkedBaggagePrice || 30) * travelers })}
                                     </Text>
                                 </View>
                             )}
@@ -1565,7 +1704,7 @@ export default function TripDetails() {
                         style={styles.affiliateButton}
                         onPress={() => selectedFlight.bookingUrl ? Linking.openURL(selectedFlight.bookingUrl) : openAffiliateLink('flight', `${trip.origin} to ${trip.destination}`)}
                     >
-                        <Text style={styles.affiliateButtonText}>Book This Flight</Text>
+                        <Text style={styles.affiliateButtonText}>{t('tripDetail.bookThisFlight')}</Text>
                         <Ionicons name="open-outline" size={16} color="#14B8A6" />
                     </TouchableOpacity>
                 </View>
@@ -1593,7 +1732,7 @@ export default function TripDetails() {
         if (!itinerary.flights || !itinerary.flights.outbound) {
             return (
                 <View style={styles.card}>
-                    <Text style={styles.cardSubtitle}>Flight details unavailable</Text>
+                    <Text style={styles.cardSubtitle}>{t('tripDetail.flightDetailsUnavailable')}</Text>
                 </View>
             );
         }
@@ -1602,7 +1741,7 @@ export default function TripDetails() {
         return (
             <View style={styles.card}>
                 <View style={styles.flightHeader}>
-                    <Text style={styles.flightPrice}>€{flightPricePerPerson}/person</Text>
+                    <Text style={styles.flightPrice}>€{flightPricePerPerson}{t('tripDetail.perPerson')}</Text>
                     <View style={styles.luggageBadge}>
                         <Ionicons name="briefcase-outline" size={14} color="#14B8A6" />
                         <Text style={styles.luggageText}>{itinerary.flights.luggage}</Text>
@@ -1612,14 +1751,14 @@ export default function TripDetails() {
                 {itinerary.flights.dataSource === "ai-generated" && (
                     <View style={styles.dataSourceBadge}>
                         <Ionicons name="sparkles" size={14} color="#FF9500" />
-                        <Text style={styles.dataSourceText}>AI-Generated Flight Data</Text>
+                        <Text style={styles.dataSourceText}>{t('tripDetail.aiGeneratedFlightData')}</Text>
                     </View>
                 )}
                 
                 <View style={styles.flightSegment}>
                     <View style={styles.segmentHeader}>
                         <Ionicons name="airplane" size={20} color="#14B8A6" />
-                        <Text style={styles.segmentTitle}>Outbound</Text>
+                        <Text style={styles.segmentTitle}>{t('tripDetail.outbound')}</Text>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.flightInfo}>
@@ -1640,7 +1779,7 @@ export default function TripDetails() {
                 <View style={styles.flightSegment}>
                     <View style={styles.segmentHeader}>
                         <Ionicons name="airplane" size={20} color="#14B8A6" style={{ transform: [{ rotate: '180deg' }] }} />
-                        <Text style={styles.segmentTitle}>Return</Text>
+                        <Text style={styles.segmentTitle}>{t('tripDetail.return')}</Text>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.flightInfo}>
@@ -1660,7 +1799,7 @@ export default function TripDetails() {
                     style={styles.affiliateButton}
                     onPress={() => openAffiliateLink('flight', `${trip.origin} to ${trip.destination}`)}
                 >
-                    <Text style={styles.affiliateButtonText}>Check Flight Availability</Text>
+                    <Text style={styles.affiliateButtonText}>{t('tripDetail.checkFlightAvailability')}</Text>
                     <Ionicons name="open-outline" size={16} color="#14B8A6" />
                 </TouchableOpacity>
             </View>
@@ -1682,7 +1821,7 @@ export default function TripDetails() {
                     <View style={{ flex: 1 }} />
                     <View style={[styles.aiBadge, { backgroundColor: 'rgba(255,255,255,0.9)' }]}>
                         <Ionicons name="sparkles" size={12} color="#FFE500" />
-                        <Text style={[styles.aiBadgeText, { color: '#1A1A1A' }]}>AI Generated</Text>
+                        <Text style={[styles.aiBadgeText, { color: '#1A1A1A' }]}>{t('tripDetail.aiGenerated')}</Text>
                     </View>
                 </View>
             </SafeAreaView>
@@ -1721,14 +1860,14 @@ export default function TripDetails() {
                                 </View>
                                 <View style={styles.headerTravelersBadge}>
                                     <Ionicons name="people-outline" size={14} color="white" />
-                                    <Text style={styles.headerTravelersText}>{trip.travelers || 1} traveler{(trip.travelers || 1) > 1 ? 's' : ''}</Text>
+                                    <Text style={styles.headerTravelersText}>{t('tripDetail.travelerCount', { count: trip.travelers || 1 })}</Text>
                                 </View>
                             </View>
                         </View>
                     </LinearGradient>
                     <TouchableOpacity style={[styles.viewMapButton, { backgroundColor: colors.card }]} onPress={() => router.push({ pathname: '/trip/map', params: { id: id as string } })}>
                         <Ionicons name="map" size={20} color={colors.primary} />
-                        <Text style={[styles.viewMapText, { color: colors.text }]}>Explore Route</Text>
+                        <Text style={[styles.viewMapText, { color: colors.text }]}>{t('tripDetail.exploreRoute')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -1739,49 +1878,49 @@ export default function TripDetails() {
                         onPress={() => setActiveFilter('all')}
                     >
                         <Ionicons name="calendar" size={18} color={activeFilter === 'all' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'all' && { color: colors.card }]}>Itinerary</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'all' && { color: colors.card }]}>{t('tripDetail.itinerary')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'flights' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('flights')}
                     >
                         <Ionicons name="airplane" size={18} color={activeFilter === 'flights' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'flights' && { color: colors.card }]}>Flights</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'flights' && { color: colors.card }]}>{t('tripDetail.flightsTab')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'food' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('food')}
                     >
                         <Ionicons name="restaurant" size={18} color={activeFilter === 'food' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'food' && { color: colors.card }]}>Culinary</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'food' && { color: colors.card }]}>{t('tripDetail.culinary')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'sights' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('sights')}
                     >
                         <Ionicons name="ticket" size={18} color={activeFilter === 'sights' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'sights' && { color: colors.card }]}>Sights</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'sights' && { color: colors.card }]}>{t('tripDetail.sightsTab')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'stays' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('stays')}
                     >
                         <Ionicons name="bed" size={18} color={activeFilter === 'stays' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'stays' && { color: colors.card }]}>Stays</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'stays' && { color: colors.card }]}>{t('tripDetail.staysTab')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'transportation' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('transportation')}
                     >
                         <Ionicons name="car" size={18} color={activeFilter === 'transportation' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'transportation' && { color: colors.card }]}>Transport</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'transportation' && { color: colors.card }]}>{t('tripDetail.transportTab')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'insights' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('insights')}
                     >
                         <Ionicons name="chatbubbles" size={18} color={activeFilter === 'insights' ? colors.card : colors.textMuted} />
-                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'insights' && { color: colors.card }]}>Insights</Text>
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'insights' && { color: colors.card }]}>{t('tripDetail.insightsTab')}</Text>
                     </TouchableOpacity>
                 </ScrollView>
 
@@ -1790,13 +1929,13 @@ export default function TripDetails() {
                     {activeFilter === 'all' && trip.itinerary?.dayByDayItinerary?.map((day: any, index: number) => {
                     // Calculate energy level based on number of activities
                     const activityCount = day.activities?.length || 0;
-                    let energyLevel = 'LOW ENERGY';
+                    let energyLevel = t('tripDetail.lowEnergy');
                     let energyColor = '#4CAF50'; // green
                     if (activityCount >= 5) {
-                        energyLevel = 'HIGH ENERGY';
+                        energyLevel = t('tripDetail.highEnergy');
                         energyColor = '#EF4444'; // red for high energy
                     } else if (activityCount >= 3) {
-                        energyLevel = 'MEDIUM ENERGY';
+                        energyLevel = t('tripDetail.mediumEnergy');
                         energyColor = '#FF9800'; // orange
                     }
                     
@@ -1813,10 +1952,10 @@ export default function TripDetails() {
                             <View style={styles.dayHeader}>
                                 <View style={styles.dayHeaderLeft}>
                                     <View style={styles.dayTitleRow}>
-                                        <Text style={[styles.dayTitle, { color: colors.text }]}>Day {day.day}</Text>
+                                        <Text style={[styles.dayTitle, { color: colors.text }]}>{t('tripDetail.day', { number: day.day })}</Text>
                                         <Text style={[styles.dayDate, { color: colors.textMuted }]}> · {formattedDate}</Text>
                                     </View>
-                                    <Text style={[styles.daySubtitle, { color: colors.textMuted }]}>{day.title || `Explore ${trip.destination}`}</Text>
+                                    <Text style={[styles.daySubtitle, { color: colors.textMuted }]}>{day.title || t('tripDetail.exploreDest', { destination: trip.destination })}</Text>
                                 </View>
                                 <View style={[styles.energyBadge, { backgroundColor: isDarkMode ? `${energyColor}33` : `${energyColor}22` }]}>
                                     <Text style={[styles.energyText, { color: energyColor }]}>{energyLevel}</Text>
@@ -1855,7 +1994,7 @@ export default function TripDetails() {
                                                 <View style={styles.travelSegmentContent}>
                                                     <Ionicons name="walk" size={16} color={colors.textMuted} />
                                                     <Text style={[styles.travelSegmentText, { color: colors.textMuted }]}>
-                                                        {activity.travelFromPrevious.walkingMinutes} min walk
+                                                        {t('tripDetail.minWalk', { minutes: activity.travelFromPrevious.walkingMinutes })}
                                                         {activity.travelFromPrevious.distanceKm && ` · ${activity.travelFromPrevious.distanceKm} km`}
                                                     </Text>
                                                 </View>
@@ -2028,7 +2167,7 @@ export default function TripDetails() {
                                                     <Text style={[styles.activityTitle, { color: colors.text, flex: 1 }]}>{activity.title}</Text>
                                                     {activity.isLocalExperience && (
                                                         <View style={[styles.localBadge, { backgroundColor: colors.primary }]}>
-                                                            <Text style={[styles.localBadgeText, { color: colors.text }]}>Local</Text>
+                                                            <Text style={[styles.localBadgeText, { color: colors.text }]}>{t('tripDetail.local')}</Text>
                                                         </View>
                                                     )}
                                                 </View>
@@ -2039,7 +2178,7 @@ export default function TripDetails() {
                                                 )}
                                                 <View style={styles.activityMeta}>
                                                     <View style={[styles.metaBadge, { backgroundColor: colors.secondary }]}>
-                                                        <Text style={[styles.metaText, { color: colors.text }]}>{activity.culinaryType || activity.type || 'Activity'}</Text>
+                                                        <Text style={[styles.metaText, { color: colors.text }]}>{activity.culinaryType || activity.type || t('tripDetail.activity')}</Text>
                                                     </View>
                                                     {activity.type === 'restaurant' && activity.priceRange && (
                                                         <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{activity.priceRange}</Text>
@@ -2146,25 +2285,25 @@ export default function TripDetails() {
                                     culinaryByDay.push({
                                         day: day.day || idx + 1,
                                         date: formattedDate,
-                                        title: day.title || `Day ${idx + 1}`,
+                                        title: day.title || t('tripDetail.day', { number: idx + 1 }),
                                         moments,
                                     });
                                 }
 
                                 if (culinaryByDay.length === 0) {
-                                    return <Text style={[styles.emptyText, { color: colors.textMuted }]}>No culinary experiences found.</Text>;
+                                    return <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('tripDetail.noCulinaryFound')}</Text>;
                                 }
 
                                 const momentConfig = {
-                                    morning: { emoji: '☕', label: 'Bakery & Coffee', color: '#D97706' },
-                                    midday: { emoji: '🥪', label: 'Lunch', color: '#059669' },
-                                    evening: { emoji: '🍽️', label: 'Dinner', color: '#7C3AED' },
+                                    morning: { emoji: '☕', label: t('tripDetail.bakeryAndCoffee'), color: '#D97706' },
+                                    midday: { emoji: '🥪', label: t('tripDetail.lunchLabel'), color: '#059669' },
+                                    evening: { emoji: '🍽️', label: t('tripDetail.dinnerLabel'), color: '#7C3AED' },
                                 };
 
                                 return culinaryByDay.map((dayData, dayIdx) => (
                                     <View key={dayIdx} style={{ marginBottom: 24 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 }}>
-                                            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>Day {dayData.day}</Text>
+                                            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>{t('tripDetail.day', { number: dayData.day })}</Text>
                                             <Text style={{ fontSize: 13, color: colors.textMuted }}>{dayData.date}</Text>
                                         </View>
 
@@ -2304,30 +2443,171 @@ export default function TripDetails() {
 
                     {activeFilter === 'flights' && (
                         <View>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Available Flights</Text>
-                            <View style={[styles.card, styles.skippedCard]}>
-                                <View style={styles.skippedSection}>
-                                    <View style={styles.skippedIconContainer}>
-                                        <Ionicons name="airplane" size={32} color={colors.primary} />
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.availableFlights')}</Text>
+                            {/* Trip.com Search Card */}
+                            <TouchableOpacity
+                                style={{
+                                    marginTop: 16,
+                                    backgroundColor: colors.card,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.08,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                }}
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                    const dDate = new Date(trip.startDate).toISOString().split('T')[0];
+                                    const rDate = new Date(trip.endDate).toISOString().split('T')[0];
+                                    const depCode = getAirportCode(trip.origin).toLowerCase();
+                                    const arrCode = getAirportCode(trip.destination).toLowerCase();
+                                    Linking.openURL(`https://www.trip.com/flights/showfarefirst?dcity=${depCode}&acity=${arrCode}&ddate=${dDate}&rdate=${rDate}&aairport=${arrCode}&triptype=rt&class=y&lowpricesource=searchform&quantity=${travelers}&searchboxarg=t&nonstoponly=off&locale=${i18n.language}-XX&curr=EUR&Allianceid=7913522&SID=297487884&trip_sub1=`);
+                                }}
+                            >
+                                {/* Trip.com branding */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#287DFA', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 11 }}>Trip</Text>
                                     </View>
-                                    <Text style={[styles.skippedTitle, { color: '#1A1A1A' }]}>Coming in Next Updates</Text>
-                                    <Text style={[styles.skippedText, { color: '#64748B' }]}>
-                                        Flight booking and search will be available soon. We're working hard to bring you the best flight options!
-                                    </Text>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Trip.com</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted }}>{t('tripDetail.searchFlightsOnTripcom')}</Text>
+                                    </View>
+                                    <Ionicons name="open-outline" size={18} color={colors.textMuted} />
                                 </View>
-                            </View>
+
+                                {/* Route display */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? colors.secondary : '#F8F9FA', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                                    <View style={{ flex: 1, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.from')}</Text>
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.origin || '—'}</Text>
+                                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: 2 }}>{getAirportCode(trip.origin)}</Text>
+                                    </View>
+                                    <View style={{ paddingHorizontal: 8 }}>
+                                        <Ionicons name="airplane" size={20} color={colors.primary} />
+                                    </View>
+                                    <View style={{ flex: 1, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.to')}</Text>
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.destination || '—'}</Text>
+                                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: 2 }}>{getAirportCode(trip.destination)}</Text>
+                                    </View>
+                                </View>
+
+                                {/* Dates & passengers */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="calendar-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {new Date(trip.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} – {new Date(trip.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="people-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.travelerCount', { count: travelers })}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* CTA Button */}
+                                <View style={{ backgroundColor: '#287DFA', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
+                                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.searchOnTripcom')}</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            {/* Skyscanner Search Card */}
+                            <TouchableOpacity
+                                style={{
+                                    marginTop: 16,
+                                    backgroundColor: colors.card,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.08,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                }}
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                    const startD = new Date(trip.startDate);
+                                    const endD = new Date(trip.endDate);
+                                    const fmt = (d: Date) => d.toISOString().slice(2, 10).replace(/-/g, '');
+                                    const depCode = getAirportCode(trip.origin).toLowerCase();
+                                    const arrCode = getAirportCode(trip.destination).toLowerCase();
+                                    const skyDomainMap: Record<string, string> = { en: 'www.skyscanner.com', el: 'gr.skyscanner.com', es: 'www.skyscanner.es', fr: 'www.skyscanner.fr', de: 'www.skyscanner.de', ar: 'www.skyscanner.ae' };
+                                    const skyDomain = skyDomainMap[i18n.language] || 'www.skyscanner.com';
+                                    Linking.openURL(`https://${skyDomain}/transport/flights/${depCode}/${arrCode}/${fmt(startD)}/${fmt(endD)}/?adultsv2=${travelers}&cabinclass=economy&childrenv2=&ref=home&rtn=1&preferdirects=false&outboundaltsenabled=false&inboundaltsenabled=false`);
+                                }}
+                            >
+                                {/* Skyscanner branding */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#0770E3', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <Ionicons name="search" size={18} color="#fff" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Skyscanner</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted }}>{t('tripDetail.searchFlightsOnSkyscanner')}</Text>
+                                    </View>
+                                    <Ionicons name="open-outline" size={18} color={colors.textMuted} />
+                                </View>
+
+                                {/* Route display */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? colors.secondary : '#F8F9FA', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                                    <View style={{ flex: 1, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.from')}</Text>
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.origin || '—'}</Text>
+                                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: 2 }}>{getAirportCode(trip.origin)}</Text>
+                                    </View>
+                                    <View style={{ paddingHorizontal: 8 }}>
+                                        <Ionicons name="airplane" size={20} color={colors.primary} />
+                                    </View>
+                                    <View style={{ flex: 1, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.to')}</Text>
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.destination || '—'}</Text>
+                                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600', marginTop: 2 }}>{getAirportCode(trip.destination)}</Text>
+                                    </View>
+                                </View>
+
+                                {/* Dates & passengers */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="calendar-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {new Date(trip.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} – {new Date(trip.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="people-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.travelerCount', { count: travelers })}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* CTA Button */}
+                                <View style={{ backgroundColor: '#0770E3', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
+                                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.searchOnSkyscanner')}</Text>
+                                </View>
+                            </TouchableOpacity>
                         </View>
                     )}
 
                     {activeFilter === 'sights' && (
                         <>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Sights & Attractions</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.sightsAndAttractions')}</Text>
                             
                             {/* AI-generated Sights & Attractions */}
                             {topSights === undefined ? (
                                 <View style={[styles.loadingContainer, { backgroundColor: colors.card }]}>
                                     <ActivityIndicator size="small" color={colors.primary} />
-                                    <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading sights...</Text>
+                                    <Text style={[styles.loadingText, { color: colors.textMuted }]}>{t('tripDetail.loadingSightsText')}</Text>
                                 </View>
                             ) : topSights && topSights.sights && topSights.sights.length > 0 ? (
                                 <>
@@ -2375,7 +2655,7 @@ export default function TripDetails() {
                                     <View style={[styles.aiDisclaimer, { backgroundColor: colors.secondary }]}>
                                         <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
                                         <Text style={[styles.aiDisclaimerText, { color: colors.textMuted }]}>
-                                            Suggestions are AI-generated. Confirm details locally.
+                                            {t('tripDetail.suggestionsAiGenerated')}
                                         </Text>
                                     </View>
                                     {/* Refresh sights button */}
@@ -2389,7 +2669,7 @@ export default function TripDetails() {
                                             } catch (error) {
                                                 console.error("Failed to refresh sights:", error);
                                                 if (Platform.OS !== 'web') {
-                                                    Alert.alert("Error", "Failed to refresh sights. Please try again.");
+                                                    Alert.alert(t('tripDetail.error'), t('tripDetail.failedRefreshSights'));
                                                 }
                                                 setGeneratingSights(false);
                                             }
@@ -2399,12 +2679,12 @@ export default function TripDetails() {
                                         {generatingSights ? (
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                                 <ActivityIndicator size="small" color={colors.text} />
-                                                <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>Refreshing sights...</Text>
+                                                <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>{t('tripDetail.refreshingSights')}</Text>
                                             </View>
                                         ) : (
                                             <>
                                                 <Ionicons name="refresh" size={16} color={colors.text} />
-                                                <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>Refresh Sights</Text>
+                                                <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>{t('tripDetail.refreshSights')}</Text>
                                             </>
                                         )}
                                     </TouchableOpacity>
@@ -2414,17 +2694,17 @@ export default function TripDetails() {
                                     {generatingSights ? (
                                         <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                                             <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 20 }} />
-                                            <Text style={[styles.emptySightsTitle, { color: colors.text }]}>Generating sights...</Text>
+                                            <Text style={[styles.emptySightsTitle, { color: colors.text }]}>{t('tripDetail.generatingSights')}</Text>
                                             <Text style={[styles.emptySightsText, { color: colors.textMuted, marginTop: 8 }]}>
-                                                Our AI is finding the best sights in {trip?.destination}. This may take a moment.
+                                                {t('tripDetail.aiGeneratingSightsDesc', { destination: trip?.destination })}
                                             </Text>
                                         </View>
                                     ) : (
                                         <>
                                             <Ionicons name="telescope-outline" size={48} color={colors.textMuted} />
-                                            <Text style={[styles.emptySightsTitle, { color: colors.text }]}>Discover Sights & Attractions</Text>
+                                            <Text style={[styles.emptySightsTitle, { color: colors.text }]}>{t('tripDetail.discoverSights')}</Text>
                                             <Text style={[styles.emptySightsText, { color: colors.textMuted }]}>
-                                                Get AI-powered recommendations for the best sights to see in {trip?.destination}.
+                                                {t('tripDetail.aiSightsDesc', { destination: trip?.destination })}
                                             </Text>
                                             <TouchableOpacity 
                                                 style={[styles.generateSightsButton, { backgroundColor: colors.primary }]}
@@ -2436,14 +2716,14 @@ export default function TripDetails() {
                                                     } catch (error) {
                                                         console.error("Failed to generate sights:", error);
                                                         if (Platform.OS !== 'web') {
-                                                            Alert.alert("Error", "Failed to generate sights. Please try again.");
+                                                            Alert.alert(t('tripDetail.error'), t('tripDetail.failedGenerateSights'));
                                                         }
                                                         setGeneratingSights(false);
                                                     }
                                                 }}
                                             >
                                                 <Ionicons name="sparkles" size={18} color={colors.text} />
-                                                <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>Generate All Sights</Text>
+                                                <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>{t('tripDetail.generateAllSights')}</Text>
                                             </TouchableOpacity>
                                         </>
                                     )}
@@ -2454,24 +2734,185 @@ export default function TripDetails() {
 
                     {activeFilter === 'stays' && (
                         <View>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Accommodations</Text>
-                            <View style={[styles.card, styles.skippedCard]}>
-                                <View style={styles.skippedSection}>
-                                    <View style={styles.skippedIconContainer}>
-                                        <Ionicons name="bed" size={32} color={colors.primary} />
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.accommodations')}</Text>
+
+                            {/* Skyscanner Hotels Search Card */}
+                            <TouchableOpacity
+                                style={{
+                                    marginTop: 16,
+                                    backgroundColor: colors.card,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.08,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                }}
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                    const checkin = new Date(trip.startDate).toISOString().split('T')[0];
+                                    const checkout = new Date(trip.endDate).toISOString().split('T')[0];
+                                    const skyDomainMap: Record<string, string> = { en: 'www.skyscanner.com', el: 'gr.skyscanner.com', es: 'www.skyscanner.es', fr: 'www.skyscanner.fr', de: 'www.skyscanner.de', ar: 'www.skyscanner.ae' };
+                                    const skyDomain = skyDomainMap[i18n.language] || 'www.skyscanner.com';
+                                    const entityId = getSkyscannerEntityId(trip.destination);
+                                    if (entityId) {
+                                        Linking.openURL(`https://${skyDomain}/hotels/search?entity_id=${entityId}&checkin=${checkin}&checkout=${checkout}&rooms=1&adults=${travelers}`);
+                                    } else {
+                                        Linking.openURL(`https://${skyDomain}/hotels`);
+                                    }
+                                }}
+                            >
+                                {/* Skyscanner branding */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#0770E3', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <Ionicons name="bed" size={18} color="#fff" />
                                     </View>
-                                    <Text style={[styles.skippedTitle, { color: '#1A1A1A' }]}>Coming in Next Updates</Text>
-                                    <Text style={[styles.skippedText, { color: '#64748B' }]}>
-                                        Hotel and accommodation booking will be available soon. We're working hard to bring you the best options!
-                                    </Text>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Skyscanner</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted }}>{t('tripDetail.searchHotelsOnSkyscanner')}</Text>
+                                    </View>
+                                    <Ionicons name="open-outline" size={18} color={colors.textMuted} />
                                 </View>
-                            </View>
+
+                                {/* Destination & dates */}
+                                <View style={{ backgroundColor: isDarkMode ? colors.secondary : '#F8F9FA', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                        <Ionicons name="location" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.destination || '—'}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.checkIn')}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                                                {new Date(trip.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                        <View style={{ paddingHorizontal: 10, justifyContent: 'center' }}>
+                                            <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
+                                        </View>
+                                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                            <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.checkOut')}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                                                {new Date(trip.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Guests & nights */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="people-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.guestCount', { count: travelers })}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="moon-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.nightCount', { count: duration })}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* CTA Button */}
+                                <View style={{ backgroundColor: '#0770E3', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
+                                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.searchOnSkyscannerHotels')}</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            {/* Booking.com Hotels Search Card */}
+                            <TouchableOpacity
+                                style={{
+                                    marginTop: 16,
+                                    backgroundColor: colors.card,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.08,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                }}
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                    const checkin = new Date(trip.startDate).toISOString().split('T')[0];
+                                    const checkout = new Date(trip.endDate).toISOString().split('T')[0];
+                                    const bookingLangMap: Record<string, string> = { en: 'en-gb', el: 'el', es: 'es', fr: 'fr', de: 'de', ar: 'ar' };
+                                    const bookingLang = bookingLangMap[i18n.language] || 'en-gb';
+                                    const dest = encodeURIComponent(trip.destination || '');
+                                    Linking.openURL(`https://www.booking.com/searchresults.${bookingLang}.html?ss=${dest}&checkin=${checkin}&checkout=${checkout}&group_adults=${travelers}&no_rooms=1&group_children=0`);
+                                }}
+                            >
+                                {/* Booking.com branding */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#003580', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>B.</Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Booking.com</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted }}>{t('tripDetail.searchHotelsOnBooking')}</Text>
+                                    </View>
+                                    <Ionicons name="open-outline" size={18} color={colors.textMuted} />
+                                </View>
+
+                                {/* Destination & dates */}
+                                <View style={{ backgroundColor: isDarkMode ? colors.secondary : '#F8F9FA', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                        <Ionicons name="location" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.destination || '—'}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.checkIn')}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                                                {new Date(trip.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                        <View style={{ paddingHorizontal: 10, justifyContent: 'center' }}>
+                                            <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
+                                        </View>
+                                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                            <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.checkOut')}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                                                {new Date(trip.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Guests & nights */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="people-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.guestCount', { count: travelers })}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="moon-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.nightCount', { count: duration })}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* CTA Button */}
+                                <View style={{ backgroundColor: '#003580', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
+                                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.searchOnBookingHotels')}</Text>
+                                </View>
+                            </TouchableOpacity>
                         </View>
                     )}
 
                     {activeFilter === 'transportation' && (
                         <View>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Getting Around</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.gettingAround')}</Text>
                             {trip.itinerary?.transportation && trip.itinerary.transportation.length > 0 ? (
                                 trip.itinerary.transportation.map((option: any, index: number) => (
                                     <View key={index} style={[styles.card, { backgroundColor: colors.card }]}>
@@ -2490,7 +2931,7 @@ export default function TripDetails() {
                                                         color={colors.text} 
                                                     />
                                                     <Text style={[styles.cardTitle, { color: colors.text }]}>
-                                                        {option.provider || option.type || 'Transport Option'}
+                                                        {option.provider || option.type || t('tripDetail.transportOption')}
                                                         {option.service ? ` - ${option.service}` : ''}
                                                     </Text>
                                                 </View>
@@ -2499,15 +2940,15 @@ export default function TripDetails() {
                                                     <View>
                                                         {option.options.map((opt: any, i: number) => (
                                                             <View key={i} style={[styles.transportOption, { backgroundColor: colors.secondary }]}>
-                                                                <Text style={[styles.transportMode, { color: colors.text }]}>{opt.mode || 'Transit'}</Text>
+                                                                <Text style={[styles.transportMode, { color: colors.text }]}>{opt.mode || t('tripDetail.transit')}</Text>
                                                                 {opt.description && (
                                                                     <Text style={[styles.transportDesc, { color: colors.textMuted }]}>{opt.description}</Text>
                                                                 )}
                                                                 {(opt.singleTicketPrice || opt.dayPassPrice) && (
                                                                     <Text style={[styles.transportPrice, { color: colors.primary }]}>
-                                                                        {opt.singleTicketPrice ? `Single: €${opt.singleTicketPrice}` : ''}
+                                                                        {opt.singleTicketPrice ? t('tripDetail.singleTicketPrice', { price: opt.singleTicketPrice }) : ''}
                                                                         {opt.singleTicketPrice && opt.dayPassPrice ? ' | ' : ''}
-                                                                        {opt.dayPassPrice ? `Day Pass: €${opt.dayPassPrice}` : ''}
+                                                                        {opt.dayPassPrice ? t('tripDetail.dayPassPrice', { price: opt.dayPassPrice }) : ''}
                                                                     </Text>
                                                                 )}
                                                             </View>
@@ -2541,7 +2982,7 @@ export default function TripDetails() {
                                                 style={[styles.bookButton, { backgroundColor: colors.primary }]}
                                                 onPress={() => Linking.openURL(option.bookingUrl)}
                                             >
-                                                <Text style={[styles.bookButtonText, { color: colors.text }]}>Book Now</Text>
+                                                <Text style={[styles.bookButtonText, { color: colors.text }]}>{t('tripDetail.bookNow')}</Text>
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -2550,9 +2991,9 @@ export default function TripDetails() {
                                 <View style={[styles.card, { backgroundColor: colors.card }]}>
                                     <View style={styles.skippedSection}>
                                         <Ionicons name="car-outline" size={32} color={colors.textMuted} />
-                                        <Text style={[styles.skippedTitle, { color: colors.text }]}>Getting Around {trip.destination}</Text>
+                                        <Text style={[styles.skippedTitle, { color: colors.text }]}>{t('tripDetail.gettingAroundDest', { destination: trip.destination })}</Text>
                                         <Text style={[styles.skippedText, { color: colors.textMuted }]}>
-                                            We recommend using local taxis, rideshare apps (Uber/Bolt), or public transportation. Check Google Maps for the best routes.
+                                            {t('tripDetail.localTransportRecommend')}
                                         </Text>
                                         <TouchableOpacity 
                                             style={[styles.generateSightsButton, { backgroundColor: colors.primary, marginTop: 16 }]}
@@ -2562,7 +3003,7 @@ export default function TripDetails() {
                                             }}
                                         >
                                             <Ionicons name="navigate" size={18} color={colors.text} />
-                                            <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>Open in Google Maps</Text>
+                                            <Text style={[styles.generateSightsButtonText, { color: colors.text }]}>{t('tripDetail.openInGoogleMaps')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -2573,9 +3014,9 @@ export default function TripDetails() {
                     {/* Traveler Insights Section */}
                     {activeFilter === 'insights' && (
                         <View>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Traveler Insights</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.travelerInsights')}</Text>
                             <Text style={[styles.insightsSubtitle, { color: colors.textMuted, marginBottom: 16 }]}>
-                                Tips from travelers who visited {trip.destination}
+                                {t('tripDetail.tipsFromTravelers', { destination: trip.destination })}
                             </Text>
                             {insights && insights.length > 0 ? (
                                 insights.map((insight: any) => (
@@ -2602,7 +3043,7 @@ export default function TripDetails() {
                                             {insight.verified && (
                                                 <View style={[styles.verifiedBadge, { backgroundColor: 'rgba(34, 197, 94, 0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
                                                     <Ionicons name="checkmark-circle" size={12} color="#22C55E" />
-                                                    <Text style={{ fontSize: 11, color: '#22C55E', fontWeight: '600' }}>Verified</Text>
+                                                    <Text style={{ fontSize: 11, color: '#22C55E', fontWeight: '600' }}>{t('tripDetail.verified')}</Text>
                                                 </View>
                                             )}
                                         </View>
@@ -2611,7 +3052,7 @@ export default function TripDetails() {
                                         </Text>
                                         <View style={[styles.insightFooter, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }]}>
                                             <Text style={[styles.insightDate, { color: colors.textMuted }]}>
-                                                Anonymous Traveler • {new Date(insight.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                                {t('tripDetail.anonymousTraveler')} • {new Date(insight.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                                             </Text>
                                             <TouchableOpacity 
                                                 style={[styles.insightLikes, { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, backgroundColor: likedInsights.has(insight._id) ? 'rgba(245, 158, 11, 0.15)' : 'transparent' }]}
@@ -2654,9 +3095,9 @@ export default function TripDetails() {
                                 <View style={[styles.card, { backgroundColor: colors.card }]}>
                                     <View style={styles.skippedSection}>
                                         <Ionicons name="chatbubbles-outline" size={40} color={colors.textMuted} />
-                                        <Text style={[styles.skippedTitle, { color: colors.text }]}>No insights yet</Text>
+                                        <Text style={[styles.skippedTitle, { color: colors.text }]}>{t('tripDetail.noInsightsYet')}</Text>
                                         <Text style={[styles.skippedText, { color: colors.textMuted }]}>
-                                            Be the first to share a tip about {trip.destination}! After your trip, you can share your experiences to help other travelers.
+                                            {t('tripDetail.beFirstToShare', { destination: trip.destination })}
                                         </Text>
                                     </View>
                                 </View>
@@ -2686,7 +3127,7 @@ export default function TripDetails() {
                         <TouchableOpacity onPress={() => setIsEditing(false)}>
                             <Ionicons name="chevron-back" size={24} color={colors.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Trip</Text>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>{t('tripDetail.editTrip')}</Text>
                         <View style={{ width: 24 }} />
                     </View>
                     
@@ -2697,10 +3138,10 @@ export default function TripDetails() {
                         <ScrollView contentContainerStyle={[styles.modalContent, { backgroundColor: colors.background }]} keyboardShouldPersistTaps="handled">
                             {/* Trip Basics Section */}
                             <View style={styles.sectionContainer}>
-                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Trip Basics</Text>
+                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('tripDetail.tripBasics')}</Text>
                                 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.label, { color: colors.text }]}>Destination</Text>
+                                    <Text style={[styles.label, { color: colors.text }]}>{t('tripDetail.destination')}</Text>
                                     <View style={[styles.lockedInput, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
                                         <Text style={[styles.lockedInputText, { color: colors.textMuted }]}>{editForm.destination}</Text>
                                         <Ionicons name="lock-closed" size={16} color={colors.textMuted} />
@@ -2708,18 +3149,18 @@ export default function TripDetails() {
                                 </View>
 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.label, { color: colors.text }]}>Origin</Text>
+                                    <Text style={[styles.label, { color: colors.text }]}>{t('tripDetail.origin')}</Text>
                                     <TextInput
                                         style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                                         value={editForm.origin}
                                         onChangeText={(text) => setEditForm(prev => ({ ...prev, origin: text }))}
-                                        placeholder="Your departure city"
+                                        placeholder={t('tripDetail.yourDepartureCity')}
                                         placeholderTextColor={colors.textMuted}
                                     />
                                 </View>
 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.label, { color: colors.text }]}>Dates</Text>
+                                    <Text style={[styles.label, { color: colors.text }]}>{t('tripDetail.dates')}</Text>
                                     <View style={styles.datesContainer}>
                                         <TouchableOpacity 
                                             style={[styles.dateInputButton, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -2728,7 +3169,7 @@ export default function TripDetails() {
                                                 setShowCalendar(true);
                                             }}
                                         >
-                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>START DATE</Text>
+                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('tripDetail.startDate')}</Text>
                                             <View style={styles.dateValueContainer}>
                                                 <Ionicons name="calendar-outline" size={20} color={colors.text} />
                                                 <Text style={[styles.dateValueText, { color: colors.text }]}>{formatDate(editForm.startDate)}</Text>
@@ -2744,7 +3185,7 @@ export default function TripDetails() {
                                                 setShowCalendar(true);
                                             }}
                                         >
-                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>END DATE</Text>
+                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('tripDetail.endDate')}</Text>
                                             <View style={styles.dateValueContainer}>
                                                 <Ionicons name="calendar-outline" size={20} color={colors.text} />
                                                 <Text style={[styles.dateValueText, { color: colors.text }]}>{formatDate(editForm.endDate)}</Text>
@@ -2756,9 +3197,9 @@ export default function TripDetails() {
                                 {/* Flight Times Section (Optional) */}
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                        <Text style={[styles.label, { color: colors.text, marginBottom: 0 }]}>Flight Times</Text>
+                                        <Text style={[styles.label, { color: colors.text, marginBottom: 0 }]}>{t('tripDetail.flightTimes')}</Text>
                                         <View style={{ backgroundColor: colors.secondary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-                                            <Text style={{ fontSize: 10, color: colors.textMuted }}>OPTIONAL</Text>
+                                            <Text style={{ fontSize: 10, color: colors.textMuted }}>{t('tripDetail.optional')}</Text>
                                         </View>
                                     </View>
                                     <View style={styles.datesContainer}>
@@ -2771,11 +3212,11 @@ export default function TripDetails() {
                                                 setShowTimePicker(true);
                                             }}
                                         >
-                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>ARRIVAL</Text>
+                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('tripDetail.arrival')}</Text>
                                             <View style={styles.dateValueContainer}>
                                                 <Ionicons name="airplane" size={20} color={colors.text} style={{ transform: [{ rotate: '45deg' }] }} />
                                                 <Text style={[styles.dateValueText, { color: editForm.arrivalTime ? colors.text : colors.textMuted }]}>
-                                                    {editForm.arrivalTime ? formatTime(editForm.arrivalTime) : "Not set"}
+                                                    {editForm.arrivalTime ? formatTime(editForm.arrivalTime) : t('tripDetail.notSet')}
                                                 </Text>
                                                 {editForm.arrivalTime && (
                                                     <TouchableOpacity onPress={() => clearTime('arrival')}>
@@ -2794,11 +3235,11 @@ export default function TripDetails() {
                                                 setShowTimePicker(true);
                                             }}
                                         >
-                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>DEPARTURE</Text>
+                                            <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{t('tripDetail.departure')}</Text>
                                             <View style={styles.dateValueContainer}>
                                                 <Ionicons name="airplane" size={20} color={colors.text} style={{ transform: [{ rotate: '-45deg' }] }} />
                                                 <Text style={[styles.dateValueText, { color: editForm.departureTime ? colors.text : colors.textMuted }]}>
-                                                    {editForm.departureTime ? formatTime(editForm.departureTime) : "Not set"}
+                                                    {editForm.departureTime ? formatTime(editForm.departureTime) : t('tripDetail.notSet')}
                                                 </Text>
                                                 {editForm.departureTime && (
                                                     <TouchableOpacity onPress={() => clearTime('departure')}>
@@ -2822,13 +3263,13 @@ export default function TripDetails() {
                                         <View style={[styles.calendarModal, { backgroundColor: colors.card }]}>
                                             <View style={[styles.calendarHeader, { borderBottomColor: colors.border }]}>
                                                 <TouchableOpacity onPress={() => setShowCalendar(false)}>
-                                                    <Text style={[styles.calendarHeaderText, { color: colors.primary }]}>Cancel</Text>
+                                                    <Text style={[styles.calendarHeaderText, { color: colors.primary }]}>{t('tripDetail.cancel')}</Text>
                                                 </TouchableOpacity>
                                                 <Text style={[styles.calendarHeaderTitle, { color: colors.text }]}>
-                                                    {selectingDate === 'start' ? 'Start Date' : 'End Date'}
+                                                    {selectingDate === 'start' ? t('tripDetail.calendarStartDate') : t('tripDetail.calendarEndDate')}
                                                 </Text>
                                                 <TouchableOpacity onPress={() => setShowCalendar(false)}>
-                                                    <Text style={[styles.calendarHeaderText, { color: colors.primary }]}>Done</Text>
+                                                    <Text style={[styles.calendarHeaderText, { color: colors.primary }]}>{t('tripDetail.done')}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                             <Calendar
@@ -2863,10 +3304,10 @@ export default function TripDetails() {
 
                             {/* Budget Section */}
                             <View style={styles.sectionContainer}>
-                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Budget & Travelers</Text>
+                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('tripDetail.budgetAndTravelers')}</Text>
                                 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.label, { color: colors.text }]}>Budget (€)</Text>
+                                    <Text style={[styles.label, { color: colors.text }]}>{t('tripDetail.budgetEur')}</Text>
                                     <TextInput
                                         style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                                         value={editForm.budget.toString()}
@@ -2881,7 +3322,7 @@ export default function TripDetails() {
                                 </View>
 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.label, { color: colors.text }]}>Travelers</Text>
+                                    <Text style={[styles.label, { color: colors.text }]}>{t('tripDetail.travelersLabel')}</Text>
                                     <View style={{ backgroundColor: colors.secondary, borderRadius: 12, padding: 12 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
                                             <TouchableOpacity 
@@ -2906,7 +3347,7 @@ export default function TripDetails() {
 
                             {/* Travel Style Section */}
                             <View style={styles.sectionContainer}>
-                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Travel Style</Text>
+                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('tripDetail.travelStyle')}</Text>
                                 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
                                     <View style={styles.interestsContainer}>
@@ -2942,7 +3383,7 @@ export default function TripDetails() {
                                                     { color: colors.textMuted },
                                                     editForm.interests.includes(interest) && { color: "white" },
                                                 ]}>
-                                                    {interest}
+                                                    {t(`interests.${interest}`)}
                                                 </Text>
                                             </TouchableOpacity>
                                         ))}
@@ -2952,7 +3393,7 @@ export default function TripDetails() {
 
                             {/* Local Experiences Section */}
                             <View style={styles.sectionContainer}>
-                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Local Experiences (Optional)</Text>
+                                <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('tripDetail.localExperiencesOptional')}</Text>
                                 
                                 <View style={[styles.card, styles.inputGroup, { backgroundColor: colors.card }]}>
                                     <View style={styles.interestsContainer}>
@@ -2976,7 +3417,7 @@ export default function TripDetails() {
                                                     { color: colors.textMuted },
                                                     editForm.localExperiences.includes(experience.id) && { color: colors.text },
                                                 ]}>
-                                                    {experience.label}
+                                                    {t(experience.labelKey)}
                                                 </Text>
                                             </TouchableOpacity>
                                         ))}
@@ -2989,7 +3430,7 @@ export default function TripDetails() {
                                 onPress={handleSaveAndRegenerate}
                             >
                                 <Ionicons name="checkmark" size={20} color={colors.text} style={{ marginRight: 8 }} />
-                                <Text style={[styles.saveButtonText, { color: colors.text }]}>Save & Regenerate</Text>
+                                <Text style={[styles.saveButtonText, { color: colors.text }]}>{t('tripDetail.saveAndRegenerate')}</Text>
                             </TouchableOpacity>
                             <View style={{ height: 40 }} />
 
@@ -3005,20 +3446,20 @@ export default function TripDetails() {
                                         <View style={[styles.calendarModal, { backgroundColor: colors.card }]}>
                                             <View style={[styles.calendarHeader, { borderBottomColor: colors.border }]}>
                                                 <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                                                    <Text style={{ color: colors.error, fontSize: 16 }}>Cancel</Text>
+                                                    <Text style={{ color: colors.error, fontSize: 16 }}>{t('tripDetail.cancel')}</Text>
                                                 </TouchableOpacity>
                                                 <Text style={[styles.calendarHeaderTitle, { color: colors.text }]}>
-                                                    {selectingTime === 'arrival' ? 'Arrival Time' : 'Departure Time'}
+                                                    {selectingTime === 'arrival' ? t('tripDetail.arrivalTime') : t('tripDetail.departureTime')}
                                                 </Text>
                                                 <TouchableOpacity onPress={confirmTimeSelection}>
-                                                    <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Done</Text>
+                                                    <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>{t('tripDetail.done')}</Text>
                                                 </TouchableOpacity>
                                             </View>
                                             <View style={{ padding: 16, alignItems: 'center' }}>
                                                 <Text style={{ color: colors.textMuted, marginBottom: 16, textAlign: 'center' }}>
                                                     {selectingTime === 'arrival' 
-                                                        ? 'What time will you arrive at your destination?' 
-                                                        : 'What time is your departure flight?'}
+                                                        ? t('tripDetail.whatTimeArrive') 
+                                                        : t('tripDetail.whatTimeDeparture')}
                                                 </Text>
                                                 <DateTimePicker
                                                     value={tempTime}
