@@ -18,11 +18,13 @@ import { useToken } from "@/lib/useAuthenticatedMutation";
 import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 export default function DestinationsScreen() {
   const router = useRouter();
   const { token, isLoading: tokenLoading } = useToken();
   const { colors, isDarkMode } = useTheme();
+  const { t } = useTranslation();
   const [destinationImages, setDestinationImages] = useState<Record<string, any>>({});
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -79,7 +81,7 @@ export default function DestinationsScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.authContainer}>
-          <Text style={[styles.authText, { color: colors.textMuted }]}>Please log in to view destinations</Text>
+          <Text style={[styles.authText, { color: colors.textMuted }]}>{t('destinations.pleaseLogIn')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -97,7 +99,7 @@ export default function DestinationsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>All Destinations</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('destinations.allDestinations')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -106,7 +108,7 @@ export default function DestinationsScreen() {
         <Ionicons name="search-outline" size={20} color={colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search destinations..."
+          placeholder={t('destinations.searchDestinations')}
           placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -127,14 +129,14 @@ export default function DestinationsScreen() {
         {!allDestinations ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading destinations...</Text>
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>{t('destinations.loadingDestinations')}</Text>
           </View>
         ) : filteredDestinations.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="globe-outline" size={64} color={colors.textMuted} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Destinations Found</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('destinations.noDestinationsFound')}</Text>
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              {searchQuery ? "Try a different search term" : "Start planning trips to see destinations here"}
+              {searchQuery ? t('destinations.tryDifferentSearch') : t('destinations.startPlanningTrips')}
             </Text>
           </View>
         ) : (
@@ -194,7 +196,7 @@ export default function DestinationsScreen() {
                     <View style={styles.statItem}>
                       <Ionicons name="airplane-outline" size={14} color="rgba(255,255,255,0.8)" />
                       <Text style={styles.statText}>
-                        {destination.count} {destination.count === 1 ? "trip" : "trips"}
+                        {destination.count} {destination.count === 1 ? t('destinations.trip') : t('destinations.trips')}
                       </Text>
                     </View>
                     <View style={styles.statDivider} />

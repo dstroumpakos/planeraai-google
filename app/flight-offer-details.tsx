@@ -21,6 +21,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 const colors = {
   background: "#FFFDF7",
@@ -53,6 +54,7 @@ export default function FlightOfferDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { colors: themeColors } = useTheme();
+  const { t } = useTranslation();
 
   const tripId = params.tripId as Id<"trips">;
   const offerId = params.offerId as string;
@@ -119,7 +121,7 @@ export default function FlightOfferDetailsScreen() {
       setOfferDetails(result.offerDetails);
     } catch (err) {
       console.error("Error initializing draft:", err);
-      setError("Failed to load offer details. Please try again.");
+      setError(t('flightOfferDetails.failedToLoadOffer'));
     } finally {
       setLoading(false);
     }
@@ -160,7 +162,7 @@ export default function FlightOfferDetailsScreen() {
       {included && (
         <View style={styles.includedBadge}>
           <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-          <Text style={styles.includedText}>Included</Text>
+          <Text style={styles.includedText}>{t('flightOfferDetails.included')}</Text>
         </View>
       )}
     </View>
@@ -194,7 +196,7 @@ export default function FlightOfferDetailsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading offer details...</Text>
+          <Text style={styles.loadingText}>{t('flightOfferDetails.loadingOfferDetails')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -205,10 +207,10 @@ export default function FlightOfferDetailsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={colors.error} />
-          <Text style={styles.errorTitle}>Unable to Load Offer</Text>
+          <Text style={styles.errorTitle}>{t('flightOfferDetails.unableToLoadOffer')}</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => router.back()}>
-            <Text style={styles.retryButtonText}>Go Back</Text>
+            <Text style={styles.retryButtonText}>{t('flightOfferDetails.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -228,7 +230,7 @@ export default function FlightOfferDetailsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Fare Details</Text>
+        <Text style={styles.headerTitle}>{t('flightOfferDetails.fareDetails')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -236,7 +238,7 @@ export default function FlightOfferDetailsScreen() {
         {/* Flight Summary */}
         {flightInfo && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Flight Summary</Text>
+            <Text style={styles.cardTitle}>{t('flightOfferDetails.flightSummary')}</Text>
             <View style={styles.flightSummary}>
               <View style={styles.flightLeg}>
                 <Ionicons name="airplane" size={18} color={colors.primary} />
@@ -269,7 +271,7 @@ export default function FlightOfferDetailsScreen() {
         {/* Passengers */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
-            Passengers ({travelers.length})
+            {t('flightOfferDetails.passengers')} ({travelers.length})
           </Text>
           {travelers.map((traveler, index) => (
             <View key={index} style={styles.passengerItem}>
@@ -283,36 +285,36 @@ export default function FlightOfferDetailsScreen() {
 
         {/* Included in Fare */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Included in Your Fare</Text>
+          <Text style={styles.cardTitle}>{t('flightOfferDetails.includedInFare')}</Text>
           {renderBaggageItem(
             "bag-handle-outline",
-            "Carry-on Bag",
-            hasCabinBag ? "1 personal item + 1 cabin bag" : "Personal item only",
+            t('flightOfferDetails.carryOnBag'),
+            hasCabinBag ? t('flightOfferDetails.personalItemCabin') : t('flightOfferDetails.personalItemOnly'),
             hasCabinBag
           )}
           {renderBaggageItem(
             "briefcase-outline",
-            "Checked Baggage",
+            t('flightOfferDetails.checkedBaggage'),
             hasCheckedBag
-              ? `1 checked bag${checkedBagWeight ? ` (up to ${checkedBagWeight})` : ""}`
-              : "Not included",
+              ? (checkedBagWeight ? t('flightOfferDetails.checkedBagWithWeight', { weight: checkedBagWeight }) : t('flightOfferDetails.checkedBagIncluded'))
+              : t('flightOfferDetails.notIncluded'),
             hasCheckedBag
           )}
         </View>
 
         {/* Cancellation & Change Policy */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Booking Policy</Text>
+          <Text style={styles.cardTitle}>{t('flightOfferDetails.bookingPolicy')}</Text>
           {renderPolicyItem(
             "swap-horizontal",
-            "Flight Changes",
-            offerDetails?.conditions?.changePolicy || "Changes not allowed",
+            t('flightOfferDetails.flightChanges'),
+            offerDetails?.conditions?.changePolicy || t('flightOfferDetails.changesNotAllowed'),
             offerDetails?.conditions?.canChange
           )}
           {renderPolicyItem(
             "cash-outline",
-            "Cancellation & Refund",
-            offerDetails?.conditions?.refundPolicy || "Non-refundable",
+            t('flightOfferDetails.cancellationRefund'),
+            offerDetails?.conditions?.refundPolicy || t('flightOfferDetails.nonRefundable'),
             offerDetails?.conditions?.canRefund
           )}
         </View>
@@ -320,21 +322,21 @@ export default function FlightOfferDetailsScreen() {
         {/* Available Extras Preview */}
         {(offerDetails?.availableBags?.length > 0 || offerDetails?.seatSelectionAvailable) && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Available Extras</Text>
+            <Text style={styles.cardTitle}>{t('flightOfferDetails.availableExtras')}</Text>
             <Text style={styles.extrasDescription}>
-              You can customize your booking on the next screen:
+              {t('flightOfferDetails.customizeNextScreen')}
             </Text>
             <View style={styles.extrasPreview}>
               {offerDetails?.availableBags?.length > 0 && (
                 <View style={styles.extrasItem}>
                   <Ionicons name="briefcase" size={18} color={colors.primary} />
-                  <Text style={styles.extrasItemText}>Additional baggage</Text>
+                  <Text style={styles.extrasItemText}>{t('flightOfferDetails.additionalBaggage')}</Text>
                 </View>
               )}
               {offerDetails?.seatSelectionAvailable && (
                 <View style={styles.extrasItem}>
                   <Ionicons name="grid-outline" size={18} color={colors.primary} />
-                  <Text style={styles.extrasItemText}>Seat selection</Text>
+                  <Text style={styles.extrasItemText}>{t('flightOfferDetails.seatSelection')}</Text>
                 </View>
               )}
             </View>
@@ -344,14 +346,14 @@ export default function FlightOfferDetailsScreen() {
         {/* Price Summary */}
         <View style={styles.priceCard}>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Base fare ({travelers.length} passenger{travelers.length > 1 ? "s" : ""})</Text>
+            <Text style={styles.priceLabel}>{t('flightOfferDetails.baseFare', { count: travelers.length })}</Text>
             <Text style={styles.priceValue}>
               {offerDetails?.currency} {offerDetails?.totalPrice?.toFixed(2)}
             </Text>
           </View>
           <View style={styles.priceDivider} />
           <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('flightOfferDetails.total')}</Text>
             <Text style={styles.totalValue}>
               {offerDetails?.currency} {offerDetails?.totalPrice?.toFixed(2)}
             </Text>
@@ -372,7 +374,7 @@ export default function FlightOfferDetailsScreen() {
             <ActivityIndicator color="#FFF" size="small" />
           ) : (
             <>
-              <Text style={styles.continueButtonText}>Continue to Extras</Text>
+              <Text style={styles.continueButtonText}>{t('flightOfferDetails.continueToExtras')}</Text>
               <Ionicons name="arrow-forward" size={20} color="#FFF" />
             </>
           )}

@@ -23,6 +23,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 const colors = {
   background: "#FFFDF7",
@@ -73,6 +74,7 @@ interface BagSelection {
 export default function FlightExtrasScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
 
   const draftId = params.draftId as Id<"flightBookingDrafts">;
   const tripId = params.tripId as Id<"trips">;
@@ -126,7 +128,7 @@ export default function FlightExtrasScreen() {
         setSeatMaps(result.seatMaps);
       } else {
         if (Platform.OS !== "web") {
-          Alert.alert("Seat Selection", result.error);
+          Alert.alert(t('flightExtras.seatError'), result.error);
         }
       }
     } catch (error) {
@@ -208,7 +210,7 @@ export default function FlightExtrasScreen() {
     } catch (error) {
       console.error("Error saving seat selections:", error);
       if (Platform.OS !== "web") {
-        Alert.alert("Error", "Failed to save seat selections");
+        Alert.alert(t('flightExtras.error'), t('flightExtras.failedSaveSeats'));
       }
     }
   };
@@ -217,8 +219,8 @@ export default function FlightExtrasScreen() {
     if (!policyAcknowledged) {
       if (Platform.OS !== "web") {
         Alert.alert(
-          "Policy Acknowledgment Required",
-          "Please review and acknowledge the booking policy before continuing."
+          t('flightExtras.policyRequired'),
+          t('flightExtras.policyRequiredMsg')
         );
       }
       setActiveTab("policy");
@@ -299,7 +301,7 @@ export default function FlightExtrasScreen() {
     } catch (error) {
       console.error("Error saving bag selections:", error);
       if (Platform.OS !== "web") {
-        Alert.alert("Error", "Failed to save bag selections");
+        Alert.alert(t('flightExtras.error'), t('flightExtras.failedSaveBags'));
       }
     }
   };
@@ -329,16 +331,16 @@ export default function FlightExtrasScreen() {
 
     const getPassengerName = (passengerId: string) => {
       const passenger = draft?.passengers.find(p => p.passengerId === passengerId);
-      return passenger?.name || "Passenger";
+      return passenger?.name || t('flightExtras.passenger');
     };
 
     return (
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
         {/* Included Baggage Section */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Included Baggage</Text>
+          <Text style={styles.sectionTitle}>{t('flightExtras.includedBaggage')}</Text>
           <Text style={styles.sectionDescription}>
-            Your fare includes the following baggage allowance:
+            {t('flightExtras.includedBaggageDesc')}
           </Text>
 
           <View style={styles.baggageList}>
@@ -349,7 +351,7 @@ export default function FlightExtrasScreen() {
                   <View key={index} style={styles.passengerBaggageCard}>
                     <View style={styles.passengerBaggageHeader}>
                       <Ionicons name="person" size={16} color={colors.textSecondary} />
-                      <Text style={styles.passengerBaggageName}>{passenger?.name || "Passenger"}</Text>
+                      <Text style={styles.passengerBaggageName}>{passenger?.name || t('flightExtras.passenger')}</Text>
                     </View>
                     
                     <View style={styles.includedBaggageRow}>
@@ -357,7 +359,7 @@ export default function FlightExtrasScreen() {
                         <View style={styles.baggageChip}>
                           <Ionicons name="bag-handle-outline" size={16} color={colors.success} />
                           <Text style={styles.baggageChipText}>
-                            {bagInfo.cabinBags} cabin bag{bagInfo.cabinBags > 1 ? "s" : ""}
+                            {bagInfo.cabinBags} {bagInfo.cabinBags > 1 ? t('flightExtras.cabinBagPlural') : t('flightExtras.cabinBagSingular')}
                           </Text>
                         </View>
                       )}
@@ -365,13 +367,13 @@ export default function FlightExtrasScreen() {
                         <View style={styles.baggageChip}>
                           <Ionicons name="briefcase-outline" size={16} color={colors.success} />
                           <Text style={styles.baggageChipText}>
-                            {bagInfo.checkedBags} checked bag{bagInfo.checkedBags > 1 ? "s" : ""}
+                            {bagInfo.checkedBags} {bagInfo.checkedBags > 1 ? t('flightExtras.checkedBagPlural') : t('flightExtras.checkedBagSingular')}
                             {bagInfo.checkedWeight && ` (${bagInfo.checkedWeight})`}
                           </Text>
                         </View>
                       )}
                       {bagInfo.cabinBags === 0 && bagInfo.checkedBags === 0 && (
-                        <Text style={styles.noBaggageText}>No baggage included</Text>
+                        <Text style={styles.noBaggageText}>{t('flightExtras.noBaggageIncluded')}</Text>
                       )}
                     </View>
                   </View>
@@ -383,13 +385,13 @@ export default function FlightExtrasScreen() {
                   <Ionicons name="bag-handle-outline" size={24} color={colors.primary} />
                 </View>
                 <View style={styles.baggageInfo}>
-                  <Text style={styles.baggageTitle}>Carry-on Bag</Text>
+                  <Text style={styles.baggageTitle}>{t('flightExtras.carryOnBag')}</Text>
                   <Text style={styles.baggageDescription}>
-                    1 cabin bag (max 8kg) + 1 personal item
+                    {t('flightExtras.carryOnDesc')}
                   </Text>
                 </View>
                 <View style={styles.includedBadge}>
-                  <Text style={styles.includedBadgeText}>Included</Text>
+                  <Text style={styles.includedBadgeText}>{t('flightExtras.included')}</Text>
                 </View>
               </View>
             )}
@@ -399,9 +401,9 @@ export default function FlightExtrasScreen() {
         {/* Available Extra Bags Section */}
         {draft?.availableBags && draft.availableBags.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Add Extra Baggage</Text>
+            <Text style={styles.sectionTitle}>{t('flightExtras.addExtraBaggage')}</Text>
             <Text style={styles.sectionDescription}>
-              Purchase additional checked bags for your journey:
+              {t('flightExtras.addExtraBaggageDesc')}
             </Text>
 
             <View style={styles.extraBagsList}>
@@ -413,14 +415,14 @@ export default function FlightExtrasScreen() {
                       <View style={styles.extraBagHeader}>
                         <Ionicons name="briefcase" size={20} color={colors.primary} />
                         <Text style={styles.extraBagTitle}>
-                          {bag.type === "checked" ? "Checked Bag" : bag.type}
+                          {bag.type === "checked" ? t('flightExtras.checkedBag') : bag.type}
                         </Text>
                       </View>
                       <Text style={styles.extraBagPassenger}>
-                        For: {getPassengerName(bag.passengerId)}
+                        {t('flightExtras.forPassenger', { name: getPassengerName(bag.passengerId) })}
                       </Text>
                       {bag.weight && (
-                        <Text style={styles.extraBagWeight}>Up to {bag.weight}</Text>
+                        <Text style={styles.extraBagWeight}>{t('flightExtras.upTo', { weight: bag.weight })}</Text>
                       )}
                       <Text style={styles.extraBagPrice}>{bag.priceDisplay}</Text>
                     </View>
@@ -463,11 +465,11 @@ export default function FlightExtrasScreen() {
 
             {selectedBags.length > 0 && (
               <View style={styles.bagsSummary}>
-                <Text style={styles.bagsSummaryTitle}>Selected Extras:</Text>
+                <Text style={styles.bagsSummaryTitle}>{t('flightExtras.selectedExtras')}</Text>
                 {selectedBags.map((bag, index) => (
                   <View key={index} style={styles.bagsSummaryItem}>
                     <Text style={styles.bagsSummaryText}>
-                      {bag.quantity}x {bag.type === "checked" ? "Checked Bag" : bag.type}
+                      {bag.quantity}x {bag.type === "checked" ? t('flightExtras.checkedBag') : bag.type}
                     </Text>
                     <Text style={styles.bagsSummaryPrice}>
                       {bag.currency} {((bag.priceCents * bag.quantity) / 100).toFixed(2)}
@@ -483,8 +485,7 @@ export default function FlightExtrasScreen() {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.infoText}>
-              Additional baggage options may be available during check-in or at the airport.
-              Prices and availability vary by route and airline.
+              {t('flightExtras.additionalBaggageInfo')}
             </Text>
           </View>
         )}
@@ -495,9 +496,9 @@ export default function FlightExtrasScreen() {
   const renderPolicyTab = () => (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Booking Policy</Text>
+        <Text style={styles.sectionTitle}>{t('flightExtras.bookingPolicy')}</Text>
         <Text style={styles.sectionDescription}>
-          Please review the cancellation and change policies for your selected fare:
+          {t('flightExtras.bookingPolicyDesc')}
         </Text>
 
         <View style={styles.policyList}>
@@ -514,7 +515,7 @@ export default function FlightExtrasScreen() {
               />
             </View>
             <View style={styles.policyInfo}>
-              <Text style={styles.policyTitle}>Flight Changes</Text>
+              <Text style={styles.policyTitle}>{t('flightExtras.flightChanges')}</Text>
               <Text style={[
                 styles.policyDescription,
                 !draft?.canChange && styles.policyNotAllowedText
@@ -537,7 +538,7 @@ export default function FlightExtrasScreen() {
               />
             </View>
             <View style={styles.policyInfo}>
-              <Text style={styles.policyTitle}>Cancellation & Refund</Text>
+              <Text style={styles.policyTitle}>{t('flightExtras.cancellationRefund')}</Text>
               <Text style={[
                 styles.policyDescription,
                 !draft?.canRefund && styles.policyNotAllowedText
@@ -564,8 +565,7 @@ export default function FlightExtrasScreen() {
           )}
         </View>
         <Text style={styles.acknowledgmentText}>
-          I have read and understand the cancellation and change policies for this booking.
-          I agree to proceed with this fare.
+          {t('flightExtras.policyAcknowledge')}
         </Text>
       </TouchableOpacity>
 
@@ -573,7 +573,7 @@ export default function FlightExtrasScreen() {
         <View style={styles.warningCard}>
           <Ionicons name="warning-outline" size={20} color={colors.warning} />
           <Text style={styles.warningText}>
-            You must acknowledge the policy to continue with your booking.
+            {t('flightExtras.policyWarning')}
           </Text>
         </View>
       )}
@@ -585,9 +585,9 @@ export default function FlightExtrasScreen() {
       return (
         <View style={styles.tabContent}>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Seat Selection</Text>
+            <Text style={styles.sectionTitle}>{t('flightExtras.seatSelection')}</Text>
             <Text style={styles.sectionDescription}>
-              Choose your preferred seats for each flight segment.
+              {t('flightExtras.seatSelectionDesc')}
             </Text>
 
             <TouchableOpacity
@@ -600,7 +600,7 @@ export default function FlightExtrasScreen() {
               ) : (
                 <>
                   <Ionicons name="grid-outline" size={20} color={colors.primary} />
-                  <Text style={styles.loadSeatsButtonText}>View Available Seats</Text>
+                  <Text style={styles.loadSeatsButtonText}>{t('flightExtras.viewAvailableSeats')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -609,8 +609,7 @@ export default function FlightExtrasScreen() {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.infoText}>
-              Seat selection may not be available for all flights. If unavailable,
-              seats will be assigned at check-in.
+              {t('flightExtras.seatInfo')}
             </Text>
           </View>
         </View>
@@ -620,7 +619,7 @@ export default function FlightExtrasScreen() {
     return (
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Your Seat Selections</Text>
+          <Text style={styles.sectionTitle}>{t('flightExtras.yourSeatSelections')}</Text>
 
           {draft?.passengers.map((passenger, index) => {
             const passengerSeats = selectedSeats.filter(s => s.passengerId === passenger.passengerId);
@@ -633,14 +632,14 @@ export default function FlightExtrasScreen() {
                 {passengerSeats.length > 0 ? (
                   passengerSeats.map((seat, seatIndex) => (
                     <View key={seatIndex} style={styles.seatBadge}>
-                      <Text style={styles.seatBadgeText}>Seat {seat.seatDesignator}</Text>
+                      <Text style={styles.seatBadgeText}>{t('flightExtras.seatDesignator', { designator: seat.seatDesignator })}</Text>
                       <Text style={styles.seatPriceText}>
                         {seat.currency} {(seat.priceCents / 100).toFixed(2)}
                       </Text>
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.noSeatText}>No seat selected</Text>
+                  <Text style={styles.noSeatText}>{t('flightExtras.noSeatSelected')}</Text>
                 )}
               </View>
             );
@@ -652,7 +651,7 @@ export default function FlightExtrasScreen() {
           >
             <Ionicons name="grid-outline" size={20} color="#FFF" />
             <Text style={styles.selectSeatsButtonText}>
-              {selectedSeats.length > 0 ? "Change Seats" : "Select Seats"}
+              {selectedSeats.length > 0 ? t('flightExtras.changeSeats') : t('flightExtras.selectSeats')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -679,9 +678,9 @@ export default function FlightExtrasScreen() {
             <TouchableOpacity onPress={() => setSeatModalVisible(false)}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Select Seat</Text>
+            <Text style={styles.modalTitle}>{t('flightExtras.selectSeat')}</Text>
             <TouchableOpacity onPress={handleSaveSeatSelections}>
-              <Text style={styles.modalDoneText}>Done</Text>
+              <Text style={styles.modalDoneText}>{t('flightExtras.done')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -701,7 +700,7 @@ export default function FlightExtrasScreen() {
                     styles.segmentTabText,
                     activeSegmentIndex === index && styles.segmentTabTextActive
                   ]}>
-                    Flight {index + 1}
+                    {t('flightExtras.flightNumber', { number: index + 1 })}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -810,15 +809,15 @@ export default function FlightExtrasScreen() {
           <View style={styles.seatLegend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendSeat, styles.legendAvailable]} />
-              <Text style={styles.legendText}>Available</Text>
+              <Text style={styles.legendText}>{t('flightExtras.available')}</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendSeat, styles.legendSelected]} />
-              <Text style={styles.legendText}>Selected</Text>
+              <Text style={styles.legendText}>{t('flightExtras.selected')}</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendSeat, styles.legendOccupied]} />
-              <Text style={styles.legendText}>Occupied</Text>
+              <Text style={styles.legendText}>{t('flightExtras.occupied')}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -831,7 +830,7 @@ export default function FlightExtrasScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingText}>{t('flightExtras.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -844,7 +843,7 @@ export default function FlightExtrasScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Customize Booking</Text>
+        <Text style={styles.headerTitle}>{t('flightExtras.customizeBooking')}</Text>
         <View style={styles.headerRight}>
           {draft.expiresIn !== undefined && (
             <Text style={styles.expiryText}>{draft.expiresIn}m</Text>
@@ -869,7 +868,7 @@ export default function FlightExtrasScreen() {
               color={activeTab === tab ? colors.primary : colors.textSecondary}
             />
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {t(`flightExtras.${tab}`)}
             </Text>
             {tab === "policy" && policyAcknowledged && (
               <View style={styles.tabBadge}>
@@ -888,7 +887,7 @@ export default function FlightExtrasScreen() {
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.priceInfo}>
-          <Text style={styles.priceLabel}>Total</Text>
+          <Text style={styles.priceLabel}>{t('flightExtras.total')}</Text>
           <Text style={styles.priceValue}>{draft.totalPriceDisplay}</Text>
         </View>
         <TouchableOpacity
@@ -898,7 +897,7 @@ export default function FlightExtrasScreen() {
           ]}
           onPress={handleContinueToReview}
         >
-          <Text style={styles.continueButtonText}>Continue to Review</Text>
+          <Text style={styles.continueButtonText}>{t('flightExtras.continueToReview')}</Text>
           <Ionicons name="arrow-forward" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>

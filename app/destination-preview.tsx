@@ -8,6 +8,7 @@ import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 // Destination highlights data
 const DESTINATION_HIGHLIGHTS: Record<string, { emoji: string; highlights: string[]; bestFor: string[]; bestTime: string }> = {
@@ -455,6 +456,7 @@ const DEFAULT_HIGHLIGHTS = {
 export default function DestinationPreviewScreen() {
     const router = useRouter();
     const { colors, isDarkMode } = useTheme();
+    const { t } = useTranslation();
     const { destination } = useLocalSearchParams<{ destination: string }>();
     const { image, loading } = useDestinationImage(destination);
     const trackDownload = useAction(api.images.trackUnsplashDownload);
@@ -522,19 +524,19 @@ export default function DestinationPreviewScreen() {
                         <View style={styles.statItem}>
                             <Ionicons name="star" size={16} color={colors.primary} />
                             <Text style={styles.statValue}>{avgRating.toFixed(1)}</Text>
-                            <Text style={styles.statLabel}>rating</Text>
+                            <Text style={styles.statLabel}>{t('destinationPreview.rating')}</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statItem}>
                             <Ionicons name="people" size={16} color={colors.primary} />
                             <Text style={styles.statValue}>{tripCount}</Text>
-                            <Text style={styles.statLabel}>trips</Text>
+                            <Text style={styles.statLabel}>{t('destinationPreview.tripsLabel')}</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statItem}>
                             <Ionicons name="wallet" size={16} color={colors.primary} />
                             <Text style={styles.statValue}>€{Math.round(avgBudget)}</Text>
-                            <Text style={styles.statLabel}>avg budget</Text>
+                            <Text style={styles.statLabel}>{t('destinationPreview.avgBudget')}</Text>
                         </View>
                     </View>
                 </View>
@@ -545,13 +547,13 @@ export default function DestinationPreviewScreen() {
                 <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.infoCardHeader}>
                         <Ionicons name="calendar" size={20} color={colors.primary} />
-                        <Text style={[styles.infoCardTitle, { color: colors.text }]}>Best Time to Visit</Text>
+                        <Text style={[styles.infoCardTitle, { color: colors.text }]}>{t('destinationPreview.bestTimeToVisit')}</Text>
                     </View>
                     <Text style={[styles.infoCardText, { color: colors.textSecondary }]}>{destinationData.bestTime}</Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Highlights</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('destinationPreview.topHighlights')}</Text>
                     <View style={styles.highlightsGrid}>
                         {destinationData.highlights.map((highlight, index) => (
                             <View key={index} style={[styles.highlightChip, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -563,7 +565,7 @@ export default function DestinationPreviewScreen() {
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Perfect For</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('destinationPreview.perfectFor')}</Text>
                     <View style={styles.tagsContainer}>
                         {destinationData.bestFor.map((tag, index) => (
                             <View key={index} style={[styles.tag, { backgroundColor: colors.primary }]}>
@@ -576,12 +578,12 @@ export default function DestinationPreviewScreen() {
                 <View style={[styles.insightCard, { backgroundColor: isDarkMode ? colors.secondary : "#FFF9E6", borderColor: colors.primary }]}>
                     <View style={styles.insightHeader}>
                         <Ionicons name="bulb" size={24} color={colors.primary} />
-                        <Text style={[styles.insightTitle, { color: colors.text }]}>From Our Travelers</Text>
+                        <Text style={[styles.insightTitle, { color: colors.text }]}>{t('destinationPreview.fromOurTravelers')}</Text>
                     </View>
                     <Text style={[styles.insightText, { color: colors.textSecondary }]}>
                         {tripCount > 0 
-                            ? `${tripCount} travelers have explored ${destination} with Planera. The average trip budget is €${Math.round(avgBudget)}, with an overall satisfaction rating of ${avgRating.toFixed(1)}/5.`
-                            : `Be the first to explore ${destination} with Planera and share your experience!`
+                            ? t('destinationPreview.travelersExplored', { count: tripCount, destination, budget: Math.round(avgBudget), rating: avgRating.toFixed(1) })
+                            : t('destinationPreview.beFirstToExplore', { destination })
                         }
                     </Text>
                 </View>
@@ -592,12 +594,12 @@ export default function DestinationPreviewScreen() {
             <SafeAreaView edges={["bottom"]} style={[styles.ctaContainer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
                 <View style={styles.ctaContent}>
                     <View style={styles.ctaPricing}>
-                        <Text style={[styles.ctaLabel, { color: colors.textMuted }]}>From</Text>
+                        <Text style={[styles.ctaLabel, { color: colors.textMuted }]}>{t('destinationPreview.from')}</Text>
                         <Text style={[styles.ctaPrice, { color: colors.text }]}>€{Math.round(avgBudget * 0.7)}</Text>
-                        <Text style={[styles.ctaPerPerson, { color: colors.textMuted }]}>/person</Text>
+                        <Text style={[styles.ctaPerPerson, { color: colors.textMuted }]}>{t('destinationPreview.perPerson')}</Text>
                     </View>
                     <TouchableOpacity style={[styles.ctaButton, { backgroundColor: colors.primary }]} onPress={handleCreateTrip}>
-                        <Text style={[styles.ctaButtonText, { color: colors.text }]}>Plan My Trip</Text>
+                        <Text style={[styles.ctaButtonText, { color: colors.text }]}>{t('destinationPreview.planMyTrip')}</Text>
                         <Ionicons name="arrow-forward" size={20} color={colors.text} />
                     </TouchableOpacity>
                 </View>

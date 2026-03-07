@@ -21,6 +21,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useTranslation } from "react-i18next";
 
 const colors = {
   background: "#FFFDF7",
@@ -38,6 +39,7 @@ const colors = {
 export default function FlightReviewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
 
   const draftId = params.draftId as Id<"flightBookingDrafts">;
   const tripId = params.tripId as Id<"trips">;
@@ -89,15 +91,15 @@ export default function FlightReviewScreen() {
         }
       } else {
         if (Platform.OS !== "web") {
-          Alert.alert("Booking Failed", result.error);
+          Alert.alert(t('flightReview.bookingFailed'), result.error);
         }
       }
     } catch (error) {
       console.error("Booking error:", error);
       if (Platform.OS !== "web") {
         Alert.alert(
-          "Booking Failed",
-          "An unexpected error occurred. Please try again."
+          t('flightReview.bookingFailed'),
+          t('flightReview.unexpectedError')
         );
       }
     } finally {
@@ -117,12 +119,12 @@ export default function FlightReviewScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading booking details...</Text>
+          <Text style={styles.loadingText}>{t('flightReview.loadingBookingDetails')}</Text>
           <TouchableOpacity
             style={{ marginTop: 20, padding: 12 }}
             onPress={() => router.back()}
           >
-            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>Go Back</Text>
+            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>{t('flightReview.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -138,19 +140,19 @@ export default function FlightReviewScreen() {
             <Ionicons name="checkmark-circle" size={80} color={colors.success} />
           </View>
 
-          <Text style={styles.successTitle}>Booking Confirmed!</Text>
+          <Text style={styles.successTitle}>{t('flightReview.bookingConfirmed')}</Text>
           <Text style={styles.successSubtitle}>
-            Your flight has been successfully booked
+            {t('flightReview.flightBookedSuccess')}
           </Text>
 
           <View style={styles.confirmationCard}>
             <View style={styles.confirmationRow}>
-              <Text style={styles.confirmationLabel}>Booking Reference</Text>
+              <Text style={styles.confirmationLabel}>{t('flightReview.bookingReference')}</Text>
               <Text style={styles.confirmationValue}>{bookingResult.bookingReference}</Text>
             </View>
             <View style={styles.confirmationDivider} />
             <View style={styles.confirmationRow}>
-              <Text style={styles.confirmationLabel}>Total Paid</Text>
+              <Text style={styles.confirmationLabel}>{t('flightReview.totalPaid')}</Text>
               <Text style={styles.confirmationValue}>
                 {bookingResult.currency} {bookingResult.totalAmount.toFixed(2)}
               </Text>
@@ -160,21 +162,19 @@ export default function FlightReviewScreen() {
           <View style={styles.confirmationInfo}>
             <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
             <Text style={styles.confirmationInfoText}>
-              A confirmation email has been sent to all passengers with booking details
-              and e-tickets.
+              {t('flightReview.confirmationEmailSent')}
             </Text>
           </View>
 
           <View style={styles.confirmationInfo}>
             <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
             <Text style={styles.confirmationInfoText}>
-              You can manage your booking directly with the airline using the booking
-              reference above.
+              {t('flightReview.manageBooking')}
             </Text>
           </View>
 
           <TouchableOpacity style={styles.viewTripButton} onPress={handleViewTrip}>
-            <Text style={styles.viewTripButtonText}>View Trip Details</Text>
+            <Text style={styles.viewTripButtonText}>{t('flightReview.viewTripDetails')}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
           </TouchableOpacity>
         </ScrollView>
@@ -189,7 +189,7 @@ export default function FlightReviewScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review Booking</Text>
+        <Text style={styles.headerTitle}>{t('flightReview.reviewBooking')}</Text>
         <View style={styles.headerRight}>
           {draft.expiresIn !== undefined && (
             <Text style={styles.expiryText}>{draft.expiresIn}m</Text>
@@ -203,12 +203,12 @@ export default function FlightReviewScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Ionicons name="airplane" size={20} color={colors.primary} />
-              <Text style={styles.cardTitle}>Flight Details</Text>
+              <Text style={styles.cardTitle}>{t('flightReview.flightDetails')}</Text>
             </View>
 
             <View style={styles.flightLeg}>
               <View style={styles.flightLegHeader}>
-                <Text style={styles.flightLegLabel}>Outbound</Text>
+                <Text style={styles.flightLegLabel}>{t('flightReview.outbound')}</Text>
                 <Text style={styles.flightDate}>{flightInfo.outbound?.departureDate}</Text>
               </View>
               <View style={styles.flightLegRoute}>
@@ -230,7 +230,7 @@ export default function FlightReviewScreen() {
                 <View style={styles.legDivider} />
                 <View style={styles.flightLeg}>
                   <View style={styles.flightLegHeader}>
-                    <Text style={styles.flightLegLabel}>Return</Text>
+                    <Text style={styles.flightLegLabel}>{t('flightReview.return')}</Text>
                     <Text style={styles.flightDate}>{flightInfo.return?.departureDate}</Text>
                   </View>
                   <View style={styles.flightLegRoute}>
@@ -255,7 +255,7 @@ export default function FlightReviewScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="people" size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Passengers ({draft.passengers.length})</Text>
+            <Text style={styles.cardTitle}>{t('flightReview.passengers')} ({draft.passengers.length})</Text>
           </View>
 
           {draft.passengers.map((passenger, index) => (
@@ -278,18 +278,18 @@ export default function FlightReviewScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Ionicons name="add-circle" size={20} color={colors.primary} />
-              <Text style={styles.cardTitle}>Selected Extras</Text>
+              <Text style={styles.cardTitle}>{t('flightReview.selectedExtras')}</Text>
             </View>
 
             {draft.selectedBags.length > 0 && (
               <View style={styles.extrasSection}>
-                <Text style={styles.extrasSectionTitle}>Additional Baggage</Text>
+                <Text style={styles.extrasSectionTitle}>{t('flightReview.additionalBaggage')}</Text>
                 {draft.selectedBags.map((bag, index) => (
                   <View key={index} style={styles.extrasItem}>
                     <View style={styles.extrasItemLeft}>
                       <Ionicons name="briefcase-outline" size={18} color={colors.textSecondary} />
                       <Text style={styles.extrasItemText}>
-                        {bag.type === "checked" ? "Checked bag" : "Cabin bag"} × {bag.quantity}
+                        {bag.type === "checked" ? t('flightReview.checkedBag') : t('flightReview.cabinBag')} × {bag.quantity}
                       </Text>
                     </View>
                     <Text style={styles.extrasItemPrice}>{bag.priceDisplay}</Text>
@@ -300,7 +300,7 @@ export default function FlightReviewScreen() {
 
             {draft.selectedSeats.length > 0 && (
               <View style={styles.extrasSection}>
-                <Text style={styles.extrasSectionTitle}>Seat Selection</Text>
+                <Text style={styles.extrasSectionTitle}>{t('flightReview.seatSelection')}</Text>
                 {draft.selectedSeats.map((seat, index) => {
                   const passenger = draft.passengers.find(p => p.passengerId === seat.passengerId);
                   return (
@@ -308,7 +308,7 @@ export default function FlightReviewScreen() {
                       <View style={styles.extrasItemLeft}>
                         <Ionicons name="grid-outline" size={18} color={colors.textSecondary} />
                         <Text style={styles.extrasItemText}>
-                          Seat {seat.seatDesignator} • {passenger?.name || "Passenger"}
+                          {t('flightReview.seat', { designator: seat.seatDesignator, name: passenger?.name || t('flightReview.passenger') })}
                         </Text>
                       </View>
                       <Text style={styles.extrasItemPrice}>{seat.priceDisplay}</Text>
@@ -324,7 +324,7 @@ export default function FlightReviewScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="document-text" size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Booking Policy</Text>
+              <Text style={styles.cardTitle}>{t('flightReview.bookingPolicy')}</Text>
           </View>
 
           <View style={styles.policyRow}>
@@ -351,22 +351,22 @@ export default function FlightReviewScreen() {
 
           <View style={styles.acknowledgmentBadge}>
             <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-            <Text style={styles.acknowledgmentText}>Policy acknowledged</Text>
+            <Text style={styles.acknowledgmentText}>{t('flightReview.policyAcknowledged')}</Text>
           </View>
         </View>
 
         {/* Price Breakdown */}
         <View style={styles.priceCard}>
-          <Text style={styles.priceCardTitle}>Price Breakdown</Text>
+          <Text style={styles.priceCardTitle}>{t('flightReview.priceBreakdown')}</Text>
 
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Base fare ({draft.passengers.length} passenger{draft.passengers.length > 1 ? "s" : ""})</Text>
+            <Text style={styles.priceLabel}>{t('flightReview.baseFare', { count: draft.passengers.length })}</Text>
             <Text style={styles.priceValue}>{draft.basePriceDisplay}</Text>
           </View>
 
           {draft.extrasTotalDisplay !== `${draft.currency} 0.00` && (
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Extras</Text>
+              <Text style={styles.priceLabel}>{t('flightReview.extras')}</Text>
               <Text style={styles.priceValue}>{draft.extrasTotalDisplay}</Text>
             </View>
           )}
@@ -374,7 +374,7 @@ export default function FlightReviewScreen() {
           <View style={styles.priceDivider} />
 
           <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('flightReview.total')}</Text>
             <Text style={styles.totalValue}>{draft.totalPriceDisplay}</Text>
           </View>
         </View>
@@ -382,8 +382,7 @@ export default function FlightReviewScreen() {
         {/* Terms notice */}
         <View style={styles.termsNotice}>
           <Text style={styles.termsText}>
-            By completing this booking, you agree to the airline's terms and conditions
-            and Planera's Terms of Use (EULA).
+            {t('flightReview.bookingTerms')}
           </Text>
         </View>
 
@@ -393,7 +392,7 @@ export default function FlightReviewScreen() {
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.totalInfo}>
-          <Text style={styles.bottomTotalLabel}>Total</Text>
+          <Text style={styles.bottomTotalLabel}>{t('flightReview.total')}</Text>
           <Text style={styles.bottomTotalValue}>{draft.totalPriceDisplay}</Text>
         </View>
 
@@ -406,7 +405,7 @@ export default function FlightReviewScreen() {
             <ActivityIndicator color="#FFF" size="small" />
           ) : (
             <>
-              <Text style={styles.bookButtonText}>Complete Booking</Text>
+              <Text style={styles.bookButtonText}>{t('flightReview.completeBooking')}</Text>
               <Ionicons name="lock-closed" size={18} color="#FFF" />
             </>
           )}

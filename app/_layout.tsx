@@ -11,6 +11,7 @@ import { ConvexNativeAuthProvider } from "@/lib/ConvexAuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { authClient } from "@/lib/auth-client";
 import { useNotifications } from "@/lib/useNotifications";
+import "@/lib/i18n"; // Initialize i18n
 
 // Prevent splash screen from auto-hiding before app is ready
 SplashScreen.preventAutoHideAsync();

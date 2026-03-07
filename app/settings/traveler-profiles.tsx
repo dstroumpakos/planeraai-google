@@ -10,6 +10,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import * as Haptics from "expo-haptics";
 import { COUNTRIES } from "@/lib/data";
 import { useToken } from "@/lib/useAuthenticatedMutation";
+import { useTranslation } from "react-i18next";
 
 interface TravelerForm {
   firstName: string;
@@ -41,6 +42,7 @@ export default function TravelerProfiles() {
   const router = useRouter();
   const { colors, isDarkMode } = useTheme();
   const { token } = useToken();
+  const { t } = useTranslation();
   const travelers = useQuery(api.travelers.list as any, { token: token || "skip" });
   const createTraveler = useMutation(api.travelers.create);
   const updateTraveler = useMutation(api.travelers.update);
@@ -87,55 +89,55 @@ export default function TravelerProfiles() {
   const handleDelete = (id: Id<"travelers">, name: string) => {
     if (Platform.OS !== 'web') {
       Alert.alert(
-        "Delete Traveler",
-        `Are you sure you want to delete ${name}'s profile?`,
+        t('settings.travelerProfiles.deleteTraveler'),
+        t('settings.travelerProfiles.deleteConfirm', { name }),
         [
-          { text: "Cancel", style: "cancel" },
+          { text: t('common.cancel'), style: "cancel" },
           {
-            text: "Delete",
+            text: t('common.delete'),
             style: "destructive",
             onPress: async () => {
               try {
                 await removeTraveler({ token: token || "", id });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               } catch (error) {
-                Alert.alert("Error", "Failed to delete traveler");
+                Alert.alert(t('common.error'), t('settings.travelerProfiles.failedDelete'));
               }
             },
           },
         ]
       );
     } else {
-      if (confirm(`Are you sure you want to delete ${name}'s profile?`)) {
+      if (confirm(t('settings.travelerProfiles.deleteConfirm', { name }))) {
         removeTraveler({ id });
       }
     }
   };
 
   const validateForm = (): string | null => {
-    if (!form.firstName.trim()) return "First name is required";
-    if (!form.lastName.trim()) return "Last name is required";
-    if (!form.dateOfBirth) return "Date of birth is required";
-    if (!form.gender) return "Gender is required";
-    if (!form.passportNumber.trim()) return "Passport number is required";
-    if (!form.passportIssuingCountry) return "Passport country is required";
-    if (!form.passportExpiryDate) return "Passport expiry date is required";
+    if (!form.firstName.trim()) return t('onboarding.firstNameRequired');
+    if (!form.lastName.trim()) return t('onboarding.lastNameRequired');
+    if (!form.dateOfBirth) return t('onboarding.dobRequired');
+    if (!form.gender) return t('onboarding.genderRequired');
+    if (!form.passportNumber.trim()) return t('onboarding.passportRequired');
+    if (!form.passportIssuingCountry) return t('onboarding.passportCountryRequired');
+    if (!form.passportExpiryDate) return t('onboarding.passportExpiryRequired');
 
     // Validate date formats
     const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dobRegex.test(form.dateOfBirth)) return "Date of birth must be YYYY-MM-DD";
-    if (!dobRegex.test(form.passportExpiryDate)) return "Passport expiry must be YYYY-MM-DD";
+    if (!dobRegex.test(form.dateOfBirth)) return t('onboarding.dobFormat');
+    if (!dobRegex.test(form.passportExpiryDate)) return t('onboarding.passportExpiryFormat');
 
     // Check passport hasn't expired
     const expiryDate = new Date(form.passportExpiryDate);
     const today = new Date();
-    if (expiryDate < today) return "Passport has expired";
+    if (expiryDate < today) return t('onboarding.passportExpired');
 
     // Check DOB is reasonable
     const dob = new Date(form.dateOfBirth);
     const minDate = new Date();
     minDate.setFullYear(minDate.getFullYear() - 120);
-    if (dob < minDate || dob > today) return "Invalid date of birth";
+    if (dob < minDate || dob > today) return t('onboarding.invalidDob');
 
     return null;
   };
@@ -144,7 +146,7 @@ export default function TravelerProfiles() {
     const error = validateForm();
     if (error) {
       if (Platform.OS !== 'web') {
-        Alert.alert("Missing Information", error);
+        Alert.alert(t('onboarding.missingInfo'), error);
       } else {
         alert(error);
       }
@@ -192,9 +194,9 @@ export default function TravelerProfiles() {
       setEditingId(null);
     } catch (error) {
       if (Platform.OS !== 'web') {
-        Alert.alert("Error", "Failed to save traveler");
+        Alert.alert(t('common.error'), t('settings.travelerProfiles.failedSave'));
       } else {
-        alert("Failed to save traveler");
+        alert(t('settings.travelerProfiles.failedSave'));
       }
     } finally {
       setSaving(false);
@@ -245,7 +247,7 @@ export default function TravelerProfiles() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Traveler Profiles</Text>
+        <Text style={styles.headerTitle}>{t('settings.travelerProfiles.title')}</Text>
         <TouchableOpacity onPress={handleAddNew}>
           <Ionicons name="add-circle-outline" size={28} color={colors.primary} />
         </TouchableOpacity>
@@ -253,19 +255,19 @@ export default function TravelerProfiles() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
-          Add travelers who will be on your trips. Complete profiles are required for flight bookings.
+          {t('settings.travelerProfiles.subtitle')}
         </Text>
 
         {travelers.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
-            <Text style={styles.emptyTitle}>No Travelers Yet</Text>
+            <Text style={styles.emptyTitle}>{t('settings.travelerProfiles.noTravelersYet')}</Text>
             <Text style={styles.emptyText}>
-              Add yourself and anyone who travels with you. Complete passport info is required for booking flights.
+              {t('settings.travelerProfiles.emptyText')}
             </Text>
             <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
               <Ionicons name="add" size={20} color="#000" />
-              <Text style={styles.addButtonText}>Add Traveler</Text>
+              <Text style={styles.addButtonText}>{t('onboarding.addTraveler')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -292,14 +294,14 @@ export default function TravelerProfiles() {
                           {traveler.firstName} {traveler.lastName}
                         </Text>
                         <Text style={styles.travelerMeta}>
-                          {age} years old • {traveler.gender === "male" ? "Male" : "Female"}
+                          {t('settings.travelerProfiles.yearsOld', { age })} • {traveler.gender === "male" ? t('onboarding.male') : t('onboarding.female')}
                         </Text>
                       </View>
                     </View>
                     <View style={styles.travelerActions}>
                       {traveler.isDefault && (
                         <View style={styles.defaultBadge}>
-                          <Text style={styles.defaultBadgeText}>Primary</Text>
+                          <Text style={styles.defaultBadgeText}>{t('settings.travelerProfiles.primary')}</Text>
                         </View>
                       )}
                       <TouchableOpacity
@@ -321,7 +323,7 @@ export default function TravelerProfiles() {
                     <View style={styles.passportRow}>
                       <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
                       <Text style={styles.passportText}>
-                        Expires: {traveler.passportExpiryDate}
+                        {t('settings.travelerProfiles.expires', { date: traveler.passportExpiryDate })}
                       </Text>
                     </View>
                   </View>
@@ -333,7 +335,7 @@ export default function TravelerProfiles() {
                       color={complete ? "#059669" : "#DC2626"}
                     />
                     <Text style={[styles.statusText, { color: complete ? "#059669" : "#DC2626" }]}>
-                      {complete ? "Booking Ready" : "Incomplete"}
+                      {complete ? t('settings.travelerProfiles.bookingReady') : t('settings.travelerProfiles.incomplete')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -342,7 +344,7 @@ export default function TravelerProfiles() {
 
             <TouchableOpacity style={styles.addMoreButton} onPress={handleAddNew}>
               <Ionicons name="add" size={20} color={colors.primary} />
-              <Text style={styles.addMoreText}>Add Another Traveler</Text>
+              <Text style={styles.addMoreText}>{t('settings.travelerProfiles.addAnother')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -358,47 +360,47 @@ export default function TravelerProfiles() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowModal(false)}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {editingId ? "Edit Traveler" : "Add Traveler"}
+              {editingId ? t('settings.travelerProfiles.editTraveler') : t('onboarding.addTraveler')}
             </Text>
             <TouchableOpacity onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Text style={styles.saveText}>Save</Text>
+                <Text style={styles.saveText}>{t('common.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <Text style={styles.sectionTitle}>{t('onboarding.personalInformation')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>First Name *</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.firstName')} *</Text>
               <TextInput
                 style={styles.input}
                 value={form.firstName}
                 onChangeText={(text) => setForm({ ...form, firstName: text })}
-                placeholder="As shown on passport"
+                placeholder={t('settings.travelerProfiles.asShownOnPassport')}
                 placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Last Name *</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.lastName')} *</Text>
               <TextInput
                 style={styles.input}
                 value={form.lastName}
                 onChangeText={(text) => setForm({ ...form, lastName: text })}
-                placeholder="As shown on passport"
+                placeholder={t('settings.travelerProfiles.asShownOnPassport')}
                 placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Date of Birth * (YYYY-MM-DD)</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.dateOfBirth')} * (YYYY-MM-DD)</Text>
               <TextInput
                 style={styles.input}
                 value={form.dateOfBirth}
@@ -410,22 +412,22 @@ export default function TravelerProfiles() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Gender *</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.gender')} *</Text>
               <TouchableOpacity
                 style={styles.selectInput}
                 onPress={() => setShowGenderPicker(true)}
               >
                 <Text style={form.gender ? styles.selectValue : styles.selectPlaceholder}>
-                  {form.gender === "male" ? "Male" : form.gender === "female" ? "Female" : "Select gender"}
+                  {form.gender === "male" ? t('onboarding.male') : form.gender === "female" ? t('onboarding.female') : t('settings.travelerProfiles.selectGender')}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Passport Information</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('onboarding.passportInformation')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Passport Number *</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.passportNumber')} *</Text>
               <TextInput
                 style={styles.input}
                 value={form.passportNumber}
@@ -437,20 +439,20 @@ export default function TravelerProfiles() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Issuing Country *</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.issuingCountry')} *</Text>
               <TouchableOpacity
                 style={styles.selectInput}
                 onPress={() => setShowCountryPicker(true)}
               >
                 <Text style={form.passportIssuingCountry ? styles.selectValue : styles.selectPlaceholder}>
-                  {form.passportIssuingCountry ? getCountryName(form.passportIssuingCountry) : "Select country"}
+                  {form.passportIssuingCountry ? getCountryName(form.passportIssuingCountry) : t('onboarding.selectCountry')}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Expiry Date * (YYYY-MM-DD)</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.expiryDate')} * (YYYY-MM-DD)</Text>
               <TextInput
                 style={styles.input}
                 value={form.passportExpiryDate}
@@ -461,10 +463,10 @@ export default function TravelerProfiles() {
               />
             </View>
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Contact (Optional)</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('onboarding.contactOptional')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
+              <Text style={styles.inputLabel}>{t('settings.personalInfo.email')}</Text>
               <TextInput
                 style={styles.input}
                 value={form.email}
@@ -477,7 +479,7 @@ export default function TravelerProfiles() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.phoneNumber')}</Text>
               <View style={styles.phoneInputContainer}>
                 <TextInput
                   style={styles.phoneCountryCode}
@@ -517,7 +519,7 @@ export default function TravelerProfiles() {
             onPress={() => setShowGenderPicker(false)}
           >
             <View style={styles.pickerContainer}>
-              <Text style={styles.pickerTitle}>Select Gender</Text>
+              <Text style={styles.pickerTitle}>{t('settings.travelerProfiles.selectGenderTitle')}</Text>
               <TouchableOpacity
                 style={styles.pickerOption}
                 onPress={() => {
@@ -525,7 +527,7 @@ export default function TravelerProfiles() {
                   setShowGenderPicker(false);
                 }}
               >
-                <Text style={styles.pickerOptionText}>Male</Text>
+                <Text style={styles.pickerOptionText}>{t('onboarding.male')}</Text>
                 {form.gender === "male" && <Ionicons name="checkmark" size={20} color={colors.primary} />}
               </TouchableOpacity>
               <TouchableOpacity
@@ -535,7 +537,7 @@ export default function TravelerProfiles() {
                   setShowGenderPicker(false);
                 }}
               >
-                <Text style={styles.pickerOptionText}>Female</Text>
+                <Text style={styles.pickerOptionText}>{t('onboarding.female')}</Text>
                 {form.gender === "female" && <Ionicons name="checkmark" size={20} color={colors.primary} />}
               </TouchableOpacity>
             </View>
@@ -555,7 +557,7 @@ export default function TravelerProfiles() {
             onPress={() => setShowCountryPicker(false)}
           >
             <View style={[styles.pickerContainer, { maxHeight: 400 }]}>
-              <Text style={styles.pickerTitle}>Select Country</Text>
+              <Text style={styles.pickerTitle}>{t('onboarding.selectCountryTitle')}</Text>
               <ScrollView>
                 {COUNTRIES.map((country) => (
                   <TouchableOpacity

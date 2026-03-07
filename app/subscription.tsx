@@ -8,11 +8,13 @@ import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { useIAP } from "@/lib/useIAP";
+import { useTranslation } from "react-i18next";
 
 export default function SubscriptionScreen() {
     const router = useRouter();
     const { colors } = useTheme();
     const { token } = useToken();
+    const { t } = useTranslation();
     
     // Convex mutations for processing purchases
     // @ts-ignore - API types may not include these yet
@@ -64,16 +66,16 @@ export default function SubscriptionScreen() {
 
     const handlePurchase = async () => {
         if (!token) {
-            Alert.alert("Error", "Please sign in to make a purchase");
+            Alert.alert(t('common.error'), t('subscription.signInToPurchase'));
             return;
         }
 
         // Prevent purchase if products haven't loaded from StoreKit
         if (!productsLoaded) {
             Alert.alert(
-                "Products Not Available",
-                "Unable to load products from the App Store. Please check your internet connection and try again.",
-                [{ text: "OK" }]
+                t('subscription.productsNotAvailable'),
+                t('subscription.unableToLoadProducts'),
+                [{ text: t('common.ok') }]
             );
             return;
         }
@@ -117,9 +119,9 @@ export default function SubscriptionScreen() {
 
                 if (Platform.OS !== "web") {
                     if (selectedPlan === "single") {
-                        Alert.alert("Success! 🎉", "Trip credit added to your account!");
+                        Alert.alert(t('common.success') + " 🎉", t('subscription.tripCreditAdded'));
                     } else {
-                        Alert.alert("Welcome to Pro! 🎉", "You now have unlimited trip planning!");
+                        Alert.alert(t('subscription.welcomeToPro') + " 🎉", t('subscription.unlimitedTripPlanning'));
                     }
                 }
                 router.back();
@@ -143,29 +145,29 @@ export default function SubscriptionScreen() {
                             })),
                         });
                         Alert.alert(
-                            "Subscription Restored! ✓",
-                            "You already have an active subscription. It has been restored to your account."
+                            t('subscription.subscriptionRestored') + " ✓",
+                            t('subscription.alreadyActiveRestored')
                         );
                         router.back();
                     } else {
                         Alert.alert(
-                            "Already Subscribed",
-                            "You already have an active subscription. If it's not showing, try tapping 'Restore Purchases' below."
+                            t('subscription.alreadySubscribed'),
+                            t('subscription.alreadyActiveRestore')
                         );
                     }
                 } catch (restoreErr: any) {
                     console.error("Auto-restore after already_owned failed:", restoreErr);
                     Alert.alert(
-                        "Already Subscribed",
-                        "You already have an active subscription. Please tap 'Restore Purchases' to sync it to your account."
+                        t('subscription.alreadySubscribed'),
+                        t('subscription.alreadyActiveSyncRestore')
                     );
                 }
             } else if (result.error) {
-                Alert.alert("Purchase Failed", result.error);
+                Alert.alert(t('subscription.purchaseFailed'), result.error);
             }
         } catch (error: any) {
             console.error("Purchase error:", error);
-            Alert.alert("Error", error.message || "Failed to complete purchase. Please try again.");
+            Alert.alert(t('common.error'), error.message || t('subscription.failedCompletePurchase'));
         } finally {
             setLoading(null);
         }
@@ -173,7 +175,7 @@ export default function SubscriptionScreen() {
 
     const handleRestorePurchases = async () => {
         if (!token) {
-            Alert.alert("Error", "Please sign in to restore purchases");
+            Alert.alert(t('common.error'), t('subscription.signInToRestore'));
             return;
         }
 
@@ -197,18 +199,18 @@ export default function SubscriptionScreen() {
                 });
 
                 Alert.alert(
-                    "Purchases Restored! ✓",
-                    "Your previous purchases have been restored successfully."
+                    t('subscription.purchasesRestored') + " ✓",
+                    t('subscription.previousPurchasesRestored')
                 );
             } else {
                 Alert.alert(
-                    "No Purchases Found",
-                    "We couldn't find any previous purchases to restore. If you believe this is an error, please contact support."
+                    t('subscription.noPurchasesFound'),
+                    t('subscription.noPurchasesContact')
                 );
             }
         } catch (error: any) {
             console.error("Restore error:", error);
-            Alert.alert("Restore Failed", error.message || "Failed to restore purchases. Please try again.");
+            Alert.alert(t('subscription.purchaseFailed'), error.message || t('subscription.failedCompletePurchase'));
         } finally {
             setRestoring(false);
         }
@@ -228,9 +230,9 @@ export default function SubscriptionScreen() {
             </View>
 
             <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-                <Text style={[styles.title, { color: colors.text }]}>Unlock your next{"\n"}era of travel.</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{t('subscription.unlockNextEra')}</Text>
                 <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    AI-powered itineraries, unlimited inspiration, and smart recommendations.
+                    {t('subscription.aiPoweredItineraries')}
                 </Text>
 
                 {/* Yearly Plan - Best Value */}
@@ -244,28 +246,28 @@ export default function SubscriptionScreen() {
                     disabled={isProcessing}
                 >
                     <View style={[styles.bestValueBadge, { backgroundColor: colors.primary }]}>
-                        <Text style={[styles.bestValueText, { color: colors.text }]}>BEST VALUE</Text>
+                        <Text style={[styles.bestValueText, { color: colors.text }]}>{t('subscription.bestValue')}</Text>
                     </View>
                     <View style={styles.planHeader}>
                         <View>
-                            <Text style={[styles.planName, { color: colors.text }]}>Planera Pro – Yearly</Text>
+                            <Text style={[styles.planName, { color: colors.text }]}>{t('subscription.proYearly')}</Text>
                             <View style={[styles.saveBadge, { backgroundColor: colors.primary }]}>
-                                <Text style={[styles.saveText, { color: colors.text }]}>SAVE 50%</Text>
+                                <Text style={[styles.saveText, { color: colors.text }]}>{t('subscription.save50')}</Text>
                             </View>
                         </View>
                         <View style={styles.planPriceContainer}>
-                            <Text style={[styles.planPrice, { color: colors.text }]}>{yearlyPrice || "Loading..."}</Text>
-                            <Text style={[styles.planPeriod, { color: colors.textMuted }]}>/year</Text>
+                            <Text style={[styles.planPrice, { color: colors.text }]}>{yearlyPrice || t('common.loading')}</Text>
+                            <Text style={[styles.planPeriod, { color: colors.textMuted }]}>{t('subscription.perYear')}</Text>
                         </View>
-                        <Text style={[styles.planBilled, { color: colors.textMuted }]}>Billed annually • <Text style={{ color: '#DC2626' }}>Cancel anytime</Text></Text>
+                        <Text style={[styles.planBilled, { color: colors.textMuted }]}>{t('subscription.billedAnnually')} <Text style={{ color: '#DC2626' }}>{t('subscription.cancelAnytime')}</Text></Text>
                         <View style={styles.featuresList}>
                             <View style={styles.featureItem}>
                                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                                <Text style={[styles.featureText, { color: colors.text }]}>Unlimited AI Planning</Text>
+                                <Text style={[styles.featureText, { color: colors.text }]}>{t('subscription.unlimitedAIPlanning')}</Text>
                             </View>
                             <View style={styles.featureItem}>
                                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                                <Text style={[styles.featureText, { color: colors.text }]}>Smart Recommendations</Text>
+                                <Text style={[styles.featureText, { color: colors.text }]}>{t('preAuth.smartRecommendations')}</Text>
                             </View>
                         </View>
                     </View>
@@ -289,21 +291,21 @@ export default function SubscriptionScreen() {
                 >
                     <View style={styles.planHeader}>
                         <View>
-                            <Text style={[styles.planName, { color: colors.text }]}>Planera Pro - Monthly</Text>
+                            <Text style={[styles.planName, { color: colors.text }]}>{t('subscription.proMonthly')}</Text>
                         </View>
                         <View style={styles.planPriceContainer}>
-                            <Text style={[styles.planPrice, { color: colors.text }]}>{monthlyPrice || "Loading..."}</Text>
-                            <Text style={[styles.planPeriod, { color: colors.textMuted }]}>/mo</Text>
+                            <Text style={[styles.planPrice, { color: colors.text }]}>{monthlyPrice || t('common.loading')}</Text>
+                            <Text style={[styles.planPeriod, { color: colors.textMuted }]}>{t('subscription.perMonth')}</Text>
                         </View>
-                        <Text style={[styles.planBilled, { color: colors.textMuted }]}>Billed monthly • <Text style={{ color: '#DC2626' }}>Cancel anytime</Text></Text>
+                        <Text style={[styles.planBilled, { color: colors.textMuted }]}>{t('subscription.billedMonthly')} <Text style={{ color: '#DC2626' }}>{t('subscription.cancelAnytime')}</Text></Text>
                         <View style={styles.featuresList}>
                             <View style={styles.featureItem}>
                                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                                <Text style={[styles.featureText, { color: colors.text }]}>Unlimited AI Planning</Text>
+                                <Text style={[styles.featureText, { color: colors.text }]}>{t('subscription.unlimitedAIPlanning')}</Text>
                             </View>
                             <View style={styles.featureItem}>
                                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                                <Text style={[styles.featureText, { color: colors.text }]}>Smart Recommendations</Text>
+                                <Text style={[styles.featureText, { color: colors.text }]}>{t('preAuth.smartRecommendations')}</Text>
                             </View>
                         </View>
                     </View>
@@ -327,21 +329,21 @@ export default function SubscriptionScreen() {
                 >
                     <View style={styles.planHeader}>
                         <View>
-                            <Text style={[styles.planName, { color: colors.text }]}>Single Trip</Text>
-                            <Text style={[styles.planSubtext, { color: colors.textMuted }]}>One-time purchase</Text>
+                            <Text style={[styles.planName, { color: colors.text }]}>{t('subscription.singleTrip')}</Text>
+                            <Text style={[styles.planSubtext, { color: colors.textMuted }]}>{t('subscription.oneTimePurchase')}</Text>
                         </View>
                         <View style={styles.planPriceContainer}>
-                            <Text style={[styles.planPrice, { color: colors.text }]}>{singleTripPrice || "Loading..."}</Text>
-                            <Text style={[styles.planPeriod, { color: colors.textMuted }]}>/trip</Text>
+                            <Text style={[styles.planPrice, { color: colors.text }]}>{singleTripPrice || t('common.loading')}</Text>
+                            <Text style={[styles.planPeriod, { color: colors.textMuted }]}>{t('subscription.perTrip')}</Text>
                         </View>
                         <View style={styles.featuresList}>
                             <View style={styles.featureItem}>
                                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                                <Text style={[styles.featureText, { color: colors.text }]}>One AI-generated Trip Plan</Text>
+                                <Text style={[styles.featureText, { color: colors.text }]}>{t('subscription.oneAITrip')}</Text>
                             </View>
                             <View style={styles.featureItem}>
                                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                                <Text style={[styles.featureText, { color: colors.text }]}>Smart Recommendations</Text>
+                                <Text style={[styles.featureText, { color: colors.text }]}>{t('preAuth.smartRecommendations')}</Text>
                             </View>
                         </View>
                     </View>
@@ -354,21 +356,21 @@ export default function SubscriptionScreen() {
 
                 {/* Continue with Free */}
                 <TouchableOpacity onPress={() => router.back()} disabled={isProcessing}>
-                    <Text style={[styles.freePlanLink, { color: colors.textSecondary }]}>Continue with Free Plan</Text>
+                    <Text style={[styles.freePlanLink, { color: colors.textSecondary }]}>{t('subscription.continueWithFree')}</Text>
                 </TouchableOpacity>
 
                 {/* Terms */}
                 <Text style={[styles.termsText, { color: colors.textMuted }]}>
-                    Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. Your account will be charged for renewal within 24-hours prior to the end of the current period. You can manage and cancel your subscriptions by going to your App Store account settings after purchase.
+                    {t('subscription.subscriptionRenews')}
                 </Text>
 
                 <View style={styles.linksRow}>
                     <TouchableOpacity onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>
-                        <Text style={[styles.linkText, { color: colors.textSecondary }]}>Privacy Policy</Text>
+                        <Text style={[styles.linkText, { color: colors.textSecondary }]}>{t('auth.privacyPolicy')}</Text>
                     </TouchableOpacity>
                     <Text style={[styles.linkDot, { color: colors.textMuted }]}>•</Text>
                     <TouchableOpacity onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")}>
-                        <Text style={[styles.linkText, { color: colors.textSecondary }]}>Terms of Use (EULA)</Text>
+                        <Text style={[styles.linkText, { color: colors.textSecondary }]}>{t('auth.termsOfUse')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -376,7 +378,7 @@ export default function SubscriptionScreen() {
                     {restoring ? (
                         <ActivityIndicator size="small" color={colors.text} />
                     ) : (
-                        <Text style={[styles.restoreText, { color: colors.text }]}>Restore Purchases</Text>
+                        <Text style={[styles.restoreText, { color: colors.text }]}>{t('subscription.restorePurchases')}</Text>
                     )}
                 </TouchableOpacity>
 
@@ -399,14 +401,14 @@ export default function SubscriptionScreen() {
                     ) : (
                         <Text style={[styles.ctaButtonText, { color: colors.text }]}>
                             {!productsLoaded && Platform.OS === 'ios' 
-                                ? "Loading products..." 
-                                : selectedPlan === "single" ? "Purchase Trip Credit" : "Start my next era"}
+                                ? t('subscription.loadingProducts') 
+                                : selectedPlan === "single" ? t('subscription.purchaseTripCredit') : t('subscription.startMyNextEra')}
                         </Text>
                     )}
                 </TouchableOpacity>
                 <View style={styles.securedRow}>
                     <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
-                    <Text style={[styles.securedText, { color: colors.textMuted }]}>Secured with App Store</Text>
+                    <Text style={[styles.securedText, { color: colors.textMuted }]}>{t('subscription.securedWithAppStore')}</Text>
                 </View>
             </View>
         </SafeAreaView>

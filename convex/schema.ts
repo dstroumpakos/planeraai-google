@@ -81,6 +81,8 @@ export default defineSchema({
         }))),
         optimizedRoute: v.optional(v.any()),
         errorMessage: v.optional(v.string()),
+        // Language preference for AI-generated content (e.g., "en", "el", "es", "fr", "de", "ar")
+        language: v.optional(v.string()),
         // Location-based: tracks whether user is physically at the destination
         userAtDestination: v.optional(v.boolean()),
         lastLocationCheckAt: v.optional(v.float64()),

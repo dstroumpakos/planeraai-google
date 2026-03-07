@@ -9,10 +9,12 @@ import { useState, useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { registerForPushNotificationsAsync } from "@/lib/useNotifications";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 export default function NotificationsScreen() {
     const router = useRouter();
     const { colors, isDarkMode } = useTheme();
+    const { t } = useTranslation();
     const { token } = useToken();
     const settings = useQuery(api.users.getSettings as any, { token: token || "skip" });
     const updateNotifications = useMutation(api.users.updateNotifications);
@@ -47,11 +49,11 @@ export default function NotificationsScreen() {
             const { status } = await Notifications.getPermissionsAsync();
             if (status === "denied") {
                 Alert.alert(
-                    "Notifications Disabled",
-                    "Push notifications are disabled in your device settings. Would you like to open settings to enable them?",
+                    t('settings.notifications.notificationsDisabled'),
+                    t('settings.notifications.pushDisabledAlert'),
                     [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Open Settings", onPress: () => Linking.openSettings() },
+                        { text: t('common.cancel'), style: "cancel" },
+                        { text: t('settings.notifications.openSettings'), onPress: () => Linking.openSettings() },
                     ]
                 );
                 return;
@@ -60,11 +62,11 @@ export default function NotificationsScreen() {
             // Show explanation before requesting system permission
             const userAccepted = await new Promise<boolean>((resolve) => {
                 Alert.alert(
-                    "Why We Need Notifications",
-                    "We'll send you:\n\n• Trip countdown reminders (7, 3, 1 day before)\n• Morning briefings with your daily itinerary\n• Nearby activity alerts when you're on your trip\n\nYou can turn these off anytime.",
+                    t('settings.notifications.whyWeNeed'),
+                    t('settings.notifications.whyWeNeedMsg'),
                     [
-                        { text: "Not Now", style: "cancel", onPress: () => resolve(false) },
-                        { text: "Allow", onPress: () => resolve(true) },
+                        { text: t('settings.notifications.notNow'), style: "cancel", onPress: () => resolve(false) },
+                        { text: t('settings.notifications.allow'), onPress: () => resolve(true) },
                     ]
                 );
             });
@@ -86,8 +88,8 @@ export default function NotificationsScreen() {
 
             if (!pushToken) {
                 Alert.alert(
-                    "Could Not Enable",
-                    "We couldn't enable push notifications. Please check your device settings."
+                    t('settings.notifications.couldNotEnable'),
+                    t('settings.notifications.couldNotEnableMsg')
                 );
                 return;
             }
@@ -106,49 +108,49 @@ export default function NotificationsScreen() {
                 dealAlerts,
                 tripReminders,
             });
-            Alert.alert("Success", "Notification preferences updated successfully!");
+            Alert.alert(t('common.success'), t('settings.notifications.updatedSuccess'));
             router.back();
         } catch (error) {
             console.error("Update failed:", error);
-            Alert.alert("Error", "Failed to update notification preferences");
+            Alert.alert(t('common.error'), t('settings.notifications.failedUpdate'));
         }
     };
 
     if (settings === undefined) {
         return (
             <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-                <Text style={{ color: colors.text }}>Loading...</Text>
+                <Text style={{ color: colors.text }}>{t('common.loading')}</Text>
             </SafeAreaView>
         );
     }
 
     const notificationOptions = [
         {
-            title: "Push Notifications",
+            title: t('settings.notifications.pushNotifications'),
             description: permissionStatus === "denied"
-                ? "Disabled in device settings — tap to open"
-                : "Receive notifications on your device",
+                ? t('settings.notifications.pushDisabledDescription')
+                : t('settings.notifications.pushDescription'),
             icon: "notifications-outline",
             value: pushNotifications,
             onChange: handleTogglePush,
         },
         {
-            title: "Email Notifications",
-            description: "Receive updates via email",
+            title: t('settings.notifications.emailNotifications'),
+            description: t('settings.notifications.emailDescription'),
             icon: "mail-outline",
             value: emailNotifications,
             onChange: setEmailNotifications,
         },
         {
-            title: "Deal Alerts",
-            description: "Get notified about special deals and offers",
+            title: t('settings.notifications.dealAlerts'),
+            description: t('settings.notifications.dealDescription'),
             icon: "pricetag-outline",
             value: dealAlerts,
             onChange: setDealAlerts,
         },
         {
-            title: "Trip Reminders",
-            description: "Countdown, daily briefing & post-trip reminders",
+            title: t('settings.notifications.tripReminders'),
+            description: t('settings.notifications.tripRemindersDescription'),
             icon: "time-outline",
             value: tripReminders,
             onChange: setTripReminders,
@@ -161,7 +163,7 @@ export default function NotificationsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.notifications.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -189,12 +191,12 @@ export default function NotificationsScreen() {
                 <View style={[styles.infoBox, { backgroundColor: isDarkMode ? colors.secondary : colors.secondary }]}>
                     <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
                     <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                        You can manage notification permissions in your device settings
+                        {t('settings.notifications.manageInSettings')}
                     </Text>
                 </View>
 
                 <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
-                    <Text style={[styles.saveButtonText, { color: colors.text === '#FFFFFF' ? '#1A1A1A' : '#1A1A1A' }]}>Save Preferences</Text>
+                    <Text style={[styles.saveButtonText, { color: colors.text === '#FFFFFF' ? '#1A1A1A' : '#1A1A1A' }]}>{t('settings.notifications.savePreferences')}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>

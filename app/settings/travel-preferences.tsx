@@ -9,10 +9,12 @@ import { useState, useEffect } from "react";
 import { INTERESTS } from "@/lib/data";
 import { AIRPORTS } from "@/lib/airports";
 import AIConsentModal from "@/components/AIConsentModal";
+import { useTranslation } from "react-i18next";
 
 export default function TravelPreferences() {
     const router = useRouter();
     const { token } = useToken();
+    const { t } = useTranslation();
     const settings = useQuery(api.users.getSettings as any, { token: token || "skip" }) as any;
     const updatePreferences = useMutation(api.users.updateTravelPreferences);
     const updateAiConsent = useMutation(api.users.updateAiConsent);
@@ -77,11 +79,11 @@ export default function TravelPreferences() {
                 defaultSkipHotel,
                 defaultPreferredFlightTime,
             });
-            Alert.alert("Success", "Travel preferences updated successfully!");
+            Alert.alert(t('common.success'), t('settings.travelPreferences.updatedSuccess'));
             router.back();
         } catch (error) {
             console.error("Update failed:", error);
-            Alert.alert("Error", "Failed to update travel preferences");
+            Alert.alert(t('common.error'), t('settings.travelPreferences.failedUpdate'));
         }
     };
 
@@ -92,7 +94,7 @@ export default function TravelPreferences() {
             if (defaultInterests.length < 5) {
                 setDefaultInterests([...defaultInterests, interest]);
             } else {
-                Alert.alert("Limit Reached", "You can select up to 5 interests");
+                Alert.alert(t('settings.travelPreferences.limitReached'), t('onboarding.maxInterests'));
             }
         }
     };
@@ -119,18 +121,18 @@ export default function TravelPreferences() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Travel Preferences</Text>
+                <Text style={styles.headerTitle}>{t('settings.travelPreferences.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.description}>
-                    These preferences will be automatically applied when you create a new trip.
+                    {t('settings.travelPreferences.description')}
                 </Text>
 
                 {/* Home Airport */}
                 <View style={[styles.section, { zIndex: 10 }]}>
-                    <Text style={styles.sectionTitle}>Home Airport</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.travelPreferences.homeAirport')}</Text>
                     <View style={styles.inputContainer}>
                         <Ionicons name="airplane-outline" size={20} color="#1A1A1A" style={styles.inputIcon} />
                         <TextInput
@@ -172,7 +174,7 @@ export default function TravelPreferences() {
 
                 {/* Default Budget */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Default Budget ($)</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.travelPreferences.defaultBudget')}</Text>
                     <View style={styles.inputContainer}>
                         <Ionicons name="cash-outline" size={20} color="#1A1A1A" style={styles.inputIcon} />
                         <TextInput
@@ -188,7 +190,7 @@ export default function TravelPreferences() {
 
                 {/* Default Interests */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Default Interests (Max 5)</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.travelPreferences.defaultInterests')}</Text>
                     <View style={styles.interestsContainer}>
                         {INTERESTS.map((interest) => (
                             <TouchableOpacity
@@ -294,17 +296,17 @@ export default function TravelPreferences() {
 
                 {/* AI Data Sharing */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>AI Data Sharing</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.travelPreferences.aiDataSharing')}</Text>
                     <Text style={styles.sectionDescription}>
-                        Planera sends your travel preferences (destinations, dates, budget, interests, and Atlas chat messages) to OpenAI to generate personalized itineraries and recommendations.
+                        {t('settings.travelPreferences.aiDataDescription')}
                     </Text>
                     <View style={styles.toggleRow}>
                         <View style={styles.toggleInfo}>
-                            <Text style={styles.toggleLabel}>Share data with OpenAI</Text>
+                            <Text style={styles.toggleLabel}>{t('settings.travelPreferences.shareWithOpenAI')}</Text>
                             <Text style={styles.toggleDescription}>
                                 {aiDataConsent 
-                                    ? "AI features are enabled" 
-                                    : "AI features are disabled (trip generation, sights, Atlas)"}
+                                    ? t('settings.travelPreferences.aiEnabled') 
+                                    : t('settings.travelPreferences.aiDisabled')}
                             </Text>
                         </View>
                         <Switch
@@ -327,12 +329,12 @@ export default function TravelPreferences() {
                     </View>
                     <TouchableOpacity onPress={() => router.push("/privacy")} style={styles.privacyLink}>
                         <Ionicons name="document-text-outline" size={16} color="#007AFF" />
-                        <Text style={styles.privacyLinkText}>Read our Privacy Policy</Text>
+                        <Text style={styles.privacyLinkText}>{t('settings.travelPreferences.readPrivacyPolicy')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Save Preferences</Text>
+                    <Text style={styles.saveButtonText}>{t('settings.travelPreferences.savePreferences')}</Text>
                 </TouchableOpacity>
                 
                 <View style={{ height: 40 }} />

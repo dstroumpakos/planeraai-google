@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { useToken } from "@/lib/useAuthenticatedMutation";
+import { useTranslation } from "react-i18next";
 
 interface PassengerForm {
   givenName: string;
@@ -61,6 +62,7 @@ export default function FlightBookingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   
   const offerId = params.offerId as string;
   const tripId = params.tripId as string;
@@ -192,49 +194,49 @@ export default function FlightBookingScreen() {
     for (let i = 0; i < passengers.length; i++) {
       const p = passengers[i];
       if (!p.givenName.trim()) {
-        showAlert("Missing Information", `Please enter first name for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterFirstNameForPassenger', { number: i + 1 }));
         return false;
       }
       if (!p.familyName.trim()) {
-        showAlert("Missing Information", `Please enter last name for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterLastNameForPassenger', { number: i + 1 }));
         return false;
       }
       if (!p.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(p.dateOfBirth)) {
-        showAlert("Missing Information", `Please enter valid date of birth (YYYY-MM-DD) for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterValidDobForPassenger', { number: i + 1 }));
         return false;
       }
       
       // Validate age is reasonable (must be adult for now - 18+)
       const age = calculateAge(p.dateOfBirth);
       if (age < 18) {
-        showAlert("Invalid Age", `Passenger ${i + 1} must be at least 18 years old. Child bookings are not yet supported.`);
+        showAlert(t('flights.invalidAge'), t('flights.mustBe18Full', { number: i + 1 }));
         return false;
       }
       if (age > 120) {
-        showAlert("Invalid Date", `Please enter a valid date of birth for passenger ${i + 1}`);
+        showAlert(t('flights.invalidDateTitle'), t('flights.enterValidDobPassenger', { number: i + 1 }));
         return false;
       }
       
       if (!p.email.trim() || !p.email.includes("@")) {
-        showAlert("Missing Information", `Please enter valid email for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterValidEmailForPassenger', { number: i + 1 }));
         return false;
       }
       if (!p.phoneNumber.trim() || p.phoneNumber.replace(/\D/g, "").length < 7) {
-        showAlert("Missing Information", `Please enter a valid phone number (at least 7 digits) for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterValidPhoneForPassenger', { number: i + 1 }));
         return false;
       }
       
       // Validate passport fields
       if (!p.passportNumber.trim()) {
-        showAlert("Missing Information", `Please enter passport number for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterPassportForPassenger', { number: i + 1 }));
         return false;
       }
       if (!p.passportIssuingCountry.trim() || p.passportIssuingCountry.length !== 2) {
-        showAlert("Missing Information", `Please enter passport country code (2 letters, e.g., US, GB) for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterPassportCountryForPassenger', { number: i + 1 }));
         return false;
       }
       if (!p.passportExpiryDate || !/^\d{4}-\d{2}-\d{2}$/.test(p.passportExpiryDate)) {
-        showAlert("Missing Information", `Please enter valid passport expiry date (YYYY-MM-DD) for passenger ${i + 1}`);
+        showAlert(t('flights.missingInfo'), t('flights.enterPassportExpiryForPassenger', { number: i + 1 }));
         return false;
       }
       
@@ -242,7 +244,7 @@ export default function FlightBookingScreen() {
       const expiryDate = new Date(p.passportExpiryDate);
       const today = new Date();
       if (expiryDate < today) {
-        showAlert("Invalid Passport", `Passport for passenger ${i + 1} has expired. Please update your passport details.`);
+        showAlert(t('flights.invalidPassport'), t('flights.passportExpiredFull', { number: i + 1 }));
         return false;
       }
       
@@ -250,7 +252,7 @@ export default function FlightBookingScreen() {
       const sixMonthsFromNow = new Date();
       sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
       if (expiryDate < sixMonthsFromNow) {
-        showAlert("Passport Warning", `Passport for passenger ${i + 1} expires within 6 months. Many countries require passports valid for at least 6 months.`);
+        showAlert(t('flights.passportWarning'), t('flights.passportExpiresSoonFull', { number: i + 1 }));
         // Don't block the booking, just warn
       }
     }
@@ -298,11 +300,11 @@ export default function FlightBookingScreen() {
           orderId: result.orderId,
         });
       } else {
-        showAlert("Booking Error", result.error);
+        showAlert(t('flights.bookingError'), result.error);
       }
     } catch (error) {
       console.error("Book flight error:", error);
-      showAlert("Error", "Failed to process booking. Please try again.");
+      showAlert(t('common.error'), t('flights.failedProcessBooking'));
     } finally {
       setSubmitting(false);
     }
@@ -324,25 +326,25 @@ export default function FlightBookingScreen() {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={80} color="#10B981" />
           </View>
-          <Text style={[styles.successTitle, dynamicStyles.text]}>Booking Confirmed!</Text>
+          <Text style={[styles.successTitle, dynamicStyles.text]}>{t('flights.bookingConfirmed')}</Text>
           <Text style={[styles.successSubtitle, dynamicStyles.secondaryText]}>
-            Your flight has been booked successfully
+            {t('flights.flightBookedSuccess')}
           </Text>
           
           <View style={[styles.confirmationCard, dynamicStyles.card]}>
-            <Text style={[styles.confirmationLabel, dynamicStyles.secondaryText]}>Booking Reference</Text>
+            <Text style={[styles.confirmationLabel, dynamicStyles.secondaryText]}>{t('flights.bookingReference')}</Text>
             <Text style={[styles.confirmationValue, dynamicStyles.text]}>{bookingSuccess.bookingReference}</Text>
             
             <View style={styles.confirmationDivider} />
             
-            <Text style={[styles.confirmationLabel, dynamicStyles.secondaryText]}>Order ID</Text>
+            <Text style={[styles.confirmationLabel, dynamicStyles.secondaryText]}>{t('flights.orderId')}</Text>
             <Text style={[styles.confirmationValueSmall, dynamicStyles.secondaryText]}>{bookingSuccess.orderId}</Text>
           </View>
 
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color={colors.primary} />
             <Text style={[styles.infoText, dynamicStyles.secondaryText]}>
-              A confirmation email will be sent to all passengers. Please check your inbox.
+              {t('flights.confirmationEmail')}
             </Text>
           </View>
 
@@ -350,14 +352,14 @@ export default function FlightBookingScreen() {
             style={styles.backToTripButton} 
             onPress={() => router.replace(`/trip/${tripId}`)}
           >
-            <Text style={styles.backToTripButtonText}>Back to Trip</Text>
+            <Text style={styles.backToTripButtonText}>{t('flights.backToTrip')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.viewBookingsButton} 
             onPress={() => router.replace("/(tabs)/trips")}
           >
-            <Text style={[styles.viewBookingsButtonText, { color: colors.primary }]}>View My Trips</Text>
+            <Text style={[styles.viewBookingsButtonText, { color: colors.primary }]}>{t('flights.viewMyTrips')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -369,7 +371,7 @@ export default function FlightBookingScreen() {
       <SafeAreaView style={[styles.container, dynamicStyles.container]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, dynamicStyles.text]}>Verifying flight availability...</Text>
+          <Text style={[styles.loadingText, dynamicStyles.text]}>{t('flights.verifyingAvailability')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -382,17 +384,17 @@ export default function FlightBookingScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, dynamicStyles.text]}>Book Flight</Text>
+          <Text style={[styles.headerTitle, dynamicStyles.text]}>{t('flights.bookFlight')}</Text>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={64} color="#EF4444" />
-          <Text style={[styles.errorTitle, dynamicStyles.text]}>Flight Unavailable</Text>
+          <Text style={[styles.errorTitle, dynamicStyles.text]}>{t('flights.flightUnavailable')}</Text>
           <Text style={[styles.errorText, dynamicStyles.secondaryText]}>
-            {offerError || "This flight is no longer available. Please search for new flights."}
+            {offerError || t('flights.flightNoLongerAvailable')}
           </Text>
           <TouchableOpacity style={styles.backToTripButton} onPress={() => router.back()}>
-            <Text style={styles.backToTripButtonText}>Back to Trip</Text>
+            <Text style={styles.backToTripButtonText}>{t('flights.backToTrip')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -405,7 +407,7 @@ export default function FlightBookingScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, dynamicStyles.text]}>Book Flight</Text>
+        <Text style={[styles.headerTitle, dynamicStyles.text]}>{t('flights.bookFlight')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -414,31 +416,31 @@ export default function FlightBookingScreen() {
         <View style={styles.testModeBanner}>
           <Ionicons name="flask" size={20} color="#F59E0B" />
           <Text style={styles.testModeText}>
-            Test Mode: Using Duffel Airways sandbox. No real charges.
+            {t('flights.testMode')}
           </Text>
         </View>
 
         {/* Flight Summary */}
         {flightInfo && (
           <View style={[styles.flightSummary, dynamicStyles.card]}>
-            <Text style={[styles.sectionTitle, dynamicStyles.text]}>Flight Summary</Text>
+            <Text style={[styles.sectionTitle, dynamicStyles.text]}>{t('flights.flightSummary')}</Text>
             <View style={styles.flightDetail}>
-              <Text style={[styles.flightLabel, dynamicStyles.secondaryText]}>Outbound</Text>
+              <Text style={[styles.flightLabel, dynamicStyles.secondaryText]}>{t('flights.outbound')}</Text>
               <Text style={[styles.flightValue, dynamicStyles.text]}>
                 {flightInfo.outbound?.airline} • {flightInfo.outbound?.departure} - {flightInfo.outbound?.arrival}
               </Text>
             </View>
             <View style={styles.flightDetail}>
-              <Text style={[styles.flightLabel, dynamicStyles.secondaryText]}>Return</Text>
+              <Text style={[styles.flightLabel, dynamicStyles.secondaryText]}>{t('flights.return')}</Text>
               <Text style={[styles.flightValue, dynamicStyles.text]}>
                 {flightInfo.return?.airline} • {flightInfo.return?.departure} - {flightInfo.return?.arrival}
               </Text>
             </View>
             {priceInfo && (
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, dynamicStyles.text]}>Total Price</Text>
+                <Text style={[styles.priceLabel, dynamicStyles.text]}>{t('flights.totalPrice')}</Text>
                 <Text style={styles.priceValue}>
-                  {priceInfo.currency === "GBP" ? "£" : "€"}{priceInfo.totalPrice.toFixed(2)} ({numPassengers} passenger{numPassengers > 1 ? "s" : ""})
+                  {priceInfo.currency === "GBP" ? "£" : "€"}{priceInfo.totalPrice.toFixed(2)} ({t('flights.passengerCount', { count: numPassengers })})
                 </Text>
               </View>
             )}
@@ -449,12 +451,12 @@ export default function FlightBookingScreen() {
         {passengers.map((passenger, index) => (
           <View key={index} style={[styles.passengerCard, dynamicStyles.card]}>
             <Text style={[styles.sectionTitle, dynamicStyles.text]}>
-              Passenger {index + 1} {index === 0 && "(Primary Contact)"}
+              {t('flights.passenger', { number: index + 1 })} {index === 0 && t('flights.primaryContact')}
             </Text>
 
             <View style={styles.row}>
               <View style={styles.titlePicker}>
-                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Title</Text>
+                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.title')}</Text>
                 <View style={styles.titleOptions}>
                   {(["mr", "ms", "mrs", "miss", "dr"] as const).map((t) => (
                     <TouchableOpacity
@@ -481,7 +483,7 @@ export default function FlightBookingScreen() {
 
             <View style={styles.row}>
               <View style={styles.halfInput}>
-                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>First Name *</Text>
+                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.firstNameRequired')}</Text>
                 <TextInput
                   style={[styles.input, dynamicStyles.input]}
                   value={passenger.givenName}
@@ -491,7 +493,7 @@ export default function FlightBookingScreen() {
                 />
               </View>
               <View style={styles.halfInput}>
-                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Last Name *</Text>
+                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.lastNameRequired')}</Text>
                 <TextInput
                   style={[styles.input, dynamicStyles.input]}
                   value={passenger.familyName}
@@ -503,9 +505,9 @@ export default function FlightBookingScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Date of Birth *</Text>
+              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.dobRequired')}</Text>
               <Text style={[styles.inputHint, dynamicStyles.secondaryText]}>
-                Format: YYYY-MM-DD (must be 18+ years old)
+                {t('flights.dobFormat')}
               </Text>
               <TextInput
                 style={[styles.input, dynamicStyles.input]}
@@ -519,7 +521,7 @@ export default function FlightBookingScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Gender</Text>
+              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('onboarding.gender')}</Text>
               <View style={styles.genderOptions}>
                 <TouchableOpacity
                   style={[
@@ -534,7 +536,7 @@ export default function FlightBookingScreen() {
                       passenger.gender === "male" && styles.genderOptionTextSelected,
                     ]}
                   >
-                    Male
+                    {t('onboarding.male')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -550,14 +552,14 @@ export default function FlightBookingScreen() {
                       passenger.gender === "female" && styles.genderOptionTextSelected,
                     ]}
                   >
-                    Female
+                    {t('onboarding.female')}
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Email *</Text>
+              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.emailRequired')}</Text>
               <TextInput
                 style={[styles.input, dynamicStyles.input]}
                 value={passenger.email}
@@ -570,9 +572,9 @@ export default function FlightBookingScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Phone Number *</Text>
+              <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.phoneRequired')}</Text>
               <Text style={[styles.inputHint, dynamicStyles.secondaryText]}>
-                Include country code
+                {t('flights.includeCountryCode')}
               </Text>
               <View style={styles.phoneInputRow}>
                 <TextInput
@@ -599,11 +601,11 @@ export default function FlightBookingScreen() {
             <View style={styles.passportSection}>
               <View style={styles.passportHeader}>
                 <Ionicons name="document-text" size={20} color={colors.primary} />
-                <Text style={[styles.passportHeaderText, dynamicStyles.text]}>Passport Information</Text>
+                <Text style={[styles.passportHeaderText, dynamicStyles.text]}>{t('flights.passportInfo')}</Text>
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Passport Number *</Text>
+                <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.passportNumberRequired')}</Text>
                 <TextInput
                   style={[styles.input, dynamicStyles.input]}
                   value={passenger.passportNumber}
@@ -616,9 +618,9 @@ export default function FlightBookingScreen() {
 
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Issuing Country *</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.issuingCountryRequired')}</Text>
                   <Text style={[styles.inputHint, dynamicStyles.secondaryText]}>
-                    2-letter code (e.g., US, GB)
+                    {t('flights.countryCodeHint')}
                   </Text>
                   <TextInput
                     style={[styles.input, dynamicStyles.input]}
@@ -631,7 +633,7 @@ export default function FlightBookingScreen() {
                   />
                 </View>
                 <View style={styles.halfInput}>
-                  <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>Expiry Date *</Text>
+                  <Text style={[styles.inputLabel, dynamicStyles.secondaryText]}>{t('flights.expiryDateRequired')}</Text>
                   <Text style={[styles.inputHint, dynamicStyles.secondaryText]}>
                     YYYY-MM-DD
                   </Text>
@@ -653,7 +655,7 @@ export default function FlightBookingScreen() {
         <View style={styles.disclaimer}>
           <Ionicons name="shield-checkmark" size={20} color="#10B981" />
           <Text style={[styles.disclaimerText, dynamicStyles.secondaryText]}>
-            This is a test booking using Duffel's sandbox environment. Your booking will be processed instantly with no real payment required.
+            {t('flights.testBookingDisclaimer')}
           </Text>
         </View>
 
@@ -662,7 +664,7 @@ export default function FlightBookingScreen() {
 
       <View style={[styles.footer, dynamicStyles.card]}>
         <View style={styles.footerPrice}>
-          <Text style={[styles.footerPriceLabel, dynamicStyles.secondaryText]}>Total</Text>
+          <Text style={[styles.footerPriceLabel, dynamicStyles.secondaryText]}>{t('flights.total')}</Text>
           <Text style={[styles.footerPriceValue, dynamicStyles.text]}>
             {priceInfo?.currency === "GBP" ? "£" : "€"}{priceInfo?.totalPrice.toFixed(2) || "0.00"}
           </Text>
@@ -676,7 +678,7 @@ export default function FlightBookingScreen() {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Text style={styles.bookButtonText}>Confirm Booking</Text>
+              <Text style={styles.bookButtonText}>{t('flights.confirmBooking')}</Text>
               <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
             </>
           )}

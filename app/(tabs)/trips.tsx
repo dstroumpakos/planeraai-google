@@ -7,22 +7,24 @@ import { Ionicons } from "@expo/vector-icons";
 import { Id } from "@/convex/_generated/dataModel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 export default function TripsScreen() {
     const router = useRouter();
     const { token } = useToken();
     const { colors, isDarkMode } = useTheme();
+    const { t, i18n } = useTranslation();
     const trips = useQuery(api.trips.list as any, { token: token || "skip" });
     const deleteTrip = useAuthenticatedMutation(api.trips.deleteTrip as any);
 
     const handleDelete = (tripId: Id<"trips">) => {
         Alert.alert(
-            "Delete Trip",
-            "Are you sure you want to delete this trip?",
+            t('trips.deleteTrip'),
+            t('trips.deleteTripConfirm'),
             [
-                { text: "Cancel", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 { 
-                    text: "Delete", 
+                    text: t('common.delete'), 
                     style: "destructive", 
                     onPress: () => deleteTrip({ tripId }) 
                 }
@@ -46,7 +48,7 @@ export default function TripsScreen() {
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor="transparent" translucent={true} />
             <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.header}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>My Trips</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>{t('trips.myTrips')}</Text>
                 <TouchableOpacity 
                     style={[styles.addButton, { backgroundColor: colors.primary }]}
                     onPress={() => router.push("/create-trip")}
@@ -60,13 +62,13 @@ export default function TripsScreen() {
                     <View style={[styles.emptyIconContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <Ionicons name="airplane-outline" size={48} color={colors.primary} />
                     </View>
-                    <Text style={[styles.emptyText, { color: colors.text }]}>No trips yet</Text>
-                    <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>Tap the + button to plan your first adventure!</Text>
+                    <Text style={[styles.emptyText, { color: colors.text }]}>{t('trips.noTripsYet')}</Text>
+                    <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>{t('trips.tapToCreate')}</Text>
                     <TouchableOpacity 
                         style={[styles.createTripButton, { backgroundColor: colors.primary }]}
                         onPress={() => router.push("/create-trip")}
                     >
-                        <Text style={[styles.createTripButtonText, { color: colors.text }]}>Create Your First Trip</Text>
+                        <Text style={[styles.createTripButtonText, { color: colors.text }]}>{t('trips.createFirstTrip')}</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
@@ -89,7 +91,7 @@ export default function TripsScreen() {
                                     <StatusBadge status={item.status} />
                                 </View>
                                 <Text style={[styles.dates, { color: colors.textMuted }]}>
-                                    {new Date(item.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - {new Date(item.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    {new Date(item.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} - {new Date(item.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </Text>
                                 <View style={styles.cardFooter}>
                                     <View style={styles.detailItem}>

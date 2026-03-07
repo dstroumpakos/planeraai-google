@@ -6,10 +6,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function PersonalInfo() {
     const router = useRouter();
     const { token } = useToken();
+    const { t } = useTranslation();
     const settings = useQuery(api.users.getSettings as any, { token: token || "skip" });
     const updatePersonalInfo = useMutation(api.users.updatePersonalInfo);
 
@@ -30,18 +32,18 @@ export default function PersonalInfo() {
     const handleSave = async () => {
         try {
             await updatePersonalInfo({ token: token || "", name, email, phone, dateOfBirth });
-            Alert.alert("Success", "Personal information updated successfully!");
+            Alert.alert(t('common.success'), t('settings.personalInfo.updatedSuccess'));
             router.back();
         } catch (error) {
             console.error("Update failed:", error);
-            Alert.alert("Error", "Failed to update personal information");
+            Alert.alert(t('common.error'), t('settings.personalInfo.failedUpdate'));
         }
     };
 
     if (settings === undefined) {
         return (
             <SafeAreaView style={styles.container}>
-                <Text>Loading...</Text>
+                <Text>{t('common.loading')}</Text>
             </SafeAreaView>
         );
     }
@@ -52,29 +54,29 @@ export default function PersonalInfo() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1B3F92" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Personal Info</Text>
+                <Text style={styles.headerTitle}>{t('settings.personalInfo.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             <ScrollView style={styles.content}>
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Full Name</Text>
+                    <Text style={styles.label}>{t('settings.personalInfo.fullName')}</Text>
                     <TextInput
                         style={styles.input}
                         value={name}
                         onChangeText={setName}
-                        placeholder="Enter your full name"
+                        placeholder={t('settings.personalInfo.enterFullName')}
                         placeholderTextColor="#B0BEC5"
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Email</Text>
+                    <Text style={styles.label}>{t('settings.personalInfo.email')}</Text>
                     <TextInput
                         style={styles.input}
                         value={email}
                         onChangeText={setEmail}
-                        placeholder="Enter your email"
+                        placeholder={t('settings.personalInfo.enterEmail')}
                         placeholderTextColor="#B0BEC5"
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -82,19 +84,19 @@ export default function PersonalInfo() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Phone Number</Text>
+                    <Text style={styles.label}>{t('settings.personalInfo.phoneNumber')}</Text>
                     <TextInput
                         style={styles.input}
                         value={phone}
                         onChangeText={setPhone}
-                        placeholder="Enter your phone number"
+                        placeholder={t('settings.personalInfo.enterPhone')}
                         placeholderTextColor="#B0BEC5"
                         keyboardType="phone-pad"
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Date of Birth</Text>
+                    <Text style={styles.label}>{t('settings.personalInfo.dateOfBirth')}</Text>
                     <TextInput
                         style={styles.input}
                         value={dateOfBirth}
@@ -105,7 +107,7 @@ export default function PersonalInfo() {
                 </View>
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                    <Text style={styles.saveButtonText}>{t('settings.saveChanges')}</Text>
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
