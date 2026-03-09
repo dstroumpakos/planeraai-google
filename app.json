@@ -5,7 +5,7 @@
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
-    "scheme": "myapp",
+    "scheme": "planera",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -31,7 +31,7 @@
     "android": {
       "package": "com.dstroump.planeraaitravelplanner",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FAF9F6"
       },
       "newArchEnabled": true,
