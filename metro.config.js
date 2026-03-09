@@ -51,7 +51,10 @@ const SHIMS = {
   "@better-auth/expo": path.resolve(__dirname, "shims/better-auth-expo.native.js"),
   "@better-auth/expo/client": path.resolve(__dirname, "shims/better-auth-expo.native.js"),
   
-  // Google Sign-In (not used on iOS - shim to prevent native module crash)
+  // Google Sign-In: shimmed on iOS only (used natively on Android for Play Store)
+};
+
+const IOS_ONLY_SHIMS = {
   "@react-native-google-signin/google-signin": path.resolve(__dirname, "shims/google-signin.native.js"),
 };
 
@@ -107,6 +110,15 @@ defaultConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   }
   
   if (isNative) {
+    // STRATEGY 0: iOS-only shims (e.g., Google Sign-In shimmed on iOS, real on Android)
+    if (platform === "ios" && IOS_ONLY_SHIMS[moduleName]) {
+      console.log(`[SHIM-IOS] ${moduleName} -> ${path.basename(IOS_ONLY_SHIMS[moduleName])}`);
+      return {
+        filePath: IOS_ONLY_SHIMS[moduleName],
+        type: "sourceFile",
+      };
+    }
+
     // STRATEGY 1: Exact module name match -> return shim immediately
     if (SHIMS[moduleName]) {
       console.log(`[SHIM] ${moduleName} -> ${path.basename(SHIMS[moduleName])}`);

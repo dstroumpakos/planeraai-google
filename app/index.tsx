@@ -14,7 +14,7 @@ import { LanguagePickerModal } from "@/components/LanguagePickerModal";
 
 // Fallback colors for when theme is not available (e.g., during initial load)
 const COLORS = LIGHT_COLORS;
-const ENABLE_GOOGLE = false;
+const ENABLE_GOOGLE = true;
 
 // Component to handle authenticated user redirect based on onboarding status
 function AuthenticatedRedirect() {
@@ -437,7 +437,7 @@ export default function Index() {
                 )}
                 
                 <Text style={styles.termsText}>
-                    {t('auth.byContinuing')} <Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")}>{t('auth.termsOfUse')}</Text> &{"\n"}<Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>{t('auth.privacyPolicy')}</Text>.
+                    {t('auth.byContinuing')} <Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/terms")}>{t('auth.termsOfUse')}</Text> &{"\n"}<Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>{t('auth.privacyPolicy')}</Text>.
                 </Text>
             </ScrollView>
         </KeyboardAvoidingView>
