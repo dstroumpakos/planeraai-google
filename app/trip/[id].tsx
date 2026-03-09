@@ -2736,6 +2736,90 @@ export default function TripDetails() {
                         <View>
                             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.accommodations')}</Text>
 
+                            {/* Airbnb Search Card */}
+                            <TouchableOpacity
+                                style={{
+                                    marginTop: 16,
+                                    backgroundColor: colors.card,
+                                    borderRadius: 16,
+                                    padding: 20,
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.08,
+                                    shadowRadius: 8,
+                                    elevation: 3,
+                                }}
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                    const checkin = new Date(trip.startDate).toISOString().split('T')[0];
+                                    const checkout = new Date(trip.endDate).toISOString().split('T')[0];
+                                    const airbnbDomainMap: Record<string, string> = { en: 'www.airbnb.com', el: 'www.airbnb.gr', es: 'www.airbnb.es', fr: 'www.airbnb.fr', de: 'www.airbnb.de', ar: 'www.airbnb.com' };
+                                    const airbnbDomain = airbnbDomainMap[i18n.language] || 'www.airbnb.com';
+                                    const dest = encodeURIComponent(trip.destination || '');
+                                    Linking.openURL(`https://${airbnbDomain}/s/${dest}/homes?date_picker_type=calendar&checkin=${checkin}&checkout=${checkout}&adults=${travelers}&search_type=AUTOSUGGEST`);
+                                }}
+                            >
+                                {/* Airbnb branding */}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#FF5A5F', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                                        <Ionicons name="home" size={18} color="#fff" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Airbnb</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textMuted }}>{t('tripDetail.searchStaysOnAirbnb')}</Text>
+                                    </View>
+                                    <Ionicons name="open-outline" size={18} color={colors.textMuted} />
+                                </View>
+
+                                {/* Destination & dates */}
+                                <View style={{ backgroundColor: isDarkMode ? colors.secondary : '#F8F9FA', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                        <Ionicons name="location" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }} numberOfLines={1}>{trip.destination || '—'}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.checkIn')}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                                                {new Date(trip.startDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                        <View style={{ paddingHorizontal: 10, justifyContent: 'center' }}>
+                                            <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
+                                        </View>
+                                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                            <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>{t('tripDetail.checkOut')}</Text>
+                                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
+                                                {new Date(trip.endDate).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                {/* Guests & nights */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="people-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.guestCount', { count: travelers })}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="moon-outline" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+                                        <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                                            {t('tripDetail.nightCount', { count: duration })}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* CTA Button */}
+                                <View style={{ backgroundColor: '#FF5A5F', borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
+                                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.searchOnAirbnb')}</Text>
+                                </View>
+                            </TouchableOpacity>
+
                             {/* Skyscanner Hotels Search Card */}
                             <TouchableOpacity
                                 style={{

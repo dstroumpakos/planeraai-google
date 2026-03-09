@@ -515,6 +515,17 @@
       "couldNotEnable": "Konnte Nicht Aktiviert Werden",
       "couldNotEnableMsg": "Wir konnten die Push-Benachrichtigungen nicht aktivieren. Bitte überprüfen Sie Ihre Geräteeinstellungen."
     },
+    "pushNotifications": {
+      "permissionTitle": "Bleiben Sie informiert",
+      "permissionBody": "Planera sendet Ihnen hilfreiche Erinnerungen vor Ihrer Reise (Countdown, Tagesbriefing) und Benachrichtigungen, wenn Sie in der Nähe einer geplanten Aktivität sind. Wir senden niemals Spam.",
+      "notNow": "Nicht jetzt",
+      "enable": "Aktivieren",
+      "nearbyTitle": "Sie sind in der Nähe von {{title}}! 📍",
+      "nearbyBody": "Dieser Stopp steht auf Ihrem Reiseplan. Viel Spaß!",
+      "nextActivityTitle": "{{title}} in {{minutes}} Min 🚶",
+      "nextActivityBody": "Ihr nächster Stopp beginnt um {{time}}.",
+      "walkingTime": "Es sind etwa {{minutes}} Minuten Fußweg von hier."
+    },
     "travelPreferences": {
       "title": "Reisepräferenzen",
       "description": "Diese Präferenzen werden automatisch angewendet, wenn Sie eine neue Reise erstellen.",
@@ -911,6 +922,8 @@
     "searchOnSkyscannerHotels": "Hotels auf Skyscanner suchen",
     "searchHotelsOnBooking": "Preise in Tausenden von Hotels vergleichen",
     "searchOnBookingHotels": "Hotels auf Booking.com suchen",
+    "searchStaysOnAirbnb": "Einzigartige Unterkünfte & Erlebnisse weltweit",
+    "searchOnAirbnb": "Unterkünfte auf Airbnb suchen",
     "checkIn": "Check-in",
     "checkOut": "Check-out",
     "guestCount": "{{count}} Gast",
@@ -1193,5 +1206,29 @@
     "title": "Sprache wählen",
     "subtitle": "Wählen Sie Ihre bevorzugte Sprache. Sie können sie jederzeit in den Einstellungen ändern.",
     "save": "Speichern & Fortfahren"
+  },
+  "firstTripGuide": {
+    "welcomeTitle": "Planen wir Ihre erste Reise!",
+    "welcomeSubtitle": "Wir führen Sie Schritt für Schritt durch die Erstellung Ihres perfekten Urlaubs.",
+    "feature1": "KI-gestützte personalisierte Reisepläne",
+    "feature2": "Intelligente Datums- & Budgetplanung",
+    "feature3": "Auf Ihren Reisestil zugeschnitten",
+    "popupTitle": "Planen Sie Ihre erste Reise!",
+    "popupSubtitle": "Lassen Sie unsere KI einen personalisierten Reiseplan nur für Sie erstellen. Es dauert nur eine Minute!",
+    "popupCta": "Meine Reise erstellen",
+    "maybeLater": "Vielleicht später",
+    "gotIt": "Verstanden!",
+    "tipDestTitle": "Wählen Sie Ihr Reiseziel",
+    "tipDestDesc": "Geben Sie ein, wohin Sie reisen möchten, oder wählen Sie ein zufälliges Ziel mit \"Überrasch mich\"!",
+    "tipDatesTitle": "Wählen Sie Ihre Reisedaten",
+    "tipDatesDesc": "Wählen Sie, wann Sie reisen. Tippen Sie auf die Daten, um den Kalender zu öffnen.",
+    "tipTravelersTitle": "Wie viele Reisende?",
+    "tipTravelersDesc": "Verwenden Sie die + und - Tasten, um die Anzahl der Reisenden festzulegen.",
+    "tipBudgetTitle": "Legen Sie Ihr Budget fest",
+    "tipBudgetDesc": "Geben Sie Ihr Gesamtreisebudget ein. Wir zeigen Ihnen eine Aufschlüsselung pro Person.",
+    "tipInterestsTitle": "Wählen Sie Ihren Reisestil",
+    "tipInterestsDesc": "Wählen Sie Interessen, um Ihren Reiseplan zu personalisieren — Abenteuer, Essen, Kultur und mehr!",
+    "tipGenerateTitle": "Alles bereit!",
+    "tipGenerateDesc": "Drücken Sie die Taste unten, um die KI Ihren perfekten Reiseplan erstellen zu lassen."
   }
 }

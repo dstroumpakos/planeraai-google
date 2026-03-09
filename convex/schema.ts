@@ -161,6 +161,8 @@ export default defineSchema({
         dealAlerts: v.optional(v.boolean()),
         tripReminders: v.optional(v.boolean()),
         onboardingCompleted: v.optional(v.boolean()),
+        // First trip guide shown on home page for new users
+        hasSeenFirstTripGuide: v.optional(v.boolean()),
         // AI data sharing consent (Apple guideline 5.1.1/5.1.2)
         aiDataConsent: v.optional(v.boolean()),
         aiDataConsentDate: v.optional(v.float64()),

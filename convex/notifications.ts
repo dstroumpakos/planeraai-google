@@ -316,6 +316,124 @@ export const removeInvalidToken = internalMutation({
     },
 });
 
+// ─── Notification translations per language ───
+const NOTIF_TRANSLATIONS: Record<string, Record<string, string>> = {
+    en: {
+        countdown_1d_title: "Tomorrow is the day! ✈️",
+        countdown_1d_body: "Your trip to {{dest}} starts tomorrow! Make sure your passport and essentials are packed.",
+        countdown_3d_title: "{{dest}} in 3 days! 🌴",
+        countdown_3d_body: "Almost time! Your adventure to {{dest}} is just around the corner. Check your itinerary one more time.",
+        countdown_7d_title: "{{dest}} is coming up! 🗺️",
+        countdown_7d_body: "One week until your trip to {{dest}}! Time to start packing and get excited.",
+        morning_title: "Good morning! Day {{day}} in {{dest}} ☀️",
+        morning_body_activities: "{{count}} stops today — starting with {{first}} at {{time}}. Have an amazing day!",
+        morning_body_free: "Enjoy a free day exploring {{dest}}!",
+        post_trip_title: "How was {{dest}}? 🌊",
+        post_trip_body: "It's been a week since your trip! We'd love to hear how it went. Share a travel insight to help other travelers.",
+        plan_next_title: "Where to next? 🗺️",
+        plan_next_body: "Missing {{dest}}? Start planning your next adventure — it only takes 30 seconds!",
+        anniversary_title: "1 year since {{dest}}! 🎉",
+        anniversary_body: "Remember your trip? Relive the memories or plan a return visit!",
+    },
+    el: {
+        countdown_1d_title: "Αύριο είναι η μέρα! ✈️",
+        countdown_1d_body: "Το ταξίδι σας στο {{dest}} ξεκινά αύριο! Βεβαιωθείτε ότι το διαβατήριο και τα απαραίτητα είναι έτοιμα.",
+        countdown_3d_title: "{{dest}} σε 3 μέρες! 🌴",
+        countdown_3d_body: "Σχεδόν ώρα! Η περιπέτειά σας στο {{dest}} είναι κοντά. Ελέγξτε το πρόγραμμά σας μία ακόμα φορά.",
+        countdown_7d_title: "Το {{dest}} πλησιάζει! 🗺️",
+        countdown_7d_body: "Μία εβδομάδα μέχρι το ταξίδι σας στο {{dest}}! Ώρα να ξεκινήσετε το πακετάρισμα.",
+        morning_title: "Καλημέρα! Μέρα {{day}} στο {{dest}} ☀️",
+        morning_body_activities: "{{count}} στάσεις σήμερα — ξεκινώντας με {{first}} στις {{time}}. Καλή μέρα!",
+        morning_body_free: "Απολαύστε μια ελεύθερη μέρα εξερευνώντας το {{dest}}!",
+        post_trip_title: "Πώς ήταν το {{dest}}; 🌊",
+        post_trip_body: "Πέρασε μία εβδομάδα από το ταξίδι σας! Μοιραστείτε τις εμπειρίες σας για να βοηθήσετε άλλους ταξιδιώτες.",
+        plan_next_title: "Πού θα πάτε μετά; 🗺️",
+        plan_next_body: "Σας λείπει το {{dest}}; Ξεκινήστε να σχεδιάζετε την επόμενη περιπέτειά σας — χρειάζεται μόνο 30 δευτερόλεπτα!",
+        anniversary_title: "1 χρόνος από το {{dest}}! 🎉",
+        anniversary_body: "Θυμάστε το ταξίδι σας; Ξαναζήστε τις αναμνήσεις ή σχεδιάστε μια επιστροφή!",
+    },
+    es: {
+        countdown_1d_title: "¡Mañana es el día! ✈️",
+        countdown_1d_body: "Tu viaje a {{dest}} comienza mañana. ¡Asegúrate de tener el pasaporte y lo esencial listo!",
+        countdown_3d_title: "¡{{dest}} en 3 días! 🌴",
+        countdown_3d_body: "¡Casi es hora! Tu aventura a {{dest}} está a la vuelta de la esquina. Revisa tu itinerario una vez más.",
+        countdown_7d_title: "¡{{dest}} se acerca! 🗺️",
+        countdown_7d_body: "¡Una semana para tu viaje a {{dest}}! Es hora de empezar a hacer las maletas.",
+        morning_title: "¡Buenos días! Día {{day}} en {{dest}} ☀️",
+        morning_body_activities: "{{count}} paradas hoy — empezando con {{first}} a las {{time}}. ¡Que tengas un gran día!",
+        morning_body_free: "¡Disfruta un día libre explorando {{dest}}!",
+        post_trip_title: "¿Qué tal {{dest}}? 🌊",
+        post_trip_body: "¡Ha pasado una semana desde tu viaje! Comparte tus experiencias para ayudar a otros viajeros.",
+        plan_next_title: "¿A dónde ahora? 🗺️",
+        plan_next_body: "¿Extrañas {{dest}}? Empieza a planificar tu próxima aventura — ¡solo toma 30 segundos!",
+        anniversary_title: "¡1 año desde {{dest}}! 🎉",
+        anniversary_body: "¿Recuerdas tu viaje? ¡Revive los recuerdos o planifica una visita de regreso!",
+    },
+    fr: {
+        countdown_1d_title: "C'est demain ! ✈️",
+        countdown_1d_body: "Votre voyage à {{dest}} commence demain ! Vérifiez que votre passeport et vos essentiels sont prêts.",
+        countdown_3d_title: "{{dest}} dans 3 jours ! 🌴",
+        countdown_3d_body: "C'est bientôt l'heure ! Votre aventure à {{dest}} approche. Revérifiez votre itinéraire.",
+        countdown_7d_title: "{{dest}} approche ! 🗺️",
+        countdown_7d_body: "Une semaine avant votre voyage à {{dest}} ! Il est temps de commencer à faire vos valises.",
+        morning_title: "Bonjour ! Jour {{day}} à {{dest}} ☀️",
+        morning_body_activities: "{{count}} arrêts aujourd'hui — en commençant par {{first}} à {{time}}. Bonne journée !",
+        morning_body_free: "Profitez d'une journée libre pour explorer {{dest}} !",
+        post_trip_title: "Comment était {{dest}} ? 🌊",
+        post_trip_body: "Cela fait une semaine depuis votre voyage ! Partagez vos impressions pour aider d'autres voyageurs.",
+        plan_next_title: "Quelle est la prochaine destination ? 🗺️",
+        plan_next_body: "{{dest}} vous manque ? Commencez à planifier votre prochaine aventure — ça ne prend que 30 secondes !",
+        anniversary_title: "1 an depuis {{dest}} ! 🎉",
+        anniversary_body: "Vous vous souvenez de votre voyage ? Revivez les souvenirs ou planifiez un retour !",
+    },
+    de: {
+        countdown_1d_title: "Morgen geht's los! ✈️",
+        countdown_1d_body: "Ihre Reise nach {{dest}} beginnt morgen! Stellen Sie sicher, dass Reisepass und alles Wichtige gepackt sind.",
+        countdown_3d_title: "{{dest}} in 3 Tagen! 🌴",
+        countdown_3d_body: "Fast soweit! Ihr Abenteuer nach {{dest}} steht vor der Tür. Prüfen Sie Ihren Reiseplan noch einmal.",
+        countdown_7d_title: "{{dest}} rückt näher! 🗺️",
+        countdown_7d_body: "Noch eine Woche bis zu Ihrer Reise nach {{dest}}! Zeit, mit dem Packen zu beginnen.",
+        morning_title: "Guten Morgen! Tag {{day}} in {{dest}} ☀️",
+        morning_body_activities: "{{count}} Stopps heute — beginnend mit {{first}} um {{time}}. Einen wunderbaren Tag!",
+        morning_body_free: "Genießen Sie einen freien Tag und erkunden Sie {{dest}}!",
+        post_trip_title: "Wie war {{dest}}? 🌊",
+        post_trip_body: "Es ist eine Woche seit Ihrer Reise! Teilen Sie Ihre Erfahrungen, um anderen Reisenden zu helfen.",
+        plan_next_title: "Wohin als Nächstes? 🗺️",
+        plan_next_body: "Vermissen Sie {{dest}}? Planen Sie Ihr nächstes Abenteuer — es dauert nur 30 Sekunden!",
+        anniversary_title: "1 Jahr seit {{dest}}! 🎉",
+        anniversary_body: "Erinnern Sie sich an Ihre Reise? Erleben Sie die Erinnerungen noch einmal oder planen Sie eine Rückkehr!",
+    },
+    ar: {
+        countdown_1d_title: "غداً هو اليوم! ✈️",
+        countdown_1d_body: "رحلتك إلى {{dest}} تبدأ غداً! تأكد من أن جواز السفر والأساسيات جاهزة.",
+        countdown_3d_title: "{{dest}} بعد 3 أيام! 🌴",
+        countdown_3d_body: "أوشك الوقت! مغامرتك إلى {{dest}} على الأبواب. راجع برنامج رحلتك مرة أخرى.",
+        countdown_7d_title: "{{dest}} يقترب! 🗺️",
+        countdown_7d_body: "أسبوع واحد حتى رحلتك إلى {{dest}}! حان وقت التحضير.",
+        morning_title: "صباح الخير! اليوم {{day}} في {{dest}} ☀️",
+        morning_body_activities: "{{count}} محطات اليوم — بدءاً من {{first}} في {{time}}. يوماً رائعاً!",
+        morning_body_free: "استمتع بيوم حر في استكشاف {{dest}}!",
+        post_trip_title: "كيف كانت {{dest}}؟ 🌊",
+        post_trip_body: "مر أسبوع على رحلتك! شارك تجربتك لمساعدة المسافرين الآخرين.",
+        plan_next_title: "إلى أين بعد ذلك؟ 🗺️",
+        plan_next_body: "تفتقد {{dest}}؟ ابدأ بالتخطيط لمغامرتك القادمة — لا يستغرق الأمر سوى 30 ثانية!",
+        anniversary_title: "مر عام على {{dest}}! 🎉",
+        anniversary_body: "هل تتذكر رحلتك؟ أعد عيش الذكريات أو خطط لزيارة العودة!",
+    },
+};
+
+// Helper to get translated notification text
+function getNotifText(lang: string | undefined, key: string, vars?: Record<string, string | number>): string {
+    const translations = NOTIF_TRANSLATIONS[lang || 'en'] || NOTIF_TRANSLATIONS['en'];
+    let text = translations[key] || NOTIF_TRANSLATIONS['en'][key] || '';
+    if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
+            text = text.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
+        }
+    }
+    return text;
+}
+
 // ─── Internal action: Process all notification checks (called by cron) ───
 export const processScheduledNotifications = internalAction({
     args: {},
@@ -328,24 +446,25 @@ export const processScheduledNotifications = internalAction({
         for (const trip of trips.upcoming) {
             const { daysUntilStart } = trip;
             let type: string | null = null;
-            let title = "";
-            let body = "";
+
+            // Get user language for translations
+            const userSettings = await ctx.runQuery(internal.notifications.getUserNotificationSettings, {
+                userId: trip.userId,
+            });
+            const lang = userSettings?.language || 'en';
 
             if (daysUntilStart <= 1) {
                 type = "countdown_1d";
-                title = "Tomorrow is the day! ✈️";
-                body = `Your trip to ${trip.destination} starts tomorrow! Make sure your passport and essentials are packed.`;
             } else if (daysUntilStart <= 3) {
                 type = "countdown_3d";
-                title = `${trip.destination} in 3 days! 🌴`;
-                body = `Almost time! Your adventure to ${trip.destination} is just around the corner. Check your itinerary one more time.`;
             } else if (daysUntilStart <= 7) {
                 type = "countdown_7d";
-                title = `${trip.destination} is coming up! 🗺️`;
-                body = `One week until your trip to ${trip.destination}! Time to start packing and get excited.`;
             }
 
             if (type) {
+                const title = getNotifText(lang, `${type}_title`, { dest: trip.destination });
+                const body = getNotifText(lang, `${type}_body`, { dest: trip.destination });
+
                 await ctx.runAction(internal.notifications.sendPushNotification, {
                     userId: trip.userId,
                     title,
@@ -387,10 +506,16 @@ export const processScheduledNotifications = internalAction({
                 const firstTime = firstActivity?.startTime || firstActivity?.time || "morning";
                 const firstTitle = firstActivity?.title || "your first stop";
 
-                const title = `Good morning! Day ${currentDay} in ${trip.destination} ☀️`;
+                // Get user language for translations
+                const userSettings = await ctx.runQuery(internal.notifications.getUserNotificationSettings, {
+                    userId: trip.userId,
+                });
+                const lang = userSettings?.language || 'en';
+
+                const title = getNotifText(lang, 'morning_title', { day: currentDay, dest: trip.destination });
                 const body = activityCount > 0
-                    ? `${activityCount} stops today — starting with ${firstTitle} at ${firstTime}. Have an amazing day!`
-                    : `Enjoy a free day exploring ${trip.destination}!`;
+                    ? getNotifText(lang, 'morning_body_activities', { count: activityCount, first: firstTitle, time: firstTime })
+                    : getNotifText(lang, 'morning_body_free', { dest: trip.destination });
 
                 await ctx.runAction(internal.notifications.sendPushNotification, {
                     userId: trip.userId,
@@ -405,11 +530,17 @@ export const processScheduledNotifications = internalAction({
 
         // ── Phase 2: Post-trip review (7 days after trip ends) ──
         for (const trip of trips.recentlyEnded) {
+            // Get user language for translations
+            const userSettings = await ctx.runQuery(internal.notifications.getUserNotificationSettings, {
+                userId: trip.userId,
+            });
+            const lang = userSettings?.language || 'en';
+
             if (trip.daysSinceEnd >= 6 && trip.daysSinceEnd <= 8) {
                 await ctx.runAction(internal.notifications.sendPushNotification, {
                     userId: trip.userId,
-                    title: `How was ${trip.destination}? 🌊`,
-                    body: `It's been a week since your trip! We'd love to hear how it went. Share a travel insight to help other travelers.`,
+                    title: getNotifText(lang, 'post_trip_title', { dest: trip.destination }),
+                    body: getNotifText(lang, 'post_trip_body', { dest: trip.destination }),
                     tripId: trip._id,
                     type: "post_trip_review",
                     data: { screen: "trip", tripId: trip._id },
@@ -420,8 +551,8 @@ export const processScheduledNotifications = internalAction({
             if (trip.daysSinceEnd >= 21 && trip.daysSinceEnd <= 23) {
                 await ctx.runAction(internal.notifications.sendPushNotification, {
                     userId: trip.userId,
-                    title: `Where to next? 🗺️`,
-                    body: `Missing ${trip.destination}? Start planning your next adventure — it only takes 30 seconds!`,
+                    title: getNotifText(lang, 'plan_next_title', { dest: trip.destination }),
+                    body: getNotifText(lang, 'plan_next_body', { dest: trip.destination }),
                     tripId: trip._id,
                     type: "plan_next",
                     data: { screen: "create-trip" },
@@ -431,10 +562,16 @@ export const processScheduledNotifications = internalAction({
 
         // ── Phase 2: Anniversary ──
         for (const trip of trips.anniversary) {
+            // Get user language for translations
+            const userSettings = await ctx.runQuery(internal.notifications.getUserNotificationSettings, {
+                userId: trip.userId,
+            });
+            const lang = userSettings?.language || 'en';
+
             await ctx.runAction(internal.notifications.sendPushNotification, {
                 userId: trip.userId,
-                title: `1 year since ${trip.destination}! 🎉`,
-                body: `Remember your trip? Relive the memories or plan a return visit!`,
+                title: getNotifText(lang, 'anniversary_title', { dest: trip.destination }),
+                body: getNotifText(lang, 'anniversary_body', { dest: trip.destination }),
                 tripId: trip._id,
                 type: "anniversary",
                 data: { screen: "trip", tripId: trip._id },

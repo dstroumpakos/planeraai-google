@@ -515,6 +515,17 @@
       "couldNotEnable": "تعذر التفعيل",
       "couldNotEnableMsg": "لم نتمكن من تفعيل الإشعارات الفورية. يرجى التحقق من إعدادات جهازك."
     },
+    "pushNotifications": {
+      "permissionTitle": "ابقَ على اطلاع",
+      "permissionBody": "ترسل لك Planera تذكيرات مفيدة قبل رحلتك (عد تنازلي، ملخص يومي) وتنبيهات عندما تكون بالقرب من نشاط مخطط. لن نرسل لك رسائل غير مرغوب فيها أبداً.",
+      "notNow": "ليس الآن",
+      "enable": "تفعيل",
+      "nearbyTitle": "أنت بالقرب من {{title}}! 📍",
+      "nearbyBody": "هذه المحطة في برنامج رحلتك. استمتع!",
+      "nextActivityTitle": "{{title}} خلال {{minutes}} دقيقة 🚶",
+      "nextActivityBody": "محطتك التالية تبدأ في {{time}}.",
+      "walkingTime": "يبعد حوالي {{minutes}} دقيقة مشياً من هنا."
+    },
     "travelPreferences": {
       "title": "تفضيلات السفر",
       "description": "سيتم تطبيق هذه التفضيلات تلقائياً عند إنشاء رحلة جديدة.",
@@ -911,6 +922,8 @@
     "searchOnSkyscannerHotels": "ابحث عن فنادق على Skyscanner",
     "searchHotelsOnBooking": "قارن الأسعار في آلاف الفنادق",
     "searchOnBookingHotels": "ابحث عن فنادق على Booking.com",
+    "searchStaysOnAirbnb": "منازل فريدة وتجارب حول العالم",
+    "searchOnAirbnb": "ابحث عن إقامات على Airbnb",
     "checkIn": "تسجيل الوصول",
     "checkOut": "تسجيل المغادرة",
     "guestCount": "{{count}} ضيف",
@@ -1193,5 +1206,29 @@
     "title": "اختر لغتك",
     "subtitle": "اختر لغتك المفضلة. يمكنك تغييرها في أي وقت من الإعدادات.",
     "save": "حفظ ومتابعة"
+  },
+  "firstTripGuide": {
+    "welcomeTitle": "لنخطط لرحلتك الأولى!",
+    "welcomeSubtitle": "سنرشدك خطوة بخطوة لإنشاء إجازتك المثالية.",
+    "feature1": "برامج رحلات مخصصة بالذكاء الاصطناعي",
+    "feature2": "تخطيط ذكي للتواريخ والميزانية",
+    "feature3": "مصمم حسب أسلوب سفرك",
+    "popupTitle": "خطط لرحلتك الأولى!",
+    "popupSubtitle": "دع الذكاء الاصطناعي يصمم برنامج رحلة مخصص لك. يستغرق دقيقة واحدة فقط!",
+    "popupCta": "إنشاء رحلتي",
+    "maybeLater": "ربما لاحقاً",
+    "gotIt": "فهمت!",
+    "tipDestTitle": "اختر وجهتك",
+    "tipDestDesc": "اكتب إلى أين تريد الذهاب، أو اختر وجهة عشوائية باستخدام \"فاجئني\"!",
+    "tipDatesTitle": "اختر تواريخ السفر",
+    "tipDatesDesc": "حدد موعد سفرك. اضغط على التواريخ لفتح التقويم.",
+    "tipTravelersTitle": "كم عدد المسافرين؟",
+    "tipTravelersDesc": "استخدم أزرار + و - لتحديد عدد الأشخاص.",
+    "tipBudgetTitle": "حدد ميزانيتك",
+    "tipBudgetDesc": "أدخل ميزانية رحلتك الإجمالية. سنعرض لك تفصيلاً لكل شخص.",
+    "tipInterestsTitle": "اختر أسلوب سفرك",
+    "tipInterestsDesc": "اختر اهتماماتك لتخصيص برنامج رحلتك — مغامرة، طعام، ثقافة والمزيد!",
+    "tipGenerateTitle": "أنت جاهز!",
+    "tipGenerateDesc": "اضغط على الزر أدناه ليقوم الذكاء الاصطناعي بإنشاء برنامج رحلتك المثالي."
   }
 }

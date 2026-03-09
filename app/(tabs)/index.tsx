@@ -21,6 +21,7 @@ import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerModal } from "@/components/LanguagePickerModal";
+import { FirstTripPopup } from "@/components/FirstTripGuide";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export default function HomeScreen() {
   const [destinationImages, setDestinationImages] = useState<Record<string, any>>({});
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [showFirstTripGuide, setShowFirstTripGuide] = useState(false);
+  const markGuideSeen = useMutation(api.users.markFirstTripGuideSeen as any);
 
   // Debug logging
   useEffect(() => {
@@ -50,6 +53,19 @@ export default function HomeScreen() {
       setShowLanguagePicker(true);
     }
   }, [userSettings]);
+
+  // Show first trip guide for new users who haven't seen it
+  useEffect(() => {
+    if (
+      userSettings !== undefined &&
+      trips !== undefined &&
+      !userSettings?.hasSeenFirstTripGuide &&
+      (!trips || trips.length === 0) &&
+      !showLanguagePicker
+    ) {
+      setShowFirstTripGuide(true);
+    }
+  }, [userSettings, trips, showLanguagePicker]);
   const userPlan = useQuery(api.users.getPlan as any, { token: token || "skip" });
   const trips = useQuery(api.trips.list as any, { token: token || "skip" });
   const trendingDestinations = useQuery(api.trips.getTrendingDestinations);
@@ -167,6 +183,17 @@ export default function HomeScreen() {
         onDismiss={() => setShowLanguagePicker(false)}
       />
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor="transparent" translucent={true} />
+      <FirstTripPopup
+        visible={showFirstTripGuide}
+        onDismiss={() => {
+          setShowFirstTripGuide(false);
+          if (token) {
+            markGuideSeen({ token }).catch((err: any) => {
+              console.error("[HomeScreen] Failed to mark guide seen:", err);
+            });
+          }
+        }}
+      />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView 
         style={styles.scrollView}

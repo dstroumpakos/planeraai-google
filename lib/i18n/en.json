@@ -515,6 +515,17 @@
       "couldNotEnable": "Could Not Enable",
       "couldNotEnableMsg": "We couldn't enable push notifications. Please check your device settings."
     },
+    "pushNotifications": {
+      "permissionTitle": "Stay in the Loop",
+      "permissionBody": "Planera sends you helpful reminders before your trip (countdown, daily briefing) and alerts when you're near a planned activity. We'll never spam you.",
+      "notNow": "Not Now",
+      "enable": "Enable",
+      "nearbyTitle": "You're near {{title}}! \ud83d\udccd",
+      "nearbyBody": "This stop is on your itinerary. Enjoy!",
+      "nextActivityTitle": "{{title}} in {{minutes}} min \ud83d\udeb6",
+      "nextActivityBody": "Your next stop starts at {{time}}.",
+      "walkingTime": "It's about a {{minutes}} min walk from here."
+    },
     "travelPreferences": {
       "title": "Travel Preferences",
       "description": "These preferences will be automatically applied when you create a new trip.",
@@ -906,6 +917,8 @@
     "searchOnSkyscannerHotels": "Search Hotels on Skyscanner",
     "searchHotelsOnBooking": "Compare prices across thousands of hotels",
     "searchOnBookingHotels": "Search Hotels on Booking.com",
+    "searchStaysOnAirbnb": "Unique homes & experiences worldwide",
+    "searchOnAirbnb": "Search Stays on Airbnb",
     "checkIn": "Check-in",
     "checkOut": "Check-out",
     "guestCount": "{{count}} guest",
@@ -1193,5 +1206,29 @@
     "title": "Choose Your Language",
     "subtitle": "Select your preferred language. You can change this anytime in Settings.",
     "save": "Save & Continue"
+  },
+  "firstTripGuide": {
+    "welcomeTitle": "Let's plan your first trip!",
+    "welcomeSubtitle": "We'll walk you through creating your perfect getaway in just a few steps.",
+    "feature1": "AI-powered personalized itineraries",
+    "feature2": "Smart date & budget planning",
+    "feature3": "Tailored to your travel style",
+    "popupTitle": "Plan your first trip!",
+    "popupSubtitle": "Let our AI create a personalized itinerary just for you. It only takes a minute!",
+    "popupCta": "Create My Trip",
+    "maybeLater": "Maybe later",
+    "gotIt": "Got it!",
+    "tipDestTitle": "Choose your destination",
+    "tipDestDesc": "Type where you want to go, or pick a random destination with \"Surprise Me\"!",
+    "tipDatesTitle": "Pick your travel dates",
+    "tipDatesDesc": "Select when you're going. Tap the dates to open the calendar.",
+    "tipTravelersTitle": "How many travelers?",
+    "tipTravelersDesc": "Use the + and - buttons to set how many people are going.",
+    "tipBudgetTitle": "Set your budget",
+    "tipBudgetDesc": "Enter your total trip budget. We'll show you a per-person breakdown.",
+    "tipInterestsTitle": "Pick your travel style",
+    "tipInterestsDesc": "Select interests to personalize your itinerary — adventure, food, culture and more!",
+    "tipGenerateTitle": "You're all set!",
+    "tipGenerateDesc": "Press the button below to let AI generate your perfect trip itinerary."
   }
 }
