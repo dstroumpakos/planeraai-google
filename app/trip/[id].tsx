@@ -583,7 +583,6 @@ const CITY_TO_AIRPORT: Record<string, string> = {
     "moscow": "SVO",
     "st. petersburg": "LED",
     "saint petersburg": "LED",
-<<<<<<< Updated upstream
 };
 
 // Skyscanner hotel entity_id mapping (verified from Skyscanner autosuggest API)
@@ -703,8 +702,6 @@ const getSkyscannerEntityId = (cityName: string | undefined): string | null => {
         if (lower.includes(city) || city.includes(lower)) return id;
     }
     return null;
-=======
->>>>>>> Stashed changes
 };
 
 // Helper function to get full airport name

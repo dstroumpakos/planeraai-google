@@ -99,7 +99,7 @@ export function useIAP(): UseIAPReturn {
                     if (mounted) {
                         setProducts(fetchedProducts);
                         if (fetchedProducts.length === 0) {
-                            setError('Unable to load products from App Store. Please check your connection and try again.');
+                            setError('Unable to load products. Please check your connection and try again.');
                         }
                     }
                 } else if (mounted) {
