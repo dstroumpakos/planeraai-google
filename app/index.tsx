@@ -10,6 +10,7 @@ import { useTheme, LIGHT_COLORS } from "@/lib/ThemeContext";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useTranslation } from "react-i18next";
+import { LanguagePickerModal } from "@/components/LanguagePickerModal";
 
 // Fallback colors for when theme is not available (e.g., during initial load)
 const COLORS = LIGHT_COLORS;
@@ -19,6 +20,7 @@ const ENABLE_GOOGLE = false;
 function AuthenticatedRedirect() {
     const { token } = useToken();
     const { t } = useTranslation();
+    const [languageDismissed, setLanguageDismissed] = useState(false);
     // @ts-ignore
     const settings = useQuery(api.users.getSettings as any, token ? { token } : "skip");
 
@@ -34,6 +36,18 @@ function AuthenticatedRedirect() {
     }
 
     console.log("[Index] AuthenticatedRedirect: Settings loaded, onboardingCompleted:", settings.onboardingCompleted);
+
+    // Show language picker before onboarding for new users who haven't set one yet
+    if (!settings.onboardingCompleted && !settings.language && !languageDismissed) {
+        return (
+            <View style={styles.loadingContainer}>
+                <LanguagePickerModal
+                    visible={true}
+                    onDismiss={() => setLanguageDismissed(true)}
+                />
+            </View>
+        );
+    }
 
     // If onboarding not completed, redirect to onboarding
     if (!settings.onboardingCompleted) {

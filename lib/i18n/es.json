@@ -515,6 +515,17 @@
       "couldNotEnable": "No Se Pudo Activar",
       "couldNotEnableMsg": "No pudimos activar las notificaciones push. Revisa los ajustes de tu dispositivo."
     },
+    "pushNotifications": {
+      "permissionTitle": "Manténte al día",
+      "permissionBody": "Planera te envía recordatorios útiles antes de tu viaje (cuenta regresiva, resumen diario) y alertas cuando estés cerca de una actividad planificada. Nunca te enviaremos spam.",
+      "notNow": "Ahora no",
+      "enable": "Activar",
+      "nearbyTitle": "¡Estás cerca de {{title}}! 📍",
+      "nearbyBody": "Esta parada está en tu itinerario. ¡Disfrútala!",
+      "nextActivityTitle": "{{title}} en {{minutes}} min 🚶",
+      "nextActivityBody": "Tu próxima parada comienza a las {{time}}.",
+      "walkingTime": "Está a unos {{minutes}} minutos caminando desde aquí."
+    },
     "travelPreferences": {
       "title": "Preferencias de Viaje",
       "description": "Estas preferencias se aplicarán automáticamente cuando crees un nuevo viaje.",
@@ -906,6 +917,8 @@
     "searchOnSkyscannerHotels": "Buscar Hoteles en Skyscanner",
     "searchHotelsOnBooking": "Compara precios en miles de hoteles",
     "searchOnBookingHotels": "Buscar Hoteles en Booking.com",
+    "searchStaysOnAirbnb": "Alojamientos únicos y experiencias en todo el mundo",
+    "searchOnAirbnb": "Buscar Alojamientos en Airbnb",
     "checkIn": "Llegada",
     "checkOut": "Salida",
     "guestCount": "{{count}} huésped",
@@ -1193,5 +1206,29 @@
     "title": "Elige tu Idioma",
     "subtitle": "Selecciona tu idioma preferido. Puedes cambiarlo en cualquier momento en Ajustes.",
     "save": "Guardar y Continuar"
+  },
+  "firstTripGuide": {
+    "welcomeTitle": "¡Planifiquemos tu primer viaje!",
+    "welcomeSubtitle": "Te guiaremos paso a paso para crear tu escapada perfecta.",
+    "feature1": "Itinerarios personalizados con IA",
+    "feature2": "Planificación inteligente de fechas y presupuesto",
+    "feature3": "Adaptado a tu estilo de viaje",
+    "popupTitle": "¡Planifica tu primer viaje!",
+    "popupSubtitle": "Deja que nuestra IA cree un itinerario personalizado solo para ti. ¡Solo toma un minuto!",
+    "popupCta": "Crear Mi Viaje",
+    "maybeLater": "Quizás después",
+    "gotIt": "¡Entendido!",
+    "tipDestTitle": "Elige tu destino",
+    "tipDestDesc": "Escribe a dónde quieres ir o elige un destino aleatorio con \"¡Sorpréndeme!\".",
+    "tipDatesTitle": "Elige tus fechas de viaje",
+    "tipDatesDesc": "Selecciona cuándo viajarás. Toca las fechas para abrir el calendario.",
+    "tipTravelersTitle": "¿Cuántos viajeros?",
+    "tipTravelersDesc": "Usa los botones + y - para indicar cuántas personas viajarán.",
+    "tipBudgetTitle": "Establece tu presupuesto",
+    "tipBudgetDesc": "Ingresa tu presupuesto total de viaje. Te mostraremos un desglose por persona.",
+    "tipInterestsTitle": "Elige tu estilo de viaje",
+    "tipInterestsDesc": "Selecciona intereses para personalizar tu itinerario — aventura, gastronomía, cultura ¡y más!",
+    "tipGenerateTitle": "¡Todo listo!",
+    "tipGenerateDesc": "Presiona el botón de abajo para que la IA genere tu itinerario de viaje perfecto."
   }
 }

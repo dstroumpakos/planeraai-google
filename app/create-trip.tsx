@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import React from "react";
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, Image, StatusBar, Platform } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -13,6 +13,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useAuthenticatedMutation, useToken } from "@/lib/useAuthenticatedMutation";
 import AIConsentModal from "@/components/AIConsentModal";
 import { useTranslation } from "react-i18next";
+import { TripGuideTooltip, GuideStep } from "@/components/FirstTripGuide";
 
 import logoImage from "@/assets/images/appicon-1024x1024-01-1vb1vx.png";
 
@@ -216,6 +217,11 @@ export default function CreateTripScreen() {
     const { colors, isDarkMode } = useTheme();
     const { t, i18n } = useTranslation();
     const prefilledDestination = params.prefilledDestination as string | undefined;
+    const prefilledStartDate = params.prefilledStartDate as string | undefined;
+    const prefilledEndDate = params.prefilledEndDate as string | undefined;
+    const prefilledBudget = params.prefilledBudget as string | undefined;
+    const prefilledTravelers = params.prefilledTravelers as string | undefined;
+    const prefilledInterests = params.prefilledInterests as string | undefined;
     
     // @ts-ignore
     const createTrip = useAuthenticatedMutation(api.trips.create as any);
@@ -246,16 +252,83 @@ export default function CreateTripScreen() {
     const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
     const [destinationSuggestions, setDestinationSuggestions] = useState<typeof DESTINATIONS>([]);
 
+    // ─── First-trip guide state ───
+    const isFromGuide = params.fromGuide === "true";
+    const [guideStep, setGuideStep] = useState(isFromGuide ? 0 : -1);
+    const scrollRef = useRef<ScrollView>(null);
+    const sectionRefs = useRef<Record<string, View | null>>({});
+
+    const GUIDE_STEPS: GuideStep[] = [
+        { key: "destination", title: t("firstTripGuide.tipDestTitle"), description: t("firstTripGuide.tipDestDesc") },
+        { key: "dates", title: t("firstTripGuide.tipDatesTitle"), description: t("firstTripGuide.tipDatesDesc") },
+        { key: "travelers", title: t("firstTripGuide.tipTravelersTitle"), description: t("firstTripGuide.tipTravelersDesc") },
+        { key: "budget", title: t("firstTripGuide.tipBudgetTitle"), description: t("firstTripGuide.tipBudgetDesc") },
+        { key: "interests", title: t("firstTripGuide.tipInterestsTitle"), description: t("firstTripGuide.tipInterestsDesc") },
+        { key: "generate", title: t("firstTripGuide.tipGenerateTitle"), description: t("firstTripGuide.tipGenerateDesc") },
+    ];
+
+    const guideActive = guideStep >= 0 && guideStep < GUIDE_STEPS.length;
+    const currentGuideKey = guideActive ? GUIDE_STEPS[guideStep].key : null;
+
+    const scrollToSection = useCallback((key: string) => {
+        const ref = sectionRefs.current[key];
+        if (ref && scrollRef.current) {
+            ref.measureLayout(
+                scrollRef.current.getInnerViewRef() as any,
+                (_x: number, y: number) => {
+                    scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
+                },
+                () => {}
+            );
+        }
+    }, []);
+
+    const advanceGuide = useCallback(() => {
+        const next = guideStep + 1;
+        if (next < GUIDE_STEPS.length) {
+            setGuideStep(next);
+            setTimeout(() => scrollToSection(GUIDE_STEPS[next].key), 300);
+        } else {
+            setGuideStep(-1); // guide complete
+        }
+    }, [guideStep, GUIDE_STEPS, scrollToSection]);
+
+    const dismissGuide = useCallback(() => {
+        setGuideStep(-1);
+    }, []);
+
+    // Auto-scroll to first step on mount
+    useEffect(() => {
+        if (isFromGuide && guideStep === 0) {
+            setTimeout(() => scrollToSection("destination"), 500);
+        }
+    }, []);
+
+    const getHighlightStyle = (key: string) => {
+        if (currentGuideKey === key) {
+            return {
+                borderWidth: 2,
+                borderColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.4,
+                shadowRadius: 12,
+                elevation: 8,
+            };
+        }
+        return {};
+    };
+
     const [formData, setFormData] = useState({
         destination: prefilledDestination || "",
         origin: "San Francisco, CA",
-        startDate: new Date().getTime(),
-        endDate: new Date().getTime() + 7 * 24 * 60 * 60 * 1000,
+        startDate: prefilledStartDate ? Number(prefilledStartDate) : new Date().getTime(),
+        endDate: prefilledEndDate ? Number(prefilledEndDate) : new Date().getTime() + 7 * 24 * 60 * 60 * 1000,
          // V1: budgetTotal is the primary budget field
-        budgetTotal: 2000,
+        budgetTotal: prefilledBudget ? Number(prefilledBudget) : 2000,
         // V1: travelerCount is the primary traveler count field (1-12)
-        travelerCount: 1,
-        interests: [] as string[],
+        travelerCount: prefilledTravelers ? Number(prefilledTravelers) : 1,
+        interests: prefilledInterests ? prefilledInterests.split(",").filter(Boolean) : [] as string[],
         localExperiences: [] as string[],
         skipFlights: false,
         skipHotel: false,
@@ -696,7 +769,7 @@ export default function CreateTripScreen() {
         <>
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor="transparent" translucent={true} />
             <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 {/* Header */}
                 <View style={styles.headerSection}>
                     <View style={styles.headerTop}>
@@ -718,7 +791,7 @@ export default function CreateTripScreen() {
                 </View>
 
                 {/* From/To Section */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                <View ref={(r) => { sectionRefs.current["destination"] = r; }} style={[styles.card, { backgroundColor: colors.card }, getHighlightStyle("destination")]}>
                     <View style={styles.locationSection}>
                         <View style={styles.locationItem}>
                             <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{t('createTrip.from')}</Text>
@@ -803,8 +876,12 @@ export default function CreateTripScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {currentGuideKey === "destination" && (
+                    <TripGuideTooltip step={GUIDE_STEPS[guideStep]} currentIndex={guideStep} totalSteps={GUIDE_STEPS.length} onNext={advanceGuide} onSkip={dismissGuide} />
+                )}
+
                 {/* Dates Section */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                <View ref={(r) => { sectionRefs.current["dates"] = r; }} style={[styles.card, { backgroundColor: colors.card }, getHighlightStyle("dates")]}>
                     <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.dates')}</Text>
                     <View style={[styles.datesContainer, { backgroundColor: colors.secondary }]}>
                         <TouchableOpacity 
@@ -844,6 +921,10 @@ export default function CreateTripScreen() {
                         </Text>
                     </View>
                 </View>
+
+                {currentGuideKey === "dates" && (
+                    <TripGuideTooltip step={GUIDE_STEPS[guideStep]} currentIndex={guideStep} totalSteps={GUIDE_STEPS.length} onNext={advanceGuide} onSkip={dismissGuide} />
+                )}
 
                 {/* Flight Times Section (Optional) - Affects itinerary timing */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -938,7 +1019,7 @@ export default function CreateTripScreen() {
                 </View>
 
   {/* Who's Going Section - V1: Simple Traveler Count (Profiles Disabled) */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                <View ref={(r) => { sectionRefs.current["travelers"] = r; }} style={[styles.card, { backgroundColor: colors.card }, getHighlightStyle("travelers")]}>
                     <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.numberOfTravelers')} <Text style={{ color: colors.error }}>*</Text></Text>
                     {/* V1: Simple stepper for traveler count */}
                     <View style={[styles.numberInputContainer, { backgroundColor: colors.secondary }]}>
@@ -968,8 +1049,12 @@ export default function CreateTripScreen() {
                     </View>
                 </View>
 
+                {currentGuideKey === "travelers" && (
+                    <TripGuideTooltip step={GUIDE_STEPS[guideStep]} currentIndex={guideStep} totalSteps={GUIDE_STEPS.length} onNext={advanceGuide} onSkip={dismissGuide} />
+                )}
+
                 {/* Budget Section */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                <View ref={(r) => { sectionRefs.current["budget"] = r; }} style={[styles.card, { backgroundColor: colors.card }, getHighlightStyle("budget")]}>
                         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.totalBudget')} <Text style={{ color: colors.error }}>*</Text></Text>
                     <View style={[styles.budgetInputContainer, { backgroundColor: colors.secondary }]}>
                         <Text style={[styles.currencySymbol, { color: colors.text }]}>€</Text>
@@ -1006,8 +1091,12 @@ export default function CreateTripScreen() {
                     </View>
                 </View>
 
+                {currentGuideKey === "budget" && (
+                    <TripGuideTooltip step={GUIDE_STEPS[guideStep]} currentIndex={guideStep} totalSteps={GUIDE_STEPS.length} onNext={advanceGuide} onSkip={dismissGuide} />
+                )}
+
                 {/* Travel Style Section */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                <View ref={(r) => { sectionRefs.current["interests"] = r; }} style={[styles.card, { backgroundColor: colors.card }, getHighlightStyle("interests")]}>
                     <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.travelStyle')}</Text>
                     <View style={styles.interestsContainer}>
                         {INTERESTS.map((interest) => (
@@ -1047,6 +1136,10 @@ export default function CreateTripScreen() {
                     </View>
                 </View>
 
+                {currentGuideKey === "interests" && (
+                    <TripGuideTooltip step={GUIDE_STEPS[guideStep]} currentIndex={guideStep} totalSteps={GUIDE_STEPS.length} onNext={advanceGuide} onSkip={dismissGuide} />
+                )}
+
                 {/* Local Experiences Section (Optional) */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
                     <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{t('createTrip.localExperiences')}</Text>
@@ -1081,8 +1174,12 @@ export default function CreateTripScreen() {
                 </View>
 
                 {/* Generate Button */}
+                <View ref={(r) => { sectionRefs.current["generate"] = r; }}>
+                {currentGuideKey === "generate" && (
+                    <TripGuideTooltip step={GUIDE_STEPS[guideStep]} currentIndex={guideStep} totalSteps={GUIDE_STEPS.length} onNext={advanceGuide} onSkip={dismissGuide} />
+                )}
                 <TouchableOpacity 
-                    style={[styles.generateButton, { backgroundColor: colors.text }, loading && styles.disabledButton]}
+                    style={[styles.generateButton, { backgroundColor: colors.text }, loading && styles.disabledButton, currentGuideKey === "generate" ? { borderWidth: 2, borderColor: colors.primary } : {}]}
                     onPress={handleSubmit}
                     disabled={loading}
                 >
@@ -1097,6 +1194,7 @@ export default function CreateTripScreen() {
                         </>
                     )}
                 </TouchableOpacity>
+                </View>
 
                 {/* Calendar Modal */}
                 <Modal

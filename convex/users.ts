@@ -491,6 +491,30 @@ export const updateTravelPreferences = authMutation({
     },
 });
 
+export const markFirstTripGuideSeen = authMutation({
+    args: {
+        token: v.string(),
+    },
+    returns: v.null(),
+    handler: async (ctx: any, args: any) => {
+        const settings = await ctx.db
+            .query("userSettings")
+            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user._id))
+            .unique();
+
+        if (settings) {
+            await ctx.db.patch(settings._id, { hasSeenFirstTripGuide: true });
+        } else {
+            await ctx.db.insert("userSettings", {
+                userId: ctx.user._id,
+                hasSeenFirstTripGuide: true,
+            });
+        }
+
+        return null;
+    },
+});
+
 export const updateAppSettings = authMutation({
     args: {
         token: v.string(),

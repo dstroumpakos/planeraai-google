@@ -7,6 +7,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useRouter } from "expo-router";
+import i18n from "@/lib/i18n";
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -39,11 +40,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
         // Show a pre-permission alert explaining why we need notifications
         const userAccepted = await new Promise<boolean>((resolve) => {
             Alert.alert(
-                "Stay in the Loop",
-                "Planera sends you helpful reminders before your trip (countdown, daily briefing) and alerts when you're near a planned activity. We'll never spam you.",
+                i18n.t('settings.pushNotifications.permissionTitle'),
+                i18n.t('settings.pushNotifications.permissionBody'),
                 [
-                    { text: "Not Now", style: "cancel", onPress: () => resolve(false) },
-                    { text: "Enable", onPress: () => resolve(true) },
+                    { text: i18n.t('settings.pushNotifications.notNow'), style: "cancel", onPress: () => resolve(false) },
+                    { text: i18n.t('settings.pushNotifications.enable'), onPress: () => resolve(true) },
                 ]
             );
         });
@@ -193,10 +194,10 @@ export async function scheduleNearbyActivityNotification(
     // Schedule an immediate local notification
     await Notifications.scheduleNotificationAsync({
         content: {
-            title: `You're near ${activity.title}! 📍`,
+            title: i18n.t('settings.pushNotifications.nearbyTitle', { title: activity.title }),
             body: activity.description
                 ? `${activity.description}`
-                : `This stop is on your itinerary${activity.time ? " at " + activity.time : ""}. Enjoy!`,
+                : i18n.t('settings.pushNotifications.nearbyBody', { time: activity.time || '' }),
             data: { type: "nearby", activityTitle: activity.title },
             sound: "default",
             ...(Platform.OS === "android" && { channelId: "nearby" }),
@@ -228,13 +229,13 @@ export async function scheduleNextActivityReminder(
     const secondsUntil = Math.floor((notifTime.getTime() - now.getTime()) / 1000);
 
     const walkingText = activity.walkingMinutes
-        ? ` It's about a ${activity.walkingMinutes} min walk from here.`
+        ? ` ${i18n.t('settings.pushNotifications.walkingTime', { minutes: activity.walkingMinutes })}`
         : "";
 
     await Notifications.scheduleNotificationAsync({
         content: {
-            title: `${activity.title} in ${minutesBefore} min 🚶`,
-            body: `Your next stop starts at ${activity.time}.${walkingText}`,
+            title: i18n.t('settings.pushNotifications.nextActivityTitle', { title: activity.title, minutes: minutesBefore }),
+            body: `${i18n.t('settings.pushNotifications.nextActivityBody', { time: activity.time })}${walkingText}`,
             data: { type: "next_activity", activityTitle: activity.title },
             sound: "default",
             ...(Platform.OS === "android" && { channelId: "trip-reminders" }),
