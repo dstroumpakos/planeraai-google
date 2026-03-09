@@ -2,7 +2,7 @@
   "expo": {
     "name": "Planera AI Travel Planner",
     "slug": "planera-ai-travel-planner",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
     "scheme": "planera",
@@ -32,6 +32,7 @@
       "package": "com.dstroump.planeraaitravelplanner",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
+        "monochromeImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FAF9F6"
       },
       "newArchEnabled": true,
@@ -77,7 +78,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
+          "icon": "./assets/images/adaptive-icon.png",
           "color": "#1B3F92",
           "sounds": []
         }

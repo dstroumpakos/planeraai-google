@@ -18,12 +18,12 @@ export default function SubscriptionScreen() {
     
     // Convex mutations for processing purchases
     // @ts-ignore - API types may not include these yet
-    const processApplePurchase = useMutation(api.users.processApplePurchase);
+    const processPurchase = useMutation(api.users.processPurchase);
     // @ts-ignore
-    const restoreApplePurchases = useMutation(api.users.restoreApplePurchases);
+    const restorePurchases_ = useMutation(api.users.restorePurchases);
     const userPlan = useQuery(api.users.getPlan as any, token ? { token } : "skip");
     
-    // IAP hook for real Apple StoreKit purchases
+    // IAP hook for store purchases
     const {
         isLoading: iapLoading,
         error: iapError,
@@ -110,11 +110,12 @@ export default function SubscriptionScreen() {
 
             if (result.success && result.transactionId) {
                 // Process the purchase on our backend
-                await processApplePurchase({
+                await processPurchase({
                     token,
                     productId: result.productId!,
                     transactionId: result.transactionId,
                     receipt: result.receipt,
+                    platform: Platform.OS === "ios" ? "ios" : "android",
                 });
 
                 if (Platform.OS !== "web") {
@@ -136,13 +137,14 @@ export default function SubscriptionScreen() {
                     const successfulRestores = restoreResults.filter(r => r.success && r.transactionId);
                     
                     if (successfulRestores.length > 0) {
-                        await restoreApplePurchases({
+                        await restorePurchases_({
                             token,
                             purchases: successfulRestores.map(r => ({
                                 productId: r.productId!,
                                 transactionId: r.transactionId!,
                                 receipt: r.receipt,
                             })),
+                            platform: Platform.OS === "ios" ? "ios" : "android",
                         });
                         Alert.alert(
                             t('subscription.subscriptionRestored') + " ✓",
@@ -189,13 +191,14 @@ export default function SubscriptionScreen() {
             
             if (successfulRestores.length > 0) {
                 // Send to backend
-                await restoreApplePurchases({
+                await restorePurchases_({
                     token,
                     purchases: successfulRestores.map(r => ({
                         productId: r.productId!,
                         transactionId: r.transactionId!,
                         receipt: r.receipt,
                     })),
+                    platform: Platform.OS === "ios" ? "ios" : "android",
                 });
 
                 Alert.alert(

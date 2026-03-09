@@ -738,25 +738,26 @@ export const updateUserName = authMutation({
 // APPLE IN-APP PURCHASE HANDLERS
 // ============================================
 
-// Product IDs (must match App Store Connect)
+// Product IDs (must match App Store Connect / Google Play Console)
 const PRODUCT_IDS = {
     YEARLY: "com.planeraaitravelplanner.pro.yearly",
     MONTHLY: "com.planeraaitravelplanner.pro.monthly",
     SINGLE_TRIP: "com.planeraaitravelplanner.trip.single",
 };
 
-// Process Apple IAP purchase (called after successful StoreKit purchase)
-export const processApplePurchase = authMutation({
+// Process IAP purchase (called after successful StoreKit / Google Play Billing purchase)
+export const processPurchase = authMutation({
     args: {
         token: v.string(),
         productId: v.string(),
         transactionId: v.string(),
         receipt: v.optional(v.string()),
+        platform: v.optional(v.union(v.literal("ios"), v.literal("android"))),
     },
     handler: async (ctx: any, args: any) => {
-        const { productId, transactionId, receipt } = args;
+        const { productId, transactionId, receipt, platform } = args;
         
-        console.log(`[IAP] Processing purchase: ${productId}, txn: ${transactionId}`);
+        console.log(`[IAP] Processing purchase: ${productId}, txn: ${transactionId}, platform: ${platform || "unknown"}`);
 
         // Check if this transaction was already processed (idempotency)
         const existingTx = await ctx.db
@@ -775,6 +776,7 @@ export const processApplePurchase = authMutation({
             productId,
             transactionId,
             receipt: receipt || "",
+            platform: platform || "ios",
             processedAt: Date.now(),
             status: "completed",
         });
@@ -841,7 +843,7 @@ export const processApplePurchase = authMutation({
 });
 
 // Restore purchases (called when user taps Restore Purchases)
-export const restoreApplePurchases = authMutation({
+export const restorePurchases = authMutation({
     args: {
         token: v.string(),
         purchases: v.array(v.object({
@@ -849,10 +851,11 @@ export const restoreApplePurchases = authMutation({
             transactionId: v.string(),
             receipt: v.optional(v.string()),
         })),
+        platform: v.optional(v.union(v.literal("ios"), v.literal("android"))),
     },
     handler: async (ctx: any, args: any) => {
-        const { purchases } = args;
-        console.log(`[IAP] Restoring ${purchases.length} purchases`);
+        const { purchases, platform } = args;
+        console.log(`[IAP] Restoring ${purchases.length} purchases, platform: ${platform || "unknown"}`);
 
         let restoredSubscription = false;
         let restoredCredits = 0;
@@ -875,6 +878,7 @@ export const restoreApplePurchases = authMutation({
                 productId: purchase.productId,
                 transactionId: purchase.transactionId,
                 receipt: purchase.receipt || "",
+                platform: platform || "ios",
                 processedAt: Date.now(),
                 status: "restored",
             });
@@ -939,6 +943,10 @@ export const restoreApplePurchases = authMutation({
         };
     },
 });
+
+// Backward-compatible aliases (iOS app may still reference old names)
+export const processApplePurchase = processPurchase;
+export const restoreApplePurchases = restorePurchases;
 
 // Check entitlements (can user generate a trip?)
 export const checkEntitlements = authQuery({

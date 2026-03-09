@@ -453,7 +453,7 @@ export default function Profile() {
                             style={styles.menuDropdownItem}
                             onPress={() => {
                                 setMenuVisible(false);
-                                Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/");
+                                Linking.openURL("https://www.planeraai.app/terms");
                             }}
                         >
                             <Ionicons name="document-text-outline" size={20} color={colors.text} />

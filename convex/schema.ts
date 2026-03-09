@@ -107,6 +107,7 @@ export default defineSchema({
         productId: v.string(),
         transactionId: v.string(),
         receipt: v.optional(v.string()),
+        platform: v.optional(v.union(v.literal("ios"), v.literal("android"))),
         processedAt: v.float64(),
         status: v.union(
             v.literal("completed"),
