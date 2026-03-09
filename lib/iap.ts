@@ -1,5 +1,5 @@
 /**
- * Apple In-App Purchase Service
+ * In-App Purchase Service (iOS App Store + Google Play)
  * 
  * Handles all IAP operations for the Planera app.
  * 
@@ -18,19 +18,19 @@ import { Platform } from 'react-native';
 let ExpoIAP: any = null;
 let iapAvailable = false;
 
-// Try to load expo-iap only on iOS
-if (Platform.OS === 'ios') {
+// Load expo-iap on iOS and Android (both support native IAP)
+if (Platform.OS === 'ios' || Platform.OS === 'android') {
     try {
         ExpoIAP = require('expo-iap');
         iapAvailable = true;
-        console.log('[IAP] expo-iap module loaded successfully');
+        console.log('[IAP] expo-iap module loaded successfully on', Platform.OS);
     } catch (e) {
         console.log('[IAP] expo-iap not available (running in Expo Go or dev mode)');
         iapAvailable = false;
     }
 }
 
-// Product IDs (must match App Store Connect)
+// Product IDs (must match App Store Connect / Google Play Console)
 export const PRODUCT_IDS = {
     YEARLY_SUBSCRIPTION: 'com.planeraaitravelplanner.pro.yearly',
     MONTHLY_SUBSCRIPTION: 'com.planeraaitravelplanner.pro.monthly',
@@ -76,7 +76,7 @@ class IAPService {
      * Check if IAP is available (native module loaded)
      */
     isAvailable(): boolean {
-        return iapAvailable && Platform.OS === 'ios';
+        return iapAvailable && (Platform.OS === 'ios' || Platform.OS === 'android');
     }
 
     /**
@@ -84,7 +84,7 @@ class IAPService {
      */
     async initialize(): Promise<boolean> {
         if (!this.isAvailable()) {
-            console.log('[IAP] Not available (not iOS or no native module)');
+            console.log('[IAP] Not available (not iOS/Android or no native module)');
             return false;
         }
 
@@ -262,9 +262,9 @@ class IAPService {
             return allProducts;
         } catch (error) {
             console.error('[IAP] Failed to fetch products:', error);
-            // Only return mock products on non-iOS (for development)
-            // On iOS, return empty array so the UI can show a proper error
-            if (Platform.OS !== 'ios') {
+            // Only return mock products on web (for development)
+            // On iOS/Android, return empty array so the UI can show a proper error
+            if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
                 return this.getMockProducts();
             }
             return [];
@@ -292,10 +292,11 @@ class IAPService {
 
         try {
             console.log('[IAP] Purchasing subscription:', productId);
+            const purchaseRequest = Platform.OS === 'ios'
+                ? { apple: { sku: productId } }
+                : { android: { skus: [productId] } };
             const purchase = await ExpoIAP.requestPurchase({
-                request: {
-                    apple: { sku: productId },
-                },
+                request: purchaseRequest,
                 type: 'subs',
             });
             
@@ -356,10 +357,11 @@ class IAPService {
 
         try {
             console.log('[IAP] Purchasing product:', productId);
+            const purchaseRequest = Platform.OS === 'ios'
+                ? { apple: { sku: productId } }
+                : { android: { skus: [productId] } };
             const purchase = await ExpoIAP.requestPurchase({
-                request: {
-                    apple: { sku: productId },
-                },
+                request: purchaseRequest,
                 type: 'in-app',
             });
             

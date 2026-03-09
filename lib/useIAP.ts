@@ -1,5 +1,5 @@
 /**
- * React Hook for Apple In-App Purchases
+ * React Hook for In-App Purchases (iOS App Store + Google Play)
  * 
  * Provides easy access to IAP functionality in React components.
  */
@@ -16,7 +16,7 @@ import {
 
 // Lazy load expo-iap for event listeners
 let ExpoIAPListeners: any = null;
-if (Platform.OS === 'ios') {
+if (Platform.OS === 'ios' || Platform.OS === 'android') {
     try {
         ExpoIAPListeners = require('expo-iap');
     } catch (e) {
@@ -55,8 +55,8 @@ export function useIAP(): UseIAPReturn {
     useEffect(() => {
         let mounted = true;
 
-        // Set up purchase event listeners (iOS only)
-        if (Platform.OS === 'ios' && ExpoIAPListeners) {
+        // Set up purchase event listeners (iOS and Android)
+        if ((Platform.OS === 'ios' || Platform.OS === 'android') && ExpoIAPListeners) {
             try {
                 if (ExpoIAPListeners.purchaseUpdatedListener) {
                     const purchaseSub = ExpoIAPListeners.purchaseUpdatedListener((purchase: any) => {
@@ -80,8 +80,8 @@ export function useIAP(): UseIAPReturn {
         }
 
         const init = async () => {
-            if (Platform.OS !== 'ios') {
-                // Use mock products for non-iOS
+            if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+                // Use mock products for non-native (web)
                 const mockProducts = await iapService.getProducts();
                 if (mounted) {
                     setProducts(mockProducts);
@@ -103,7 +103,7 @@ export function useIAP(): UseIAPReturn {
                         }
                     }
                 } else if (mounted) {
-                    setError('Unable to connect to the App Store. Please try again later.');
+                    setError('Unable to connect to the store. Please try again later.');
                 }
             } catch (err: any) {
                 console.error('[useIAP] Initialization error:', err);

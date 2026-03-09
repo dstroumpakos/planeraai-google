@@ -218,7 +218,7 @@ export default function SubscriptionScreen() {
 
     const isSubscriptionActive = userPlan?.isSubscriptionActive;
     const isProcessing = loading !== null || restoring || iapLoading;
-    const purchaseDisabled = isProcessing || (Platform.OS === 'ios' && !productsLoaded);
+    const purchaseDisabled = isProcessing || ((Platform.OS === 'ios' || Platform.OS === 'android') && !productsLoaded);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -369,7 +369,7 @@ export default function SubscriptionScreen() {
                         <Text style={[styles.linkText, { color: colors.textSecondary }]}>{t('auth.privacyPolicy')}</Text>
                     </TouchableOpacity>
                     <Text style={[styles.linkDot, { color: colors.textMuted }]}>•</Text>
-                    <TouchableOpacity onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")}>
+                    <TouchableOpacity onPress={() => Linking.openURL("https://www.planeraai.app/terms")}>
                         <Text style={[styles.linkText, { color: colors.textSecondary }]}>{t('auth.termsOfUse')}</Text>
                     </TouchableOpacity>
                 </View>
@@ -382,7 +382,7 @@ export default function SubscriptionScreen() {
                     )}
                 </TouchableOpacity>
 
-                {iapError && Platform.OS === 'ios' ? (
+                {iapError && (Platform.OS === 'ios' || Platform.OS === 'android') ? (
                     <Text style={[styles.termsText, { color: '#DC2626', marginTop: 12 }]}>
                         {iapError}
                     </Text>
@@ -400,7 +400,7 @@ export default function SubscriptionScreen() {
                         <ActivityIndicator size="small" color={colors.text} />
                     ) : (
                         <Text style={[styles.ctaButtonText, { color: colors.text }]}>
-                            {!productsLoaded && Platform.OS === 'ios' 
+                            {!productsLoaded && (Platform.OS === 'ios' || Platform.OS === 'android')
                                 ? t('subscription.loadingProducts') 
                                 : selectedPlan === "single" ? t('subscription.purchaseTripCredit') : t('subscription.startMyNextEra')}
                         </Text>
@@ -408,7 +408,7 @@ export default function SubscriptionScreen() {
                 </TouchableOpacity>
                 <View style={styles.securedRow}>
                     <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
-                    <Text style={[styles.securedText, { color: colors.textMuted }]}>{t('subscription.securedWithAppStore')}</Text>
+                    <Text style={[styles.securedText, { color: colors.textMuted }]}>{Platform.OS === 'android' ? t('subscription.securedWithPlayStore') : t('subscription.securedWithAppStore')}</Text>
                 </View>
             </View>
         </SafeAreaView>

@@ -29,11 +29,17 @@
       }
     },
     "android": {
+      "package": "com.dstroump.planeraaitravelplanner",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
         "backgroundColor": "#FAF9F6"
       },
       "newArchEnabled": true,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "com.android.vending.BILLING"
+      ],
       "splash": {
         "image": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
         "resizeMode": "contain",
