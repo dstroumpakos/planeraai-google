@@ -261,7 +261,7 @@ export default function Index() {
         <View style={styles.onboardingContainer}>
             <Text style={styles.onboardingBrand}>PLANERA</Text>
             
-            <View style={styles.onboardingContent}>
+            <ScrollView style={styles.onboardingContent} contentContainerStyle={styles.onboardingScrollContent} showsVerticalScrollIndicator={false}>
                 <Text style={styles.onboardingTitle}>{onboardingData[0].title}</Text>
                 <Text style={styles.onboardingSubtitle}>{onboardingData[0].subtitle}</Text>
                 
@@ -278,7 +278,7 @@ export default function Index() {
                         </View>
                     ))}
                 </View>
-            </View>
+            </ScrollView>
             
             <View style={styles.onboardingBottom}>
                 <TouchableOpacity 
@@ -588,6 +588,9 @@ const styles = StyleSheet.create({
     },
     onboardingContent: {
         flex: 1,
+    },
+    onboardingScrollContent: {
+        paddingBottom: 16,
     },
     onboardingTitle: {
         fontSize: 32,

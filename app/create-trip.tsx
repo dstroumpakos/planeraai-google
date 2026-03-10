@@ -1604,17 +1604,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
+        flexShrink: 1,
     },
     multiCityText: {
         fontSize: 15,
         color: '#1A1A1A',
         fontWeight: '600',
+        flexShrink: 1,
     },
     comingSoonBadge: {
         backgroundColor: '#FFE500',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
+        flexShrink: 0,
     },
     comingSoonText: {
         fontSize: 10,

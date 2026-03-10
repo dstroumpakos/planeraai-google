@@ -225,25 +225,20 @@ function createNativeAuthClient() {
   const configureGoogleSignIn = async () => {
     if (googleSignInConfigured || Platform.OS === "web") return;
     
-    try {
-      const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
-      
-      if (!GOOGLE_WEB_CLIENT_ID) {
-        console.warn("[Auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set");
-        return;
-      }
-      
-      GoogleSignin.configure({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        offlineAccess: true,
-        scopes: ["profile", "email"],
-      });
-      
-      googleSignInConfigured = true;
-      console.log("[Auth] Google Sign-In configured");
-    } catch (error) {
-      console.warn("[Auth] Failed to configure Google Sign-In:", error);
+    const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
+    
+    if (!GOOGLE_WEB_CLIENT_ID) {
+      throw new Error("Google Sign-In is not configured. EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing.");
     }
+    
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: true,
+      scopes: ["profile", "email"],
+    });
+    
+    googleSignInConfigured = true;
+    console.log("[Auth] Google Sign-In configured");
   };
 
   // Native Google Sign-In
@@ -257,11 +252,11 @@ function createNativeAuthClient() {
     try {
       console.log("[Auth] Starting native Google Sign-In...");
       
+      // Configure if not already done - this will throw if env var is missing
+      await configureGoogleSignIn();
+      
       // Import dynamically to avoid issues on web
       const { GoogleSignin, statusCodes } = await import("@react-native-google-signin/google-signin");
-      
-      // Configure if not already done
-      await configureGoogleSignIn();
       
       // Check if user has previously signed in and sign out to ensure fresh sign-in
       try {
