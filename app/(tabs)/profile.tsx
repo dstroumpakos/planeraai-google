@@ -1127,7 +1127,7 @@ const createStyles = (colors: any, isDarkMode: boolean) => StyleSheet.create({
         backgroundColor: colors.cardBackground,
         borderRadius: 16,
         padding: 8,
-        minWidth: 220,
+        minWidth: 280,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,

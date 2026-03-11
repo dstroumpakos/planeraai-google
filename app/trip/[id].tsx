@@ -7,7 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { BlurView } from "expo-blur";
 import { useDestinationImage } from "@/lib/useImages";
@@ -1808,6 +1808,7 @@ export default function TripDetails() {
 
     // User has full access if they have premium subscription OR have used trip credits
     const isPremium = trip.hasFullAccess ?? trip.userPlan === "premium";
+    const insets = useSafeAreaInsets();
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1826,7 +1827,7 @@ export default function TripDetails() {
                 </View>
             </SafeAreaView>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 + insets.bottom }]} showsVerticalScrollIndicator={false}>
                 {/* Map Preview with Title Overlay */}
                 <View style={styles.mapPreviewContainer} pointerEvents="box-none">
                     {destinationImage ? (
@@ -3192,7 +3193,7 @@ export default function TripDetails() {
             </ScrollView>
 
             {/* Floating Action Bar */}
-            <View style={styles.fabContainer}>
+            <View style={[styles.fabContainer, { bottom: 24 + insets.bottom }]}>
                 <View style={[styles.fab, { backgroundColor: colors.primary }]}>
                     <TouchableOpacity style={styles.fabIconButton} onPress={() => setIsEditing(true)}>
                         <Ionicons name="pencil" size={20} color={colors.text} />
