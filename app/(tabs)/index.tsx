@@ -22,6 +22,9 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerModal } from "@/components/LanguagePickerModal";
 import { FirstTripPopup } from "@/components/FirstTripGuide";
+import { LowFareRadar } from "@/components/LowFareRadar";
+import StreakWidget from "@/components/StreakWidget";
+import AchievementUnlocked from "@/components/AchievementUnlocked";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -34,6 +37,9 @@ export default function HomeScreen() {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showFirstTripGuide, setShowFirstTripGuide] = useState(false);
   const markGuideSeen = useMutation(api.users.markFirstTripGuideSeen as any);
+  const checkIn = useMutation(api.streaks.checkIn as any);
+  const trackBookingClick = useMutation(api.lowFareRadar.trackBookingClick as any);
+  const [checkedIn, setCheckedIn] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -54,6 +60,15 @@ export default function HomeScreen() {
     }
   }, [userSettings]);
 
+  const userPlan = useQuery(api.users.getPlan as any, { token: token || "skip" });
+  const trips = useQuery(api.trips.list as any, { token: token || "skip" });
+  const trendingDestinations = useQuery(api.trips.getTrendingDestinations);
+  const lowFareData = useQuery(api.lowFareRadar.getDealsForUser as any, { token: token || "skip" });
+  const lowFareDeals = lowFareData?.deals || (Array.isArray(lowFareData) ? lowFareData : []);
+  const homeIata = lowFareData?.homeIata || null;
+  const wishlistDestinations = lowFareData?.wishlistDestinations || [];
+  const surpriseDeal = useQuery(api.lowFareRadar.surpriseMe as any, {});
+
   // Show first trip guide for new users who haven't seen it
   useEffect(() => {
     if (
@@ -66,9 +81,6 @@ export default function HomeScreen() {
       setShowFirstTripGuide(true);
     }
   }, [userSettings, trips, showLanguagePicker]);
-  const userPlan = useQuery(api.users.getPlan as any, { token: token || "skip" });
-  const trips = useQuery(api.trips.list as any, { token: token || "skip" });
-  const trendingDestinations = useQuery(api.trips.getTrendingDestinations);
   const getImages = useAction(api.images.getDestinationImages);
   const ensureUserPlan = useMutation(api.users.ensureUserPlan as any);
 
@@ -80,6 +92,16 @@ export default function HomeScreen() {
       });
     }
   }, [token, isAuthenticated]);
+
+  // Auto check-in for streaks
+  useEffect(() => {
+    if (token && isAuthenticated && !checkedIn) {
+      setCheckedIn(true);
+      checkIn({ token }).catch((err: any) => {
+        console.error("[HomeScreen] Streak check-in failed:", err);
+      });
+    }
+  }, [token, isAuthenticated, checkedIn]);
 
   const getProfileImageUrl = useQuery(
     api.users.getProfileImageUrl as any,
@@ -202,7 +224,7 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <View style={styles.headerTopRow}>
             <View style={styles.avatarContainer}>
               {profileImageUrl ? (
                 <Image
@@ -212,21 +234,22 @@ export default function HomeScreen() {
                   transition={200}
                 />
               ) : (
-                <Ionicons name="person-circle" size={48} color={colors.textMuted} />
+                <Ionicons name="person-circle" size={44} color={colors.textMuted} />
               )}
               <View style={[styles.onlineBadge, { backgroundColor: colors.primary, borderColor: colors.background }]} />
             </View>
-            <View style={styles.headerTexts}>
-              <Text style={[styles.greetingSub, { color: colors.textMuted }]}>{getGreeting()}</Text>
-              <Text style={[styles.greetingMain, { color: colors.text }]}>{t("home.readyForJourney")}</Text>
+            <View style={styles.headerRight}>
+              <StreakWidget />
+              <TouchableOpacity 
+                style={styles.creditContainer}
+                onPress={() => router.push("/subscription")}
+              >
+                {getCreditDisplay()}
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity 
-            style={styles.creditContainer}
-            onPress={() => router.push("/subscription")}
-          >
-            {getCreditDisplay()}
-          </TouchableOpacity>
+          <Text style={[styles.greetingSub, { color: colors.textMuted }]}>{getGreeting()}</Text>
+          <Text style={[styles.greetingMain, { color: colors.text }]}>{t("home.readyForJourney")}</Text>
         </View>
 
         {/* Search Bar */}
@@ -259,6 +282,44 @@ export default function HomeScreen() {
             <Text style={[styles.featureText, { color: "#000000" }]}>{t("home.aiTripPlanner")}</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity 
+            style={[styles.featureCard, { backgroundColor: "#FF6B35", borderColor: "#FF6B35" }]}
+            onPress={() => {
+              if (surpriseDeal) {
+                router.push({
+                  pathname: "/deal-trip",
+                  params: {
+                    dealId: surpriseDeal._id,
+                    origin: surpriseDeal.origin,
+                    originCity: surpriseDeal.originCity,
+                    destination: surpriseDeal.destination,
+                    destinationCity: surpriseDeal.destinationCity,
+                    airline: surpriseDeal.airline,
+                    outboundDate: surpriseDeal.outboundDate,
+                    outboundDeparture: surpriseDeal.outboundDeparture,
+                    outboundArrival: surpriseDeal.outboundArrival,
+                    returnDate: surpriseDeal.returnDate || "",
+                    returnDeparture: surpriseDeal.returnDeparture || "",
+                    returnArrival: surpriseDeal.returnArrival || "",
+                    returnAirline: surpriseDeal.returnAirline || "",
+                    price: String(surpriseDeal.price),
+                    totalPrice: surpriseDeal.totalPrice ? String(surpriseDeal.totalPrice) : "",
+                    currency: surpriseDeal.currency,
+                    outboundStops: String(surpriseDeal.outboundStops ?? 0),
+                    returnStops: String(surpriseDeal.returnStops ?? 0),
+                    outboundSegments: surpriseDeal.outboundSegments ? JSON.stringify(surpriseDeal.outboundSegments) : "",
+                    returnSegments: surpriseDeal.returnSegments ? JSON.stringify(surpriseDeal.returnSegments) : "",
+                  },
+                });
+              }
+            }}
+          >
+            <View style={[styles.featureIcon, { backgroundColor: "rgba(255,255,255,0.25)" }]}>
+              <Ionicons name="dice-outline" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={[styles.featureText, { color: "#FFFFFF" }]}>{t("home.surpriseMe")}</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
               <Ionicons name="map-outline" size={20} color={colors.text} />
@@ -266,6 +327,51 @@ export default function HomeScreen() {
             <Text style={[styles.featureText, { color: colors.text }]}>{t("home.multiCityRoute")}</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Low Fare Radar */}
+        {lowFareDeals && lowFareDeals.length > 0 && (
+          <LowFareRadar
+            deals={lowFareDeals}
+            homeIata={homeIata}
+            wishlistDestinations={wishlistDestinations}
+            onPlanTrip={(deal) => {
+              router.push({
+                pathname: "/deal-trip",
+                params: {
+                  dealId: deal._id,
+                  origin: deal.origin,
+                  originCity: deal.originCity,
+                  destination: deal.destination,
+                  destinationCity: deal.destinationCity,
+                  airline: deal.airline,
+                  outboundDate: deal.outboundDate,
+                  outboundDeparture: deal.outboundDeparture,
+                  outboundArrival: deal.outboundArrival,
+                  returnDate: deal.returnDate || "",
+                  returnDeparture: deal.returnDeparture || "",
+                  returnArrival: deal.returnArrival || "",
+                  returnAirline: deal.returnAirline || "",
+                  price: String(deal.price),
+                  totalPrice: deal.totalPrice ? String(deal.totalPrice) : "",
+                  currency: deal.currency,
+                  outboundStops: String(deal.outboundStops ?? 0),
+                  returnStops: String(deal.returnStops ?? 0),
+                  outboundSegments: deal.outboundSegments ? JSON.stringify(deal.outboundSegments) : "",
+                  returnSegments: deal.returnSegments ? JSON.stringify(deal.returnSegments) : "",
+                },
+              });
+            }}
+            onPlanFromWishlist={(destination) => {
+              router.push({
+                pathname: "/create-trip",
+                params: { prefilledDestination: destination },
+              } as any);
+            }}
+            onBookingClick={(dealId) => {
+              trackBookingClick({ dealId }).catch(() => {});
+            }}
+          />
+        )}
 
         {/* Trending Destinations Section */}
         {trendingDestinations && trendingDestinations.length > 0 && (
@@ -372,6 +478,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    <AchievementUnlocked />
     </>
   );
 }
@@ -402,27 +509,30 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
     paddingHorizontal: 20,
     paddingTop: 20,
     marginBottom: 24,
   },
+  headerTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
   headerLeft: {
-    flex: 1,
-    marginRight: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   avatarContainer: {
     position: "relative",
-    width: 48,
-    height: 48,
-    marginBottom: 12,
+    width: 44,
+    height: 44,
   },
   profileImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   onlineBadge: {
     position: "absolute",
@@ -439,10 +549,16 @@ const styles = StyleSheet.create({
   greetingSub: {
     fontSize: 14,
     fontWeight: "500",
+    marginBottom: 2,
   },
   greetingMain: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   creditContainer: {
     justifyContent: "center",

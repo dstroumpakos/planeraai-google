@@ -86,6 +86,13 @@ export default defineSchema({
         // Location-based: tracks whether user is physically at the destination
         userAtDestination: v.optional(v.boolean()),
         lastLocationCheckAt: v.optional(v.float64()),
+        // Server-verified GPS proximity to destination (used for achievement eligibility)
+        locationVerified: v.optional(v.boolean()),
+        locationVerifiedAt: v.optional(v.float64()),
+        // Deal-based trip fields (from Low Fare Radar)
+        tripType: v.optional(v.union(v.literal("standard"), v.literal("deal"))),
+        dealId: v.optional(v.id("lowFareRadar")),
+        dealFlightData: v.optional(v.any()),
     })
         .index("by_user", ["userId"])
         .index("by_status", ["status"]),
@@ -164,10 +171,16 @@ export default defineSchema({
         onboardingCompleted: v.optional(v.boolean()),
         // First trip guide shown on home page for new users
         hasSeenFirstTripGuide: v.optional(v.boolean()),
+        // Trip detail guide shown on first generated trip
+        hasSeenTripDetailGuide: v.optional(v.boolean()),
         // AI data sharing consent (Apple guideline 5.1.1/5.1.2)
         aiDataConsent: v.optional(v.boolean()),
         aiDataConsentDate: v.optional(v.float64()),
-    }).index("by_user", ["userId"]),
+        // Referral code (unique per user)
+        referralCode: v.optional(v.string()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_referralCode", ["referralCode"]),
 
     insights: defineTable({
         userId: v.string(),
@@ -649,4 +662,179 @@ export default defineSchema({
     })
         .index("by_trip", ["tripId"])
         .index("by_destination_key", ["destinationKey"]),
+
+    // Low Fare Radar — flight deals managed via website widget, shown in app
+    lowFareRadar: defineTable({
+        // Route
+        origin: v.string(),           // IATA code e.g. "ATH"
+        originCity: v.string(),        // e.g. "Athens"
+        destination: v.string(),       // IATA code e.g. "CDG"
+        destinationCity: v.string(),   // e.g. "Paris"
+        // Airline
+        airline: v.string(),
+        airlineLogo: v.optional(v.string()),
+        flightNumber: v.optional(v.string()),
+        // Outbound leg
+        outboundDate: v.string(),      // "2024-03-15"
+        outboundDeparture: v.string(), // "08:00"
+        outboundArrival: v.string(),   // "10:30"
+        outboundDuration: v.optional(v.string()),
+        outboundStops: v.optional(v.number()),  // 0=direct, 1=one stop, etc.
+        outboundSegments: v.optional(v.array(v.object({
+            airline: v.string(),
+            flightNumber: v.optional(v.string()),
+            departureAirport: v.string(),  // IATA code
+            departureTime: v.string(),     // "08:00"
+            arrivalAirport: v.string(),    // IATA code
+            arrivalTime: v.string(),       // "10:30"
+            duration: v.optional(v.string()),
+        }))),
+        // Return leg (optional for one-way)
+        returnDate: v.optional(v.string()),
+        returnDeparture: v.optional(v.string()),
+        returnArrival: v.optional(v.string()),
+        returnDuration: v.optional(v.string()),
+        returnAirline: v.optional(v.string()),
+        returnFlightNumber: v.optional(v.string()),
+        returnStops: v.optional(v.number()),
+        returnSegments: v.optional(v.array(v.object({
+            airline: v.string(),
+            flightNumber: v.optional(v.string()),
+            departureAirport: v.string(),
+            departureTime: v.string(),
+            arrivalAirport: v.string(),
+            arrivalTime: v.string(),
+            duration: v.optional(v.string()),
+        }))),
+        // Pricing
+        price: v.float64(),
+        totalPrice: v.optional(v.float64()),
+        originalPrice: v.optional(v.float64()),
+        currency: v.string(),         // "EUR", "USD", etc.
+        // Baggage
+        cabinBaggage: v.optional(v.string()),   // "1x 8kg"
+        checkedBaggage: v.optional(v.string()),  // "1x 23kg"
+        // Metadata
+        isRecommended: v.optional(v.boolean()),
+        dealTag: v.optional(v.string()),  // "HOT DEAL", "LOWEST PRICE"
+        bookingUrl: v.optional(v.string()),
+        expiresAt: v.optional(v.float64()),
+        notes: v.optional(v.string()),
+        // Travel date range (which months this deal covers)
+        travelMonthFrom: v.optional(v.string()),  // "2026-04" format
+        travelMonthTo: v.optional(v.string()),     // "2026-06" format
+        // Analytics counters
+        planTripClicks: v.optional(v.float64()),    // trips generated from this deal
+        bookingClicks: v.optional(v.float64()),     // booking URL opens
+        // Status
+        active: v.boolean(),
+        createdAt: v.float64(),
+        updatedAt: v.optional(v.float64()),
+    })
+        .index("by_origin", ["origin"])
+        .index("by_destination", ["destination"])
+        .index("by_active", ["active"])
+        .index("by_origin_destination", ["origin", "destination"]),
+
+    // Watched Destinations — users watching destinations for deal alerts
+    watchedDestinations: defineTable({
+        userId: v.string(),
+        destination: v.string(),          // normalized lowercase city name e.g. "paris"
+        destinationIata: v.optional(v.string()), // IATA code if known e.g. "CDG"
+        createdAt: v.float64(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_destination", ["destination"])
+        .index("by_user_destination", ["userId", "destination"]),
+
+    // Trip Share Links — shareable read-only links to trip itineraries
+    tripShareLinks: defineTable({
+        tripId: v.id("trips"),
+        userId: v.string(),
+        token: v.string(),
+        expiresAt: v.float64(),
+        createdAt: v.float64(),
+    })
+        .index("by_token", ["token"])
+        .index("by_trip", ["tripId"]),
+
+    // Trip Collaborators — group trip planning with role-based access
+    tripCollaborators: defineTable({
+        tripId: v.id("trips"),
+        userId: v.string(),
+        role: v.union(v.literal("owner"), v.literal("editor"), v.literal("viewer")),
+        inviteToken: v.optional(v.string()),  // set when invite is pending (no userId yet)
+        joinedAt: v.float64(),
+    })
+        .index("by_trip", ["tripId"])
+        .index("by_user", ["userId"])
+        .index("by_trip_user", ["tripId", "userId"])
+        .index("by_invite_token", ["inviteToken"]),
+
+    // ---- Engagement Features ----
+
+    // User Achievements — unlocked badges/milestones
+    userAchievements: defineTable({
+        userId: v.string(),
+        achievementId: v.string(),
+        unlockedAt: v.float64(),
+        seen: v.optional(v.boolean()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_and_achievement", ["userId", "achievementId"]),
+
+    // Wishlist — saved dream destinations
+    wishlist: defineTable({
+        userId: v.string(),
+        destination: v.string(),
+        country: v.optional(v.string()),
+        notes: v.optional(v.string()),
+        targetDateRange: v.optional(v.object({
+            startMonth: v.float64(),
+            startYear: v.float64(),
+            endMonth: v.optional(v.float64()),
+            endYear: v.optional(v.float64()),
+        })),
+        priority: v.optional(v.union(
+            v.literal("dream"),
+            v.literal("planned"),
+            v.literal("someday")
+        )),
+        image: v.optional(v.object({
+            url: v.string(),
+            photographer: v.optional(v.string()),
+        })),
+        dealAlertEnabled: v.optional(v.boolean()),
+        addedAt: v.float64(),
+    })
+        .index("by_user", ["userId"]),
+
+    // User Streaks — daily check-in tracking
+    userStreaks: defineTable({
+        userId: v.string(),
+        currentStreak: v.float64(),
+        longestStreak: v.float64(),
+        lastCheckInDate: v.string(), // "YYYY-MM-DD"
+        streakShieldUsedAt: v.optional(v.float64()),
+        totalCheckIns: v.float64(),
+    })
+        .index("by_user", ["userId"]),
+
+    // Referrals — invite friends reward system
+    referrals: defineTable({
+        referrerId: v.string(),
+        referredUserId: v.optional(v.string()),
+        referralCode: v.string(),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("completed"),
+            v.literal("rewarded")
+        ),
+        rewardType: v.optional(v.string()),
+        createdAt: v.float64(),
+        completedAt: v.optional(v.float64()),
+    })
+        .index("by_referrer", ["referrerId"])
+        .index("by_code", ["referralCode"])
+        .index("by_referred_user", ["referredUserId"]),
 });
