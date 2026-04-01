@@ -730,6 +730,7 @@ export default defineSchema({
         active: v.boolean(),
         createdAt: v.float64(),
         updatedAt: v.optional(v.float64()),
+        deletedAt: v.optional(v.float64()),
     })
         .index("by_origin", ["origin"])
         .index("by_destination", ["destination"])
