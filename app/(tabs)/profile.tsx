@@ -326,6 +326,38 @@ export default function Profile() {
             iconColor: colors.primary,
             action: () => router.push("/(tabs)/trips")
         },
+        {
+            title: t('stats.travelStats'),
+            subtitle: t('stats.viewYourStats'),
+            icon: "bar-chart-outline",
+            iconBg: isDarkMode ? "#1E3A5F" : "#DBEAFE",
+            iconColor: "#3B82F6",
+            action: () => router.push("/settings/travel-stats" as any)
+        },
+        {
+            title: t('achievements.title'),
+            subtitle: t('achievements.viewBadges'),
+            icon: "trophy-outline",
+            iconBg: isDarkMode ? "#3D2E00" : "#FEF3C7",
+            iconColor: "#F59E0B",
+            action: () => router.push("/settings/achievements" as any)
+        },
+        {
+            title: t('wishlist.title'),
+            subtitle: t('wishlist.savedDestinations'),
+            icon: "heart-outline",
+            iconBg: isDarkMode ? "#3D1E2E" : "#FCE7F3",
+            iconColor: "#EC4899",
+            action: () => router.push("/settings/wishlist" as any)
+        },
+        {
+            title: t('referrals.inviteFriends'),
+            subtitle: t('referrals.earnCredits'),
+            icon: "gift-outline",
+            iconBg: isDarkMode ? "#1D3D2E" : "#D1FAE5",
+            iconColor: "#10B981",
+            action: () => router.push("/settings/referrals" as any)
+        },
         // {
         //     title: "Traveler Profiles",
         //     subtitle: "Manage passport & traveler info",
@@ -453,7 +485,7 @@ export default function Profile() {
                             style={styles.menuDropdownItem}
                             onPress={() => {
                                 setMenuVisible(false);
-                                Linking.openURL("https://www.planeraai.app/terms");
+                                Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/");
                             }}
                         >
                             <Ionicons name="document-text-outline" size={20} color={colors.text} />

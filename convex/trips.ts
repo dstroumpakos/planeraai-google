@@ -1,8 +1,9 @@
 import { v } from "convex/values";
-import { authMutation, authQuery } from "./functions";
+import { authMutation, authQuery, authAction } from "./functions";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { isSubscriptionActiveWithGrace } from "./helpers/subscription";
+import { getDistanceMeters } from "./helpers/geo";
 
 export const create = authMutation({
     args: {
@@ -58,7 +59,7 @@ export const create = authMutation({
         // Check if user can generate a trip
         const userPlan = await ctx.db
             .query("userPlans")
-            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user._id))
+            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user.userId))
             .unique();
 
         // Check permissions (includes 16-day Apple billing grace period)
@@ -98,7 +99,7 @@ export const create = authMutation({
         } else {
             // New user - create plan and use the 1 free credit
             await ctx.db.insert("userPlans", {
-                userId: ctx.user._id,
+                userId: ctx.user.userId,
                 plan: "free",
                 tripsGenerated: 1,
                 tripCredits: 0, // They used their 1 free credit
@@ -106,7 +107,7 @@ export const create = authMutation({
         }
 
         const tripId = await ctx.db.insert("trips", {
-            userId: ctx.user._id,
+            userId: ctx.user.userId,
             destination: args.destination,
             origin: args.origin,
             startDate: args.startDate,
@@ -181,6 +182,187 @@ export const create = authMutation({
             language: args.language || "en",
         });
 
+        // Trigger achievement check
+        await ctx.scheduler.runAfter(0, internal.achievements.checkAndUnlock, { userId: ctx.user.userId });
+
+        return tripId;
+    },
+});
+
+// Create a trip from a Low Fare Radar deal
+export const createFromDeal = authMutation({
+    args: {
+        token: v.string(),
+        dealId: v.id("lowFareRadar"),
+        budgetTotal: v.float64(),
+        travelerCount: v.float64(),
+        interests: v.array(v.string()),
+        localExperiences: v.optional(v.array(v.string())),
+        skipHotel: v.optional(v.boolean()),
+        language: v.optional(v.string()),
+    },
+    returns: v.id("trips"),
+    handler: async (ctx: any, args: any) => {
+        // Fetch the deal
+        const deal = await ctx.db.get(args.dealId);
+        if (!deal || !deal.active) {
+            throw new Error("This deal is no longer available");
+        }
+
+        // Validate
+        if (args.travelerCount < 1 || args.travelerCount > 12) {
+            throw new Error("Traveler count must be between 1 and 12");
+        }
+        if (args.budgetTotal <= 0) {
+            throw new Error("Budget must be greater than 0");
+        }
+
+        const perPersonBudget = Math.round(args.budgetTotal / args.travelerCount);
+
+        // Compute dates from deal
+        const startDate = new Date(deal.outboundDate).getTime();
+        const endDate = deal.returnDate
+            ? new Date(deal.returnDate).getTime()
+            : startDate + 3 * 24 * 60 * 60 * 1000; // Default 3 days for one-way
+
+        // Check credits (same logic as create)
+        const userPlan = await ctx.db
+            .query("userPlans")
+            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user.userId))
+            .unique();
+
+        const subscriptionStatus = isSubscriptionActiveWithGrace(
+            userPlan?.plan,
+            userPlan?.subscriptionExpiresAt,
+        );
+        const isSubActive = subscriptionStatus.active;
+        const tripCredits = userPlan?.tripCredits ?? 0;
+        const tripsGenerated = userPlan?.tripsGenerated ?? 0;
+        const hasFreeTrial = tripsGenerated < 1;
+
+        if (!isSubActive && tripCredits <= 0 && !hasFreeTrial) {
+            throw new Error("No trip credits available. Please purchase a trip pack or subscribe to Premium.");
+        }
+
+        // Deduct credit
+        if (userPlan) {
+            if (isSubActive) {
+                await ctx.db.patch(userPlan._id, { tripsGenerated: tripsGenerated + 1 });
+            } else if (tripCredits > 0) {
+                await ctx.db.patch(userPlan._id, { tripCredits: tripCredits - 1, tripsGenerated: tripsGenerated + 1 });
+            } else {
+                await ctx.db.patch(userPlan._id, { tripsGenerated: 1 });
+            }
+        } else {
+            await ctx.db.insert("userPlans", {
+                userId: ctx.user.userId,
+                plan: "free",
+                tripsGenerated: 1,
+                tripCredits: 0,
+            });
+        }
+
+        // Build deal flight data matching the itinerary.flights.options format
+        const dealFlightData = {
+            options: [{
+                id: `deal-${deal._id}`,
+                outbound: {
+                    airline: deal.airline,
+                    flightNumber: deal.flightNumber || "",
+                    departure: deal.outboundDeparture,
+                    arrival: deal.outboundArrival,
+                    duration: deal.outboundDuration || "",
+                    stops: deal.outboundStops ?? 0,
+                    segments: deal.outboundSegments || undefined,
+                },
+                return: deal.returnDate ? {
+                    airline: deal.returnAirline || deal.airline,
+                    flightNumber: deal.returnFlightNumber || "",
+                    departure: deal.returnDeparture || "",
+                    arrival: deal.returnArrival || "",
+                    duration: deal.returnDuration || "",
+                    stops: deal.returnStops ?? 0,
+                    segments: deal.returnSegments || undefined,
+                } : undefined,
+                pricePerPerson: deal.price,
+                totalPrice: deal.totalPrice || deal.price * 2,
+                currency: deal.currency,
+                isBestPrice: true,
+                checkedBaggageIncluded: !!deal.checkedBaggage,
+                checkedBaggagePrice: 0,
+                luggage: deal.cabinBaggage || "Check airline",
+                bookingUrl: deal.bookingUrl || "",
+            }],
+            bestPrice: deal.price,
+            dataSource: "low-fare-radar",
+            dealId: deal._id,
+        };
+
+        const origin = `${deal.originCity}, ${deal.origin}`;
+        const destination = `${deal.destinationCity}, ${deal.destination}`;
+
+        const tripId = await ctx.db.insert("trips", {
+            userId: ctx.user.userId,
+            destination,
+            origin,
+            startDate,
+            endDate,
+            budgetTotal: args.budgetTotal,
+            travelerCount: args.travelerCount,
+            perPersonBudget,
+            budget: args.budgetTotal,
+            travelers: args.travelerCount,
+            interests: args.interests,
+            localExperiences: args.localExperiences ?? [],
+            status: "generating",
+            skipFlights: true, // Flight comes from the deal
+            skipHotel: args.skipHotel ?? false,
+            preferredFlightTime: "any",
+            arrivalTime: deal.outboundDate && deal.outboundArrival
+                ? `${deal.outboundDate}T${deal.outboundArrival}:00`
+                : undefined,
+            departureTime: deal.returnDate && deal.returnDeparture
+                ? `${deal.returnDate}T${deal.returnDeparture}:00`
+                : undefined,
+            language: args.language || "en",
+            tripType: "deal",
+            dealId: args.dealId,
+            dealFlightData,
+        });
+
+        const flightInfo = `Flying from: ${origin} to ${destination}. Flight already booked via Low Fare Radar deal (${deal.airline}, ${deal.outboundDeparture}-${deal.outboundArrival}). Do NOT include flight recommendations — focus on activities, hotels, and restaurants.`;
+
+        const hotelInfo = args.skipHotel
+            ? "Note: User already has accommodation booked, so DO NOT include hotel recommendations."
+            : "";
+
+        const prompt = `Plan a trip to ${destination} for ${args.travelerCount} people.
+        ${flightInfo}
+        ${hotelInfo}
+        Budget: €${args.budgetTotal} total (€${perPersonBudget} per person).
+        Dates: ${new Date(startDate).toDateString()} to ${new Date(endDate).toDateString()}.
+        Interests: ${args.interests.join(", ")}.`;
+
+        await ctx.scheduler.runAfter(0, internal.tripsActions.generate, {
+            tripId,
+            prompt,
+            skipFlights: true,
+            skipHotel: args.skipHotel ?? false,
+            preferredFlightTime: "any",
+            arrivalTime: deal.outboundDate && deal.outboundArrival
+                ? `${deal.outboundDate}T${deal.outboundArrival}:00`
+                : undefined,
+            departureTime: deal.returnDate && deal.returnDeparture
+                ? `${deal.returnDate}T${deal.returnDeparture}:00`
+                : undefined,
+            language: args.language || "en",
+        });
+
+        // Track plan-trip click on the deal
+        await ctx.db.patch(args.dealId, {
+            planTripClicks: (deal.planTripClicks ?? 0) + 1,
+        });
+
         return tripId;
     },
 });
@@ -216,6 +398,10 @@ export const getTripDetails = internalQuery({
             // Language preference
             language: v.optional(v.string()),
             selectedTravelerIds: v.optional(v.array(v.id("travelers"))),
+            // Deal trip fields
+            tripType: v.optional(v.string()),
+            dealId: v.optional(v.id("lowFareRadar")),
+            dealFlightData: v.optional(v.any()),
             status: v.string(),
             itinerary: v.optional(v.any()),
         })
@@ -309,7 +495,7 @@ export const list = authQuery({
     handler: async (ctx: any) => {
         const trips = await ctx.db
             .query("trips")
-            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user._id))
+            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user.userId))
             .order("desc")
             .collect();
             // Compute perPersonBudget on the fly for older trips that don't have it
@@ -382,7 +568,7 @@ export const get = authQuery({
         // Get user plan info
         const userPlan = await ctx.db
             .query("userPlans")
-            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user._id))
+            .withIndex("by_user", (q: any) => q.eq("userId", ctx.user.userId))
             .unique();
 
       // Check if user has full access (includes 16-day Apple billing grace period)
@@ -442,6 +628,90 @@ export const update = authMutation({
     },
 });
 
+/** Remove an activity from a specific day in the itinerary */
+export const removeActivity = authMutation({
+    args: {
+        token: v.string(),
+        tripId: v.id("trips"),
+        dayIndex: v.number(),
+        activityIndex: v.number(),
+    },
+    handler: async (ctx: any, args: any) => {
+        const trip = await ctx.db.get(args.tripId);
+        if (!trip) throw new Error("Trip not found");
+        if (trip.userId !== ctx.user.userId) throw new Error("Unauthorized");
+        if (!trip.itinerary?.dayByDayItinerary) throw new Error("No itinerary");
+
+        const days = [...trip.itinerary.dayByDayItinerary];
+        if (args.dayIndex < 0 || args.dayIndex >= days.length) throw new Error("Invalid day");
+        const day = { ...days[args.dayIndex] };
+        const activities = [...day.activities];
+        if (args.activityIndex < 0 || args.activityIndex >= activities.length) throw new Error("Invalid activity");
+
+        activities.splice(args.activityIndex, 1);
+        day.activities = activities;
+        days[args.dayIndex] = day;
+
+        await ctx.db.patch(args.tripId, {
+            itinerary: { ...trip.itinerary, dayByDayItinerary: days },
+        });
+    },
+});
+
+/** Update a single activity's fields in the itinerary */
+export const updateActivity = authMutation({
+    args: {
+        token: v.string(),
+        tripId: v.id("trips"),
+        dayIndex: v.number(),
+        activityIndex: v.number(),
+        updates: v.any(),
+    },
+    handler: async (ctx: any, args: any) => {
+        const trip = await ctx.db.get(args.tripId);
+        if (!trip) throw new Error("Trip not found");
+        if (trip.userId !== ctx.user.userId) throw new Error("Unauthorized");
+        if (!trip.itinerary?.dayByDayItinerary) throw new Error("No itinerary");
+
+        const days = [...trip.itinerary.dayByDayItinerary];
+        if (args.dayIndex < 0 || args.dayIndex >= days.length) throw new Error("Invalid day");
+        const day = { ...days[args.dayIndex] };
+        const activities = [...day.activities];
+        if (args.activityIndex < 0 || args.activityIndex >= activities.length) throw new Error("Invalid activity");
+
+        activities[args.activityIndex] = { ...activities[args.activityIndex], ...args.updates };
+        day.activities = activities;
+        days[args.dayIndex] = day;
+
+        await ctx.db.patch(args.tripId, {
+            itinerary: { ...trip.itinerary, dayByDayItinerary: days },
+        });
+    },
+});
+
+/** Schedule AI replacement of a single activity */
+export const scheduleReplaceActivity = authMutation({
+    args: {
+        token: v.string(),
+        tripId: v.id("trips"),
+        dayIndex: v.number(),
+        activityIndex: v.number(),
+        language: v.optional(v.string()),
+    },
+    handler: async (ctx: any, args: any) => {
+        const trip = await ctx.db.get(args.tripId);
+        if (!trip) throw new Error("Trip not found");
+        if (trip.userId !== ctx.user.userId) throw new Error("Unauthorized");
+
+        await (ctx as any).scheduler.runAfter(0, (internal as any).tripsActions.replaceActivity, {
+            tripId: args.tripId,
+            dayIndex: args.dayIndex,
+            activityIndex: args.activityIndex,
+            language: args.language,
+        });
+    },
+});
+
 // Update whether user is physically at the trip destination (used by location notifications)
 export const updateLocationStatus = authMutation({
     args: {
@@ -453,13 +723,139 @@ export const updateLocationStatus = authMutation({
     handler: async (ctx: any, args: any) => {
         const trip = await ctx.db.get(args.tripId);
         if (!trip) throw new Error("Trip not found");
-        if (trip.userId !== ctx.user._id) throw new Error("Unauthorized");
+        if (trip.userId !== ctx.user.userId) throw new Error("Unauthorized");
 
         await ctx.db.patch(args.tripId, {
             userAtDestination: args.atDestination,
             lastLocationCheckAt: Date.now(),
         });
         return null;
+    },
+});
+
+// Internal mutation to mark a trip as location-verified (called from verifyPresenceAtDestination action)
+export const markLocationVerified = internalMutation({
+    args: {
+        tripId: v.id("trips"),
+        userId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const trip = await ctx.db.get(args.tripId);
+        if (!trip || trip.userId !== args.userId) return;
+        if (trip.locationVerified) return; // already verified
+
+        await ctx.db.patch(args.tripId, {
+            locationVerified: true,
+            locationVerifiedAt: Date.now(),
+            userAtDestination: true,
+            lastLocationCheckAt: Date.now(),
+        });
+
+        // Re-evaluate achievements now that a trip is verified
+        await ctx.scheduler.runAfter(0, internal.achievements.checkAndUnlock, {
+            userId: args.userId,
+        });
+    },
+});
+
+// Server-side GPS verification: client sends raw coordinates, server geocodes destination
+// and checks distance. This removes the client from the trust boundary for achievements.
+const MAX_DESTINATION_RADIUS_M = 50_000; // 50 km
+const VERIFICATION_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+export const verifyPresenceAtDestination = authAction({
+    args: {
+        token: v.string(),
+        tripId: v.id("trips"),
+        latitude: v.float64(),
+        longitude: v.float64(),
+    },
+    returns: v.null(),
+    handler: async (ctx: any, args: any) => {
+        const userId = ctx.user.userId;
+
+        // Fetch the trip via internal query
+        const trip = await ctx.runQuery(internal.trips.getTripForVerification, {
+            tripId: args.tripId,
+        });
+        if (!trip || trip.userId !== userId) return null;
+
+        // Already verified — nothing to do
+        if (trip.locationVerified) return null;
+
+        // Rate-limit: skip if checked recently
+        if (trip.lastLocationCheckAt && Date.now() - trip.lastLocationCheckAt < VERIFICATION_COOLDOWN_MS) {
+            return null;
+        }
+
+        // Trip must be within its date range (give 1-day buffer on each side for time zones)
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+        if (now < trip.startDate - dayMs || now > trip.endDate + dayMs) {
+            return null;
+        }
+
+        // Server-side geocode the destination via Nominatim
+        const destinations = [];
+        if (trip.destinations && Array.isArray(trip.destinations)) {
+            for (const d of trip.destinations) {
+                destinations.push(`${d.city}, ${d.country}`);
+            }
+        }
+        if (destinations.length === 0 && trip.destination) {
+            destinations.push(trip.destination);
+        }
+
+        // Check against ANY destination (multi-city: one match = verified)
+        for (const dest of destinations) {
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(dest)}&limit=1`,
+                    { headers: { "User-Agent": "PlaneraAI/1.0" } }
+                );
+                const data = await res.json();
+                if (!data?.[0]) continue;
+
+                const destLat = parseFloat(data[0].lat);
+                const destLng = parseFloat(data[0].lon);
+                const distance = getDistanceMeters(args.latitude, args.longitude, destLat, destLng);
+
+                if (distance <= MAX_DESTINATION_RADIUS_M) {
+                    // User is at destination — mark verified
+                    await ctx.runMutation(internal.trips.markLocationVerified, {
+                        tripId: args.tripId,
+                        userId,
+                    });
+                    return null;
+                }
+
+                // Respect Nominatim rate limit (1 req/sec)
+                await new Promise((r) => setTimeout(r, 1100));
+            } catch {
+                // Nominatim failure — don't block, just skip this destination
+                continue;
+            }
+        }
+
+        return null;
+    },
+});
+
+// Internal query used by verifyPresenceAtDestination action to read trip data
+export const getTripForVerification = internalQuery({
+    args: { tripId: v.id("trips") },
+    handler: async (ctx, args) => {
+        const trip = await ctx.db.get(args.tripId);
+        if (!trip) return null;
+        return {
+            userId: trip.userId,
+            destination: trip.destination,
+            destinations: trip.destinations,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            locationVerified: trip.locationVerified,
+            lastLocationCheckAt: trip.lastLocationCheckAt,
+        };
     },
 });
 
