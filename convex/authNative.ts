@@ -37,15 +37,23 @@ interface VerifiedClaims {
 // Verify Google ID token
 async function verifyGoogleToken(idToken: string): Promise<VerifiedClaims> {
   const googleWebClientId = process.env.GOOGLE_WEB_CLIENT_ID;
+  const googleAndroidClientId = process.env.GOOGLE_ANDROID_CLIENT_ID;
   
   if (!googleWebClientId) {
     console.error("[AuthNative] GOOGLE_WEB_CLIENT_ID environment variable is not set");
     throw new Error("GOOGLE_WEB_CLIENT_ID environment variable is required");
   }
+
+  // Accept both web and Android client IDs as valid audiences
+  const validAudiences = [googleWebClientId];
+  if (googleAndroidClientId) {
+    validAudiences.push(googleAndroidClientId);
+  }
   
   console.log("[AuthNative] Google verification config:", {
-    hasClientId: !!googleWebClientId,
-    clientIdPrefix: googleWebClientId.substring(0, 20) + "...",
+    hasWebClientId: !!googleWebClientId,
+    hasAndroidClientId: !!googleAndroidClientId,
+    webClientIdPrefix: googleWebClientId.substring(0, 20) + "...",
   });
   
   try {
@@ -55,7 +63,7 @@ async function verifyGoogleToken(idToken: string): Promise<VerifiedClaims> {
     // Verify the token
     const { payload } = await jose.jwtVerify(idToken, JWKS, {
       issuer: ["https://accounts.google.com", "accounts.google.com"],
-      audience: googleWebClientId,
+      audience: validAudiences,
     });
     
     console.log("[AuthNative] Google token verified:", {

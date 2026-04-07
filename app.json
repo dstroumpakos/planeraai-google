@@ -30,6 +30,7 @@
     },
     "android": {
       "package": "com.dstroump.planeraaitravelplanner",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "monochromeImage": "./assets/images/adaptive-icon.png",

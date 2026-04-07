@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "463771409712",
+    "project_id": "planera-484015",
+    "storage_bucket": "planera-484015.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:463771409712:android:0000000000000000",
+        "android_client_info": {
+          "package_name": "com.dstroump.planeraaitravelplanner"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "463771409712-71grqcks934otv07anuu9bmg4c2ieent.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dstroump.planeraaitravelplanner",
+            "certificate_hash": "6daa1f0e3e47a601953fac4d18f56bfb6d545c85"
+          }
+        },
+        {
+          "client_id": "463771409712-gsjpdrq9d84s14hoi3lie4bh2j5b10v7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": ""
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "463771409712-gsjpdrq9d84s14hoi3lie4bh2j5b10v7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

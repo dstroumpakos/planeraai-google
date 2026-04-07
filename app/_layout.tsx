@@ -2,10 +2,11 @@
 // This file MUST have a default export that renders properly
 
 import { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, AppState } from "react-native";
 import { ConvexReactClient } from "convex/react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as NavigationBar from "expo-navigation-bar";
 import { ThemeProvider } from "@/lib/ThemeContext";
 import { ConvexNativeAuthProvider } from "@/lib/ConvexAuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -15,6 +16,19 @@ import "@/lib/i18n"; // Initialize i18n
 
 // Prevent splash screen from auto-hiding before app is ready
 SplashScreen.preventAutoHideAsync();
+
+// Hide Android system navigation bar (back/home buttons)
+if (Platform.OS === "android") {
+    NavigationBar.setVisibilityAsync("hidden");
+    NavigationBar.setBehaviorAsync("overlay-swipe");
+
+    // Re-hide nav bar when app returns from background
+    AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+            NavigationBar.setVisibilityAsync("hidden");
+        }
+    });
+}
 
 // Environment validation - safe at module scope (just reads process.env)
 function validateEnvironment(): { valid: boolean; errors: string[] } {
