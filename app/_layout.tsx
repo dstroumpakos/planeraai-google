@@ -150,6 +150,13 @@ function AppContent() {
                 await authClient.init();
                 console.log("[BOOT] Auth client initialized - token loaded from SecureStore");
                 
+                // Pre-configure Google Sign-In native module early
+                if (Platform.OS === "android") {
+                    authClient.configureGoogleSignIn().catch((e: any) =>
+                        console.warn("[BOOT] Google Sign-In pre-configure failed:", e)
+                    );
+                }
+                
                 // CRITICAL: Create Convex client AFTER auth is initialized
                 // This ensures the token is available when fetchAccessToken is called
                 try {

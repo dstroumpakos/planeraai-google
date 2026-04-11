@@ -22,7 +22,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
 // Convex URL for native auth actions
 const CONVEX_URL = process.env.EXPO_PUBLIC_CONVEX_URL;
 
-// Google Web Client ID for native sign-in
+// Google Web Client ID for native sign-in (needed for idToken)
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
 // Types - exported for use by consumers
@@ -260,8 +260,21 @@ function createNativeAuthClient() {
       // Import dynamically to avoid issues on web
       const { GoogleSignin, statusCodes } = await import("@react-native-google-signin/google-signin");
       
-      // Configure if not already done
-      await configureGoogleSignIn();
+      // ALWAYS configure on the same instance we'll use for signIn()
+      // This prevents "apiClient is null" errors from stale/separate module references
+      if (!GOOGLE_WEB_CLIENT_ID) {
+        return { data: null, error: new Error("Google Web Client ID not configured") };
+      }
+      
+      console.log("[Auth] Configuring Google Sign-In...");
+      // webClientId is required for idToken; Android client ID comes from google-services.json
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        offlineAccess: true,
+        scopes: ["profile", "email"],
+      });
+      googleSignInConfigured = true;
+      console.log("[Auth] Google Sign-In configured on same instance");
       
       // Check if user has previously signed in and sign out to ensure fresh sign-in
       try {

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Platform, Alert, Modal, TextInput, KeyboardAvoidingView, Keyboard, StatusBar } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Platform, Alert, Modal, TextInput, KeyboardAvoidingView, Keyboard, StatusBar, Share } from "react-native";
 import { Image } from "expo-image";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
@@ -18,7 +18,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthenticatedMutation, useToken } from "@/lib/useAuthenticatedMutation";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
 import { useLocationNotifications } from "@/lib/useLocationNotifications";
+import { TripGuideTooltip, GuideStep } from "@/components/FirstTripGuide";
 
 // Sanitize location titles for maps deep links by stripping descriptions, ratings, etc.
 const cleanLocationTitle = (title: string): string => {
@@ -770,6 +772,15 @@ export default function TripDetails() {
     // @ts-ignore
     const regenerateTrip = useAuthenticatedMutation(api.trips.regenerate as any);
     // @ts-ignore
+    const removeActivityMut = useAuthenticatedMutation(api.trips.removeActivity as any);
+    // @ts-ignore
+    const replaceActivityMut = useAuthenticatedMutation(api.trips.scheduleReplaceActivity as any);
+    // @ts-ignore
+    const createShareLinkMut = useAuthenticatedMutation(api.tripShareLinks.createShareLink as any);
+    // @ts-ignore
+    const createInviteMut = useAuthenticatedMutation(api.tripCollaborators.createInvite as any);
+    const collaborators = useQuery(token ? (api.tripCollaborators.list as any) : "skip", token && trip ? { token, tripId: id as Id<"trips"> } : "skip");
+    // @ts-ignore
     const likeInsight = useAuthenticatedMutation(api.insights.like as any);
     // @ts-ignore
     const unlikeInsight = useAuthenticatedMutation(api.insights.unlike as any);
@@ -780,17 +791,53 @@ export default function TripDetails() {
     const { image: destinationImage } = useDestinationImage(trip?.destination);
     const getDestinationImages = useAction(api.images.getDestinationImages);
 
+    // Trip detail guide for first-time viewers
+    const userSettings = useQuery(api.users.getSettings as any, token ? { token } : "skip") as any;
+    const markDetailGuideSeen = useMutation(api.users.markTripDetailGuideSeen as any);
+
     // Phase 3: Location-based notifications for active trips
     // Reports arrival status to server so cron notifications are gated on physical presence
     const updateLocationStatus = useAuthenticatedMutation(api.trips.updateLocationStatus as any);
-    const handleLocationStatus = useCallback((atDestination: boolean) => {
+    const verifyPresence = useAction(api.trips.verifyPresenceAtDestination as any);
+    const handleLocationStatus = useCallback((atDestination: boolean, coords?: { latitude: number; longitude: number }) => {
         if (trip?._id && token) {
             updateLocationStatus({ tripId: trip._id, atDestination }).catch((e: any) =>
                 console.log("[LocationNotif] Failed to update location status:", e)
             );
+            // Send raw coordinates to server for secure GPS verification (achievements)
+            if (coords) {
+                verifyPresence({ token, tripId: trip._id, latitude: coords.latitude, longitude: coords.longitude }).catch((e: any) =>
+                    console.log("[LocationVerify] Failed to verify presence:", e)
+                );
+            }
         }
     }, [trip?._id, token]);
     useLocationNotifications(trip, true, handleLocationStatus);
+
+    // Request location permission with explanation for active trips (needed for achievement verification)
+    useEffect(() => {
+        if (!trip) return;
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+        if (now < trip.startDate - dayMs || now > trip.endDate + dayMs) return;
+
+        (async () => {
+            const { status } = await Location.getForegroundPermissionsAsync();
+            if (status === "granted" || status === "denied") return;
+            // First time — show explanation then request
+            Alert.alert(
+                t("achievements.title"),
+                t("achievements.locationRequired"),
+                [
+                    { text: t("common.cancel"), style: "cancel" },
+                    {
+                        text: t("achievements.enableLocation"),
+                        onPress: () => Location.requestForegroundPermissionsAsync(),
+                    },
+                ]
+            );
+        })();
+    }, [trip?._id]);
      
     // V1: AI-generated Top 5 Sights (replaces Viator activities)
     const topSights = useQuery(api.sights.getTopSights, trip ? { tripId: id as Id<"trips"> } : "skip");
@@ -819,6 +866,13 @@ export default function TripDetails() {
     ];
 
     const [selectedHotelIndex, setSelectedHotelIndex] = useState<number | null>(null);
+    const [replacingActivity, setReplacingActivity] = useState<string | null>(null); // "dayIndex-actIndex"
+
+    // Clear replacing state when the itinerary changes (AI finished)
+    useEffect(() => {
+        if (replacingActivity) setReplacingActivity(null);
+    }, [trip?.itinerary]);
+
     const [accommodationType, setAccommodationType] = useState<'all' | 'hotel' | 'airbnb'>('all');
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({
@@ -858,6 +912,51 @@ export default function TripDetails() {
     const [selectedFlightIndex, setSelectedFlightIndex] = useState<number>(0);
     const [checkedBaggageSelected, setCheckedBaggageSelected] = useState<boolean>(false);
     const [activeFilter, setActiveFilter] = useState<'all' | 'flights' | 'food' | 'sights' | 'stays' | 'transportation' | 'insights'>('all');
+
+    // ─── Trip detail guide state ───
+    const [detailGuideStep, setDetailGuideStep] = useState(-1);
+    const detailGuideShownRef = useRef(false);
+    const DETAIL_GUIDE_STEPS: GuideStep[] = [
+        { key: "itinerary", title: t("tripDetailGuide.stepItineraryTitle"), description: t("tripDetailGuide.stepItineraryDesc") },
+        { key: "filters", title: t("tripDetailGuide.stepFiltersTitle"), description: t("tripDetailGuide.stepFiltersDesc") },
+        { key: "activity", title: t("tripDetailGuide.stepActivityTitle"), description: t("tripDetailGuide.stepActivityDesc") },
+        { key: "map", title: t("tripDetailGuide.stepMapTitle"), description: t("tripDetailGuide.stepMapDesc") },
+        { key: "edit", title: t("tripDetailGuide.stepEditTitle"), description: t("tripDetailGuide.stepEditDesc") },
+    ];
+    const detailGuideActive = detailGuideStep >= 0 && detailGuideStep < DETAIL_GUIDE_STEPS.length;
+    const currentDetailGuideKey = detailGuideActive ? DETAIL_GUIDE_STEPS[detailGuideStep].key : null;
+
+    const advanceDetailGuide = useCallback(() => {
+        const next = detailGuideStep + 1;
+        if (next < DETAIL_GUIDE_STEPS.length) {
+            setDetailGuideStep(next);
+        } else {
+            setDetailGuideStep(-1);
+        }
+    }, [detailGuideStep, DETAIL_GUIDE_STEPS.length]);
+
+    const dismissDetailGuide = useCallback(() => {
+        setDetailGuideStep(-1);
+    }, []);
+
+    // Show detail guide when trip has itinerary and user hasn't seen it
+    useEffect(() => {
+        if (
+            !detailGuideShownRef.current &&
+            userSettings !== undefined &&
+            trip?.itinerary?.dayByDayItinerary?.length > 0 &&
+            !userSettings?.hasSeenTripDetailGuide
+        ) {
+            detailGuideShownRef.current = true;
+            // Mark as seen immediately so it never shows again
+            if (token) {
+                markDetailGuideSeen({ token }).catch(() => {});
+            }
+            // Small delay so the content renders first
+            const timer = setTimeout(() => setDetailGuideStep(0), 800);
+            return () => clearTimeout(timer);
+        }
+    }, [userSettings, trip?.itinerary?.dayByDayItinerary]);
 
     useEffect(() => {
         if (trip) {
@@ -1520,6 +1619,12 @@ export default function TripDetails() {
             
             return (
                 <View style={styles.card}>
+                    {itinerary.flights.dataSource === "low-fare-radar" && (
+                        <View style={[styles.dealFlightBanner, { backgroundColor: colors.primary }]}>
+                            <Ionicons name="pulse" size={14} color="#000" />
+                            <Text style={styles.dealFlightBannerText}>{t('tripDetail.fromLowFareRadar', { defaultValue: 'Selected from Low Fare Radar' })}</Text>
+                        </View>
+                    )}
                     <View style={styles.bestPriceBanner}>
                         <Ionicons name="pricetag" size={16} color="#10B981" />
                         <Text style={styles.bestPriceText}>{t('tripDetail.bestPriceFrom', { price: Math.round(bestPrice) })}</Text>
@@ -1601,10 +1706,25 @@ export default function TripDetails() {
                                 <Ionicons name="arrow-forward" size={16} color="#8E8E93" />
                                 <Text style={styles.time}>{selectedFlight.outbound.arrival}</Text>
                             </View>
+                            {selectedFlight.outbound.stops > 0 && selectedFlight.outbound.segments && (
+                                <View style={{ marginTop: 8 }}>
+                                    {selectedFlight.outbound.segments.map((seg: any, idx: number) => (
+                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                            <Text style={{ fontSize: 12, color: '#14B8A6', fontWeight: '600' }}>
+                                                {seg.departureAirport} → {seg.arrivalAirport}
+                                            </Text>
+                                            <Text style={{ fontSize: 11, color: '#8E8E93' }}>
+                                                {seg.airline}{seg.flightNumber ? ` ${seg.flightNumber}` : ''} {seg.departureTime}–{seg.arrivalTime}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
                         </View>
 
                         <View style={styles.divider} />
 
+                        {selectedFlight.return && (
                         <View style={styles.flightSegment}>
                             <View style={styles.segmentHeader}>
                                 <Ionicons name="airplane" size={20} color="#14B8A6" style={{ transform: [{ rotate: '180deg' }] }} />
@@ -1622,7 +1742,22 @@ export default function TripDetails() {
                                 <Ionicons name="arrow-forward" size={16} color="#8E8E93" />
                                 <Text style={styles.time}>{selectedFlight.return.arrival}</Text>
                             </View>
+                            {selectedFlight.return.stops > 0 && selectedFlight.return.segments && (
+                                <View style={{ marginTop: 8 }}>
+                                    {selectedFlight.return.segments.map((seg: any, idx: number) => (
+                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                            <Text style={{ fontSize: 12, color: '#14B8A6', fontWeight: '600' }}>
+                                                {seg.departureAirport} → {seg.arrivalAirport}
+                                            </Text>
+                                            <Text style={{ fontSize: 11, color: '#8E8E93' }}>
+                                                {seg.airline}{seg.flightNumber ? ` ${seg.flightNumber}` : ''} {seg.departureTime}–{seg.arrivalTime}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
                         </View>
+                        )}
 
                         {/* Baggage Options */}
                         <View style={styles.baggageSection}>
@@ -1820,6 +1955,34 @@ export default function TripDetails() {
                         <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }} />
+                    <TouchableOpacity 
+                        style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, marginRight: 8 }]}
+                        onPress={async () => {
+                            try {
+                                const result = await createShareLinkMut({ tripId: trip._id });
+                                const shareUrl = `https://planeraai.app/shared-trip?token=${result.token}`;
+                                await Share.share({ message: `${t('tripDetail.checkOutTrip', { destination: trip.destination })}\n${shareUrl}` });
+                            } catch (err) {
+                                console.error("Share failed:", err);
+                            }
+                        }}
+                    >
+                        <Ionicons name="share-outline" size={20} color="#1A1A1A" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.iconButton, { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, marginRight: 8 }]}
+                        onPress={async () => {
+                            try {
+                                const result = await createInviteMut({ tripId: trip._id, role: "viewer" });
+                                const inviteUrl = `https://planeraai.app/invite?token=${result.inviteToken}`;
+                                await Share.share({ message: `${t('tripDetail.joinMyTrip', { destination: trip.destination })}\n${inviteUrl}` });
+                            } catch (err) {
+                                console.error("Invite failed:", err);
+                            }
+                        }}
+                    >
+                        <Ionicons name="people-outline" size={20} color="#1A1A1A" />
+                    </TouchableOpacity>
                     <View style={[styles.aiBadge, { backgroundColor: 'rgba(255,255,255,0.9)' }]}>
                         <Ionicons name="sparkles" size={12} color="#FFE500" />
                         <Text style={[styles.aiBadgeText, { color: '#1A1A1A' }]}>{t('tripDetail.aiGenerated')}</Text>
@@ -1871,6 +2034,11 @@ export default function TripDetails() {
                         <Text style={[styles.viewMapText, { color: colors.text }]}>{t('tripDetail.exploreRoute')}</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Trip detail guide — Map tooltip */}
+                {currentDetailGuideKey === 'map' && (
+                    <TripGuideTooltip step={DETAIL_GUIDE_STEPS[detailGuideStep]} currentIndex={detailGuideStep} totalSteps={DETAIL_GUIDE_STEPS.length} onNext={advanceDetailGuide} onSkip={dismissDetailGuide} />
+                )}
 
                 {/* Filter Chips */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
@@ -1925,6 +2093,11 @@ export default function TripDetails() {
                     </TouchableOpacity>
                 </ScrollView>
 
+                {/* Trip detail guide — Filters tooltip */}
+                {currentDetailGuideKey === 'filters' && (
+                    <TripGuideTooltip step={DETAIL_GUIDE_STEPS[detailGuideStep]} currentIndex={detailGuideStep} totalSteps={DETAIL_GUIDE_STEPS.length} onNext={advanceDetailGuide} onSkip={dismissDetailGuide} />
+                )}
+
                 {/* Content based on active filter */}
                 <View style={styles.itineraryContainer}>
                     {activeFilter === 'all' && trip.itinerary?.dayByDayItinerary?.map((day: any, index: number) => {
@@ -1962,6 +2135,11 @@ export default function TripDetails() {
                                     <Text style={[styles.energyText, { color: energyColor }]}>{energyLevel}</Text>
                                 </View>
                             </View>
+
+                            {/* Trip detail guide — Itinerary tooltip (first day only) */}
+                            {index === 0 && currentDetailGuideKey === 'itinerary' && (
+                                <TripGuideTooltip step={DETAIL_GUIDE_STEPS[detailGuideStep]} currentIndex={detailGuideStep} totalSteps={DETAIL_GUIDE_STEPS.length} onNext={advanceDetailGuide} onSkip={dismissDetailGuide} />
+                            )}
 
                             {day.activities.map((activity: any, actIndex: number) => {
                                 // Get previous activity for directions
@@ -2041,7 +2219,46 @@ export default function TripDetails() {
                                         {actIndex < day.activities.length - 1 && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
                                     </View>
                                     <TouchableOpacity 
-                                        style={[styles.timelineCard, { backgroundColor: colors.card }]}
+                                        style={[styles.timelineCard, { backgroundColor: colors.card }, replacingActivity === `${index}-${actIndex}` && { opacity: 0.4 }]}
+                                        disabled={replacingActivity === `${index}-${actIndex}`}
+                                        onLongPress={() => {
+                                            if (replacingActivity) return;
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                                            Alert.alert(
+                                                activity.title,
+                                                t('tripDetail.replaceActivityMsg'),
+                                                [
+                                                    { text: t('common.cancel'), style: 'cancel' },
+                                                    {
+                                                        text: t('tripDetail.replaceActivity'),
+                                                        onPress: () => {
+                                                            setReplacingActivity(`${index}-${actIndex}`);
+                                                            replaceActivityMut({
+                                                                tripId: trip._id,
+                                                                dayIndex: index,
+                                                                activityIndex: actIndex,
+                                                                language: i18n.language,
+                                                            }).catch((err: any) => {
+                                                                console.error("Replace activity failed:", err);
+                                                                setReplacingActivity(null);
+                                                            });
+                                                        },
+                                                    },
+                                                    {
+                                                        text: t('common.delete'),
+                                                        style: 'destructive',
+                                                        onPress: () => {
+                                                            removeActivityMut({
+                                                                tripId: trip._id,
+                                                                dayIndex: index,
+                                                                activityIndex: actIndex,
+                                                            }).catch((err: any) => console.error("Remove activity failed:", err));
+                                                        },
+                                                    },
+                                                ]
+                                            );
+                                        }}
+                                        delayLongPress={500}
                                         onPress={() => {
                                             const title = activity.title?.toLowerCase() || '';
                                             const description = activity.description?.toLowerCase() || '';
@@ -2162,6 +2379,12 @@ export default function TripDetails() {
                                             openMaps();
                                         }}
                                     >
+                                        {replacingActivity === `${index}-${actIndex}` && (
+                                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)', borderRadius: 12, zIndex: 10, justifyContent: 'center', alignItems: 'center' }}>
+                                                <ActivityIndicator size="small" color={colors.primary} />
+                                                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6 }}>{t('tripDetail.replacingActivity')}</Text>
+                                            </View>
+                                        )}
                                         <View style={styles.timelineCardContent}>
                                             <View style={{flex: 1}}>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -2231,6 +2454,11 @@ export default function TripDetails() {
                                 </View>
                                 );
                             })}
+
+                            {/* Trip detail guide — Activity tooltip (first day only) */}
+                            {index === 0 && currentDetailGuideKey === 'activity' && (
+                                <TripGuideTooltip step={DETAIL_GUIDE_STEPS[detailGuideStep]} currentIndex={detailGuideStep} totalSteps={DETAIL_GUIDE_STEPS.length} onNext={advanceDetailGuide} onSkip={dismissDetailGuide} />
+                            )}
                         </View>
                     );
                 })}
@@ -2445,6 +2673,109 @@ export default function TripDetails() {
                     {activeFilter === 'flights' && (
                         <View>
                             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.availableFlights')}</Text>
+
+                            {/* Deal Flight Card - only shown for deal-generated trips */}
+                            {trip.tripType === 'deal' && trip.itinerary?.flights?.options && Array.isArray(trip.itinerary.flights.options) && trip.itinerary.flights.options.length > 0 && (() => {
+                                const flightOpts = trip.itinerary.flights.options;
+                                const selected = flightOpts[selectedFlightIndex] || flightOpts[0];
+                                return (
+                                    <View style={{
+                                        marginTop: 16,
+                                        backgroundColor: colors.card,
+                                        borderRadius: 16,
+                                        padding: 20,
+                                        borderWidth: 1,
+                                        borderColor: colors.border,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.08,
+                                        shadowRadius: 8,
+                                        elevation: 3,
+                                    }}>
+                                        {trip.itinerary.flights.dataSource === "low-fare-radar" && (
+                                            <View style={[styles.dealFlightBanner, { backgroundColor: colors.primary }]}>
+                                                <Ionicons name="pulse" size={14} color="#000" />
+                                                <Text style={styles.dealFlightBannerText}>{t('tripDetail.fromLowFareRadar', { defaultValue: 'Selected from Low Fare Radar' })}</Text>
+                                            </View>
+                                        )}
+
+                                        {/* Price */}
+                                        <View style={{ marginBottom: 12 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                                                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text }}>€{Math.round(selected.pricePerPerson)}</Text>
+                                                <Text style={{ fontSize: 13, color: colors.textMuted, marginLeft: 4 }}>{t('tripDetail.perPerson')}</Text>
+                                                {selected.luggage && (
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', backgroundColor: isDarkMode ? colors.secondary : '#F0FDFA', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                                                        <Ionicons name="briefcase-outline" size={14} color={colors.primary} />
+                                                        <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600', marginLeft: 4 }}>{selected.luggage}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            {selected.totalPrice && (
+                                                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>€{Math.round(selected.totalPrice)} {t('tripDetail.totalFor2', { defaultValue: 'total for 2' })}</Text>
+                                            )}
+                                        </View>
+
+                                        {/* Outbound */}
+                                        {selected.outbound && (
+                                            <View style={{ marginBottom: 12 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                    <Ionicons name="airplane" size={18} color={colors.primary} />
+                                                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginLeft: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('tripDetail.outbound')}</Text>
+                                                </View>
+                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <View>
+                                                        <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{selected.outbound.airline}</Text>
+                                                        {selected.outbound.flightNumber ? <Text style={{ fontSize: 12, color: colors.textMuted }}>{selected.outbound.flightNumber}</Text> : null}
+                                                    </View>
+                                                    {selected.outbound.duration ? <Text style={{ fontSize: 13, color: colors.textMuted }}>{selected.outbound.duration}</Text> : null}
+                                                </View>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
+                                                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{selected.outbound.departure}</Text>
+                                                    <Ionicons name="arrow-forward" size={14} color={colors.textMuted} />
+                                                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{selected.outbound.arrival}</Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Return */}
+                                        {selected.return && (
+                                            <>
+                                                <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, marginVertical: 12 }} />
+                                                <View style={{ marginBottom: 12 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                        <Ionicons name="airplane" size={18} color={colors.primary} style={{ transform: [{ scaleX: -1 }] }} />
+                                                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, marginLeft: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('tripDetail.return')}</Text>
+                                                    </View>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <View>
+                                                            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{selected.return.airline}</Text>
+                                                            {selected.return.flightNumber ? <Text style={{ fontSize: 12, color: colors.textMuted }}>{selected.return.flightNumber}</Text> : null}
+                                                        </View>
+                                                        {selected.return.duration ? <Text style={{ fontSize: 13, color: colors.textMuted }}>{selected.return.duration}</Text> : null}
+                                                    </View>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
+                                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{selected.return.departure}</Text>
+                                                        <Ionicons name="arrow-forward" size={14} color={colors.textMuted} />
+                                                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{selected.return.arrival}</Text>
+                                                    </View>
+                                                </View>
+                                            </>
+                                        )}
+
+                                        {/* Book button for deals with bookingUrl */}
+                                        {selected.bookingUrl && (
+                                            <TouchableOpacity
+                                                style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}
+                                                onPress={() => Linking.openURL(selected.bookingUrl)}
+                                            >
+                                                <Text style={{ color: '#000', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.bookThisFlight', { defaultValue: 'Book This Flight' })}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                );
+                            })()}
+
                             {/* Trip.com Search Card */}
                             <TouchableOpacity
                                 style={{
@@ -3192,8 +3523,15 @@ export default function TripDetails() {
                 </View>
             </ScrollView>
 
+            {/* Trip detail guide — Edit tooltip */}
+            {currentDetailGuideKey === 'edit' && (
+                <View style={{ position: 'absolute', bottom: 80, left: 0, right: 0 }}>
+                    <TripGuideTooltip step={DETAIL_GUIDE_STEPS[detailGuideStep]} currentIndex={detailGuideStep} totalSteps={DETAIL_GUIDE_STEPS.length} onNext={advanceDetailGuide} onSkip={dismissDetailGuide} />
+                </View>
+            )}
+
             {/* Floating Action Bar */}
-            <View style={[styles.fabContainer, { bottom: 24 + insets.bottom }]}>
+            <View style={styles.fabContainer}>
                 <View style={[styles.fab, { backgroundColor: colors.primary }]}>
                     <TouchableOpacity style={styles.fabIconButton} onPress={() => setIsEditing(true)}>
                         <Ionicons name="pencil" size={20} color={colors.text} />
@@ -4207,6 +4545,20 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     // Flight-related styles
+    dealFlightBanner: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    dealFlightBannerText: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: "#000",
+    },
     bestPriceBanner: {
         flexDirection: "row",
         alignItems: "center",
