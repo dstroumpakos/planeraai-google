@@ -286,6 +286,8 @@ export const getSettings = authQuery({
       tripReminders: v.optional(v.boolean()),
       aiDataConsent: v.optional(v.boolean()),
       aiDataConsentDate: v.optional(v.float64()),
+      hasSeenFirstTripGuide: v.optional(v.boolean()),
+      hasSeenTripDetailGuide: v.optional(v.boolean()),
     }),
     handler: async (ctx: any) => {
         const settings = await ctx.db
@@ -320,6 +322,8 @@ export const getSettings = authQuery({
                 tripReminders: undefined,
                 aiDataConsent: undefined,
                 aiDataConsentDate: undefined,
+                hasSeenFirstTripGuide: undefined,
+                hasSeenTripDetailGuide: undefined,
             };
         }
 
@@ -354,6 +358,8 @@ export const getSettings = authQuery({
             tripReminders: settings.tripReminders,
             aiDataConsent: settings.aiDataConsent,
             aiDataConsentDate: settings.aiDataConsentDate,
+            hasSeenFirstTripGuide: settings.hasSeenFirstTripGuide,
+            hasSeenTripDetailGuide: settings.hasSeenTripDetailGuide,
         };
     },
 });
@@ -768,19 +774,18 @@ const PRODUCT_IDS = {
     SINGLE_TRIP: "com.planeraaitravelplanner.trip.single",
 };
 
-// Process IAP purchase (called after successful StoreKit / Google Play Billing purchase)
+// Process IAP purchase (called after successful purchase)
 export const processPurchase = authMutation({
     args: {
         token: v.string(),
         productId: v.string(),
         transactionId: v.string(),
         receipt: v.optional(v.string()),
-        platform: v.optional(v.union(v.literal("ios"), v.literal("android"))),
     },
     handler: async (ctx: any, args: any) => {
-        const { productId, transactionId, receipt, platform } = args;
+        const { productId, transactionId, receipt } = args;
         
-        console.log(`[IAP] Processing purchase: ${productId}, txn: ${transactionId}, platform: ${platform || "unknown"}`);
+        console.log(`[IAP] Processing purchase: ${productId}, txn: ${transactionId}`);
 
         // Check if this transaction was already processed (idempotency)
         const existingTx = await ctx.db
@@ -799,7 +804,6 @@ export const processPurchase = authMutation({
             productId,
             transactionId,
             receipt: receipt || "",
-            platform: platform || "ios",
             processedAt: Date.now(),
             status: "completed",
         });
@@ -874,11 +878,10 @@ export const restorePurchases = authMutation({
             transactionId: v.string(),
             receipt: v.optional(v.string()),
         })),
-        platform: v.optional(v.union(v.literal("ios"), v.literal("android"))),
     },
     handler: async (ctx: any, args: any) => {
-        const { purchases, platform } = args;
-        console.log(`[IAP] Restoring ${purchases.length} purchases, platform: ${platform || "unknown"}`);
+        const { purchases } = args;
+        console.log(`[IAP] Restoring ${purchases.length} purchases`);
 
         let restoredSubscription = false;
         let restoredCredits = 0;
@@ -901,7 +904,6 @@ export const restorePurchases = authMutation({
                 productId: purchase.productId,
                 transactionId: purchase.transactionId,
                 receipt: purchase.receipt || "",
-                platform: platform || "ios",
                 processedAt: Date.now(),
                 status: "restored",
             });
@@ -966,10 +968,6 @@ export const restorePurchases = authMutation({
         };
     },
 });
-
-// Backward-compatible aliases (iOS app may still reference old names)
-export const processApplePurchase = processPurchase;
-export const restoreApplePurchases = restorePurchases;
 
 // Check entitlements (can user generate a trip?)
 export const checkEntitlements = authQuery({
