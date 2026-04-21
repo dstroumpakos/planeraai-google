@@ -24,6 +24,8 @@ const CONVEX_URL = process.env.EXPO_PUBLIC_CONVEX_URL;
 
 // Google Web Client ID for native sign-in (needed for idToken)
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+// Google Android Client ID (used on Android instead of web client ID)
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
 // Types - exported for use by consumers
 export interface AuthUser {
@@ -228,13 +230,14 @@ function createNativeAuthClient() {
     try {
       const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
       
-      if (!GOOGLE_WEB_CLIENT_ID) {
-        console.warn("[Auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set");
+      const clientId = Platform.OS === "android" ? GOOGLE_ANDROID_CLIENT_ID : GOOGLE_WEB_CLIENT_ID;
+      if (!clientId) {
+        console.warn("[Auth] Google client ID not set for platform:", Platform.OS);
         return;
       }
       
       GoogleSignin.configure({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
+        webClientId: clientId,
         offlineAccess: true,
         scopes: ["profile", "email"],
       });
@@ -262,14 +265,14 @@ function createNativeAuthClient() {
       
       // ALWAYS configure on the same instance we'll use for signIn()
       // This prevents "apiClient is null" errors from stale/separate module references
-      if (!GOOGLE_WEB_CLIENT_ID) {
-        return { data: null, error: new Error("Google Web Client ID not configured") };
+      const clientId = Platform.OS === "android" ? GOOGLE_ANDROID_CLIENT_ID : GOOGLE_WEB_CLIENT_ID;
+      if (!clientId) {
+        return { data: null, error: new Error("Google client ID not configured for platform: " + Platform.OS) };
       }
       
-      console.log("[Auth] Configuring Google Sign-In...");
-      // webClientId is required for idToken; Android client ID comes from google-services.json
+      console.log("[Auth] Configuring Google Sign-In for platform:", Platform.OS);
       GoogleSignin.configure({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
+        webClientId: clientId,
         offlineAccess: true,
         scopes: ["profile", "email"],
       });
