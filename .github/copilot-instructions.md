@@ -36,3 +36,9 @@ Bloom is a full-stack Expo/React Native travel planning app with a Convex backen
 - All 6 language files in `lib/i18n/` must stay in sync
 - Add English first, then all other languages
 - Arabic (ar) is RTL — consider layout implications
+
+### Version Bumping
+- **After every code change**, increment the PATCH version in `app.json` (`"version"` field)
+- Format: `MAJOR.MINOR.PATCH` — always bump PATCH unless a feature (MINOR) or breaking change (MAJOR)
+- Always confirm the bump in the completion message, e.g. "Also bumped version to 1.1.2."
+- Skip only for pure documentation (markdown-only) changes
