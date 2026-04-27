@@ -10,6 +10,7 @@
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
         "RCT_NEW_ARCH_ENABLED": "1",
         "NO_FLIPPER": "1",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "463771409712-aajcv6fpkmphvk1k185i2f6r1vfq0ugo.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "463771409712-71grqcks934otv07anuu9bmg4c2ieent.apps.googleusercontent.com"
       },
       "cache": {

@@ -230,9 +230,13 @@ function createNativeAuthClient() {
     try {
       const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
       
-      const clientId = Platform.OS === "android" ? GOOGLE_ANDROID_CLIENT_ID : GOOGLE_WEB_CLIENT_ID;
+      // IMPORTANT: `webClientId` must always be the Web OAuth client (type 3).
+      // On Android, the native SDK auto-selects the Android OAuth client (type 1)
+      // via package name + signing-key SHA-1; passing the Android client ID here
+      // causes DEVELOPER_ERROR (code 10) / missing idToken.
+      const clientId = GOOGLE_WEB_CLIENT_ID;
       if (!clientId) {
-        console.warn("[Auth] Google client ID not set for platform:", Platform.OS);
+        console.warn("[Auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set");
         return;
       }
       
@@ -264,10 +268,12 @@ function createNativeAuthClient() {
       const { GoogleSignin, statusCodes } = await import("@react-native-google-signin/google-signin");
       
       // ALWAYS configure on the same instance we'll use for signIn()
-      // This prevents "apiClient is null" errors from stale/separate module references
-      const clientId = Platform.OS === "android" ? GOOGLE_ANDROID_CLIENT_ID : GOOGLE_WEB_CLIENT_ID;
+      // This prevents "apiClient is null" errors from stale/separate module references.
+      // `webClientId` MUST be the Web OAuth client on both iOS and Android — the
+      // Android client (type 1) is auto-resolved natively from package + SHA-1.
+      const clientId = GOOGLE_WEB_CLIENT_ID;
       if (!clientId) {
-        return { data: null, error: new Error("Google client ID not configured for platform: " + Platform.OS) };
+        return { data: null, error: new Error("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not configured") };
       }
       
       console.log("[Auth] Configuring Google Sign-In for platform:", Platform.OS);
