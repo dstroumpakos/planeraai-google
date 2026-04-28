@@ -849,4 +849,37 @@ export default defineSchema({
         .index("by_referrer", ["referrerId"])
         .index("by_code", ["referralCode"])
         .index("by_referred_user", ["referredUserId"]),
+
+    // WorldPrint — user's living globe profile
+    worldPrintProfile: defineTable({
+        userId: v.string(),
+        signatureColor: v.string(),
+        claimedQuestIds: v.array(v.string()),
+        lifetimeQuestsCompleted: v.float64(),
+        lastActivityAt: v.float64(),
+        publicCode: v.string(),
+        createdAt: v.float64(),
+        title: v.optional(v.string()),
+        globeSkin: v.optional(v.string()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_public_code", ["publicCode"]),
+
+    // WorldPrint — individual city visits (verified or planned)
+    worldPrintVisits: defineTable({
+        userId: v.string(),
+        cityId: v.string(),
+        countryCode: v.string(),
+        status: v.union(
+            v.literal("verified"),
+            v.literal("planned"),
+            v.literal("manual"),
+            v.literal("claimed"),
+            v.literal("holographic")
+        ),
+        tripId: v.optional(v.id("trips")),
+        verifiedAt: v.float64(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_and_city", ["userId", "cityId"]),
 });

@@ -516,3 +516,88 @@ export const getCityCatalog = query({
     }));
   },
 });
+
+// ---- Demo / seed: populate the current user's WorldPrint with sample cities ----
+// Useful for testing how the globe looks. Idempotent — won't duplicate visits.
+// Safe in prod: it only writes to the calling user's own data.
+
+export const seedDemoVisits = authMutation({
+  args: {},
+  handler: async (ctx: any, _args: any) => {
+    const userId: string = ctx.user.userId;
+    await getOrCreateProfileDoc(ctx, userId);
+
+    const verifiedIds = [
+      "london-gb",
+      "paris-fr",
+      "rome-it",
+      "barcelona-es",
+      "amsterdam-nl",
+      "athens-gr",
+      "santorini-gr",
+      "istanbul-tr",
+      "nyc-us",
+      "tokyo-jp",
+      "bangkok-th",
+      "dubai-ae",
+    ];
+    const plannedIds = [
+      "reykjavik-is",
+      "kyoto-jp",
+      "marrakech-ma",
+      "rio-br",
+    ];
+
+    let added = 0;
+    const now = Date.now();
+
+    for (const cityId of [...verifiedIds, ...plannedIds]) {
+      const city = getCityById(cityId);
+      if (!city) continue;
+      const existing = await ctx.db
+        .query("worldPrintVisits")
+        .withIndex("by_user_and_city", (q: any) =>
+          q.eq("userId", userId).eq("cityId", cityId)
+        )
+        .unique();
+      if (existing) continue;
+
+      const status = verifiedIds.includes(cityId) ? "verified" : "planned";
+      await ctx.db.insert("worldPrintVisits", {
+        userId,
+        cityId,
+        countryCode: city.countryCode,
+        status,
+        verifiedAt: now,
+      });
+      added++;
+    }
+
+    const profile = await ctx.db
+      .query("worldPrintProfile")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .unique();
+    if (profile) {
+      await ctx.db.patch(profile._id, { lastActivityAt: now });
+    }
+
+    return { added };
+  },
+});
+
+// ---- Demo / clear: wipe the current user's WorldPrint visits ----
+
+export const clearMyVisits = authMutation({
+  args: {},
+  handler: async (ctx: any, _args: any) => {
+    const userId: string = ctx.user.userId;
+    const visits = await ctx.db
+      .query("worldPrintVisits")
+      .withIndex("by_user", (q: any) => q.eq("userId", userId))
+      .collect();
+    for (const v of visits) {
+      await ctx.db.delete(v._id);
+    }
+    return { removed: visits.length };
+  },
+});

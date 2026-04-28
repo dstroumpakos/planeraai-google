@@ -2,7 +2,7 @@
   "expo": {
     "name": "Planera AI Travel Planner",
     "slug": "planera-ai-travel-planner",
-    "version": "1.1.4",
+    "version": "1.1.5",
     "orientation": "portrait",
     "icon": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
     "scheme": "planera",
@@ -83,7 +83,11 @@
           "color": "#1B3F92",
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-image",
+      "expo-localization",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true
