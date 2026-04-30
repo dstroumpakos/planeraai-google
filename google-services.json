@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "463771409712-i9or2kgba02a97nettg6o66q6i1ff7g0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dstroump.planeraaitravelplanner",
+            "certificate_hash": "540bca133f29418d3f0cae7744cced597486574e"
+          }
+        },
+        {
           "client_id": "463771409712-aajcv6fpkmphvk1k185i2f6r1vfq0ugo.apps.googleusercontent.com",
           "client_type": 3
         }

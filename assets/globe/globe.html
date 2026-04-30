@@ -351,7 +351,15 @@
     .ringPropagationSpeed(1.4)
     .ringRepeatPeriod(1500);
 
-  // City markers — custom 3D pin (cone + glowing sphere) for premium feel
+  // City markers — a classic flag-pin: a thin metallic pole sticking out of
+  // the globe surface, with a small rectangular flag attached at the top
+  // showing the country flag image. Heroes (verified / holographic) get a
+  // taller pole, larger flag, and a glowing base halo.
+  //
+  // Performance: we keep a flat list of active pins so the per-frame loop
+  // doesn't walk the entire scene tree. Old pins are removed from the list
+  // when globe.gl disposes them via customLayerData updates.
+  const _activePins = [];
   globe
     .customLayerData([])
     .customThreeObject((d) => {
@@ -360,54 +368,121 @@
       const isHero = d.status === 'verified' || d.status === 'holographic';
       const color = new THREE.Color(d.color);
 
-      // Glowing core sphere
-      const coreSize = isHero ? 1.0 : 0.55;
-      const core = new THREE.Mesh(
-        new THREE.SphereGeometry(coreSize, 16, 16),
+      // ── Pin pole ──
+      // Cylinder is Y-up by default. We rotate the whole group so its local
+      // +Z points radially outward; here we orient the pole along +Z.
+      const poleHeight = isHero ? 4.4 : 3.0;
+      const poleRadius = isHero ? 0.09 : 0.07;
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(poleRadius, poleRadius, poleHeight, 8),
+        new THREE.MeshPhongMaterial({
+          color: 0xC8D0DA,
+          specular: 0xFFFFFF,
+          shininess: 80,
+        })
+      );
+      pole.rotation.x = Math.PI / 2;
+      pole.position.z = poleHeight / 2;
+      group.add(pole);
+
+      // ── Pinhead bead at the tip ──
+      const bead = new THREE.Mesh(
+        new THREE.SphereGeometry(poleRadius * 1.8, 8, 8),
+        new THREE.MeshPhongMaterial({
+          color: color.clone().multiplyScalar(1.1),
+          specular: 0xFFFFFF,
+          shininess: 120,
+          emissive: color,
+          emissiveIntensity: 0.35,
+        })
+      );
+      bead.position.z = poleHeight;
+      group.add(bead);
+
+      // ── Base halo on the surface ──
+      const baseGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(isHero ? 0.55 : 0.34, 10, 10),
         new THREE.MeshBasicMaterial({
           color,
           transparent: true,
-          opacity: isHero ? 1 : 0.85,
+          opacity: 0.7,
+          depthWrite: false,
         })
       );
-      group.add(core);
+      group.add(baseGlow);
 
-      // Outer halo
       if (isHero) {
         const halo = new THREE.Mesh(
-          new THREE.SphereGeometry(coreSize * 2.4, 24, 24),
+          new THREE.SphereGeometry(1.1, 14, 14),
           new THREE.MeshBasicMaterial({
             color,
             transparent: true,
-            opacity: 0.22,
+            opacity: 0.18,
             depthWrite: false,
           })
         );
         group.add(halo);
-
-        // Inner glow ring (billboarded)
-        const ringGeo = new THREE.RingGeometry(coreSize * 1.4, coreSize * 1.7, 32);
-        const ringMat = new THREE.MeshBasicMaterial({
-          color,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.5,
-          depthWrite: false,
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.lookAt(new THREE.Vector3(0, 0, 0));
-        group.add(ring);
       }
 
-      group.userData = { isHero, baseColor: color };
+      // ── Flag attached at the top of the pole ──
+      // Sized like a real pin-flag: roughly 3:2 aspect, attached at one short
+      // edge to the pole. Few segments are enough for a believable wave.
+      const flagW = isHero ? 3.2 : 2.4;
+      const flagH = isHero ? 2.0 : 1.5;
+      const segs = 6;
+      const flagGeo = new THREE.PlaneGeometry(flagW, flagH, segs, 1);
+      // Shift so the left edge is at x=0 (attached to the pole).
+      flagGeo.translate(flagW / 2, 0, 0);
+
+      const flagTex = makeFlagTexture(d.countryCode, d.name, isHero);
+      const flagMat = new THREE.MeshBasicMaterial({
+        map: flagTex,
+        side: THREE.DoubleSide,
+        transparent: true,
+      });
+      const flag = new THREE.Mesh(flagGeo, flagMat);
+      flag.frustumCulled = false;
+
+      // Position the flag near the top of the pole, slightly below the bead.
+      flag.position.set(0, 0, poleHeight - flagH * 0.25);
+
+      // Pre-compute and cache per-vertex base positions + normalized width.
+      const posAttr = flagGeo.attributes.position;
+      const vCount = posAttr.count;
+      const widths = new Float32Array(vCount);
+      const baseY = new Float32Array(vCount);
+      const baseZ = new Float32Array(vCount);
+      for (let i = 0; i < vCount; i++) {
+        widths[i] = posAttr.getX(i) / flagW;
+        baseY[i] = posAttr.getY(i);
+        baseZ[i] = posAttr.getZ(i);
+      }
+      flag.userData = {
+        isPinFlag: true,
+        widths,
+        baseY,
+        baseZ,
+        phase: Math.random() * Math.PI * 2,
+        isHero,
+      };
+      group.add(flag);
+
+      // Track for fast per-frame iteration.
+      group.userData = { isPinGroup: true, isHero, baseColor: color, flag };
+      _activePins.push(group);
+
+      // When globe.gl removes this group, drop it from the active list.
+      group.addEventListener && group.addEventListener('removed', () => {
+        const i = _activePins.indexOf(group);
+        if (i >= 0) _activePins.splice(i, 1);
+      });
       return group;
     })
     .customThreeObjectUpdate((obj, d) => {
-      // Place at the right lat/lng on the globe surface (with a tiny altitude lift)
-      const alt = d.altitude;
-      const coords = globe.getCoords(d.lat, d.lng, alt);
+      // Place the group on the surface at the right lat/lng, oriented so its
+      // local +Z points radially outward from the globe center.
+      const coords = globe.getCoords(d.lat, d.lng, 0);
       obj.position.set(coords.x, coords.y, coords.z);
-      // Make halos face the camera
       obj.lookAt(new THREE.Vector3(0, 0, 0));
       obj.rotateY(Math.PI);
     });
@@ -457,6 +532,179 @@
   fit();
   window.addEventListener('resize', fit);
   window.addEventListener('orientationchange', fit);
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // Cache of loaded flag <img>s keyed by ISO-2 code (lowercase). The PNGs come
+  // from flagcdn.com which serves a wide rectangular flag for every ISO code.
+  const _flagImageCache = new Map();
+  function loadFlagImage(cc) {
+    if (!cc) return null;
+    const key = cc.toLowerCase();
+    if (_flagImageCache.has(key)) return _flagImageCache.get(key);
+    const entry = { img: new Image(), loaded: false, failed: false, listeners: [] };
+    entry.img.crossOrigin = 'anonymous';
+    entry.img.onload = () => {
+      entry.loaded = true;
+      entry.listeners.forEach((cb) => { try { cb(); } catch (e) {} });
+      entry.listeners.length = 0;
+    };
+    entry.img.onerror = () => {
+      entry.failed = true;
+      entry.listeners.forEach((cb) => { try { cb(); } catch (e) {} });
+      entry.listeners.length = 0;
+    };
+    entry.img.src = 'https://flagcdn.com/w320/' + key + '.png';
+    _flagImageCache.set(key, entry);
+    return entry;
+  }
+
+  // Builds a CanvasTexture for a pin-flag — a clean rectangular country flag
+  // image with a thin border. The flag PNG loads asynchronously; the texture
+  // is redrawn and flagged for update once the image arrives. Cached by
+  // `${cc}|${hero}`. The `name` arg is unused now but kept for cache-key
+  // back-compat with earlier callers.
+  const _flagTexCache = new Map();
+  function makeFlagTexture(cc, _name, isHero) {
+    const key = (cc || '') + '|' + (isHero ? '1' : '0');
+    if (_flagTexCache.has(key)) return _flagTexCache.get(key);
+
+    // 3:2 aspect — matches the PlaneGeometry used for the flag mesh.
+    const W = 384, H = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const tex = new THREE.CanvasTexture(canvas);
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+
+      const flag = cc ? loadFlagImage(cc) : null;
+      if (flag && flag.loaded) {
+        ctx.drawImage(flag.img, 0, 0, W, H);
+      } else {
+        // Placeholder: solid colored rect with the country code.
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, '#1E3A8A');
+        grad.addColorStop(1, '#0F172A');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#F8FAFC';
+        ctx.font = 'bold 96px -apple-system,system-ui,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((cc || '?').toUpperCase(), W / 2, H / 2);
+      }
+
+      // Subtle inner border to give the flag a printed-edge feel.
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = isHero ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.25)';
+      ctx.strokeRect(3, 3, W - 6, H - 6);
+
+      tex.needsUpdate = true;
+    };
+
+    draw();
+
+    // If the flag image is still loading, redraw once it arrives.
+    const flagEntry = cc ? loadFlagImage(cc) : null;
+    if (flagEntry && !flagEntry.loaded && !flagEntry.failed) {
+      flagEntry.listeners.push(draw);
+    }
+
+    tex.anisotropy = 8;
+    if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    else if ('encoding' in tex) tex.encoding = THREE.sRGBEncoding;
+    _flagTexCache.set(key, tex);
+    return tex;
+  }
+
+  // Per-frame animation for the pin-flags:
+  //  • billboards each pin around its local radial axis (+Z) so the flag
+  //    surface faces the camera regardless of globe rotation.
+  //  • applies a subtle wave deformation to the flag's vertices, with the
+  //    amplitude rising from 0 at the pole edge to max at the trailing edge.
+  //
+  // Perf notes:
+  //  - We iterate _activePins (a flat array), not scene.traverse(), so cost is
+  //    O(N pins) instead of O(N scene nodes).
+  //  - The wave geometry update only runs at ~30fps and only for pins that are
+  //    facing the camera (dot(pinNormal, camDir) > 0) and within zoom range.
+  //  - Billboarding still runs every frame because it's cheap.
+  const _zAxis = new THREE.Vector3(0, 0, 1);
+  let _lastWaveTime = 0;
+  function animateBeacons() {
+    try {
+      const now = performance.now();
+      const t = now / 1000;
+      const cam = globe.camera && globe.camera();
+      if (cam && _activePins.length) {
+        const camWorld = new THREE.Vector3();
+        cam.getWorldPosition(camWorld);
+        const camDist = camWorld.length();
+        // Skip waves entirely when zoomed far out — they're not visible anyway.
+        const wavesEnabled = camDist < 420;
+        // Throttle wave updates to ~30fps.
+        const doWaves = wavesEnabled && (now - _lastWaveTime > 33);
+        if (doWaves) _lastWaveTime = now;
+
+        const localCam = new THREE.Vector3();
+        const pinWorld = new THREE.Vector3();
+        const camDir = new THREE.Vector3();
+
+        for (let i = 0; i < _activePins.length; i++) {
+          const group = _activePins[i];
+          if (!group || !group.parent) continue;
+
+          // Billboard around local +Z so the flag faces the camera.
+          localCam.copy(camWorld);
+          group.worldToLocal(localCam);
+          const angle = Math.atan2(localCam.y, localCam.x);
+          group.rotateOnAxis(_zAxis, angle);
+
+          if (!doWaves) continue;
+
+          // Skip waves on pins that face away from the camera.
+          group.getWorldPosition(pinWorld);
+          camDir.copy(camWorld).sub(pinWorld);
+          if (pinWorld.dot(camDir) < 0) continue; // back of globe
+
+          const flag = group.userData && group.userData.flag;
+          if (!flag) continue;
+          const u = flag.userData;
+          const pos = flag.geometry.attributes.position;
+          const widths = u.widths;
+          const baseY = u.baseY;
+          const baseZ = u.baseZ;
+          const phase = u.phase;
+          const amp = u.isHero ? 0.18 : 0.12;
+          for (let j = 0; j < pos.count; j++) {
+            const w = widths[j];
+            const wave = Math.sin(t * 4 + phase + w * 6) * amp * w;
+            const curl = Math.sin(t * 3 + phase + w * 5) * (amp * 0.4) * w;
+            pos.setY(j, baseY[j] + curl);
+            pos.setZ(j, baseZ[j] + wave);
+          }
+          pos.needsUpdate = true;
+        }
+      }
+    } catch (e) {}
+    requestAnimationFrame(animateBeacons);
+  }
+  requestAnimationFrame(animateBeacons);
 
   // Hex → RGB helper
   function hexToRgb(hex) {
@@ -519,6 +767,7 @@
       lng: v.city.lng,
       name: v.city.name,
       country: v.city.country,
+      countryCode: v.city.countryCode,
       status: v.status,
       altitude: altitudeForVisit(v),
       color: colorForVisit(v),
@@ -556,8 +805,9 @@
     }
     globe.arcsData(arcs);
 
-    // Show labels for top 5 hero cities
-    globe.htmlElementsData(verified.slice(0, 5));
+    // City names are now rendered on the flag billboard at the top of each
+    // beacon, so the separate HTML name chips are no longer needed.
+    globe.htmlElementsData([]);
 
     // Add raycasting click on custom layer points
     // (globe.gl exposes onCustomLayerClick)

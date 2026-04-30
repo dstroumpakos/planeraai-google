@@ -879,6 +879,12 @@ export default defineSchema({
         ),
         tripId: v.optional(v.id("trips")),
         verifiedAt: v.float64(),
+        // How this visit was verified: "trip" (completed trip with past end date),
+        // "gps" (user checked in while physically near the city), "manual".
+        verifiedSource: v.optional(v.string()),
+        // Last GPS check-in coordinates (for audit / display only).
+        lastCheckInLat: v.optional(v.float64()),
+        lastCheckInLng: v.optional(v.float64()),
     })
         .index("by_user", ["userId"])
         .index("by_user_and_city", ["userId", "cityId"]),

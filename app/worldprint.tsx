@@ -84,6 +84,11 @@ export default function WorldPrintScreen() {
     return data.visits as GlobeVisit[];
   }, [data?.visits]);
 
+  const hasGpsVisits = useMemo(
+    () => (data?.visits ?? []).some((v: any) => v?.verifiedSource === "gps"),
+    [data?.visits]
+  );
+
   const signatureColor = data?.profile?.signatureColor ?? "#F59E0B";
   const stats = data?.stats ?? { totalCities: 0, totalCountries: 0, totalPlanned: 0 };
   const quests = data?.quests ?? [];
@@ -242,6 +247,7 @@ export default function WorldPrintScreen() {
               <Ionicons name="sparkles" size={20} color="#FBBF24" />
             </TouchableOpacity>
           ) : (
+            !hasGpsVisits && (
             <TouchableOpacity
               style={styles.iconButton}
               hitSlop={10}
@@ -269,6 +275,7 @@ export default function WorldPrintScreen() {
             >
               <Ionicons name="trash-outline" size={20} color="#F87171" />
             </TouchableOpacity>
+            )
           )}
           <TouchableOpacity
             style={styles.iconButton}
