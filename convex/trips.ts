@@ -472,6 +472,112 @@ export const updateItinerary = internalMutation({
     },
 });
 
+/**
+ * Replace just the dayByDayItinerary inside the existing itinerary blob.
+ * Used by the post-generation translation pass which produces a
+ * translated copy of the days but must preserve all other fields
+ * (flights, hotels, transportation, expenses) untouched.
+ */
+export const replaceItineraryDays = internalMutation({
+    args: {
+        tripId: v.id("trips"),
+        dayByDayItinerary: v.any(),
+    },
+    returns: v.null(),
+    handler: async (ctx: any, args: any) => {
+        const trip = await ctx.db.get(args.tripId);
+        if (!trip || !trip.itinerary) return null;
+        await ctx.db.patch(args.tripId, {
+            itinerary: { ...trip.itinerary, dayByDayItinerary: args.dayByDayItinerary },
+        });
+        return null;
+    },
+});
+
+/**
+ * Heartbeat: tiny no-op mutation called between major steps of the
+ * generation action. Writing to Convex periodically prevents the
+ * scheduler from incorrectly marking a long-running Node action as
+ * dead and triggering spurious retries (the source of "Transient
+ * error 0ms" log entries).
+ */
+export const heartbeatGeneration = internalMutation({
+    args: { tripId: v.id("trips") },
+    returns: v.null(),
+    handler: async (ctx: any, args: any) => {
+        // No-op patch — touches the row without changing meaningful state.
+        await ctx.db.patch(args.tripId, {});
+        return null;
+    },
+});
+
+/**
+ * Watchdog: marks trips stuck in "generating" status as "failed".
+ *
+ * Scheduled trip generation actions can fail at the Convex platform level
+ * (transient errors, cold-start failures) before our handler ever runs.
+ * When that happens the trip stays in "generating" forever. This watchdog
+ * sweeps any trip that has been "generating" for longer than the threshold
+ * and marks it failed so the user sees a clear error state instead of an
+ * infinite spinner.
+ */
+export const failStuckGeneratingTrips = internalMutation({
+    args: {},
+    returns: v.object({
+        scanned: v.float64(),
+        failed: v.float64(),
+    }),
+    handler: async (ctx: any) => {
+        const STUCK_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+        const cutoff = Date.now() - STUCK_THRESHOLD_MS;
+
+        // Cheap early-exit: if no trips are currently "generating", skip all work.
+        // This keeps the watchdog effectively free when the app is idle.
+        const firstGenerating = await ctx.db
+            .query("trips")
+            .withIndex("by_status", (q: any) => q.eq("status", "generating"))
+            .first();
+
+        if (!firstGenerating) {
+            return { scanned: 0, failed: 0 };
+        }
+
+        // Second early-exit: if the oldest "generating" trip is younger than the
+        // threshold, no trip can possibly be stuck yet — skip the full scan.
+        if (firstGenerating._creationTime >= cutoff) {
+            return { scanned: 0, failed: 0 };
+        }
+
+        const stuckTrips = await ctx.db
+            .query("trips")
+            .withIndex("by_status", (q: any) => q.eq("status", "generating"))
+            .collect();
+
+        let failed = 0;
+        for (const trip of stuckTrips) {
+            // _creationTime approximates the start of generation: trips are
+            // created with status="generating" and the action is scheduled
+            // immediately afterwards.
+            if (trip._creationTime < cutoff) {
+                await ctx.db.patch(trip._id, {
+                    status: "failed",
+                    errorMessage:
+                        "Trip generation timed out. Please try again.",
+                });
+                failed++;
+            }
+        }
+
+        if (failed > 0) {
+            console.warn(
+                `🐕 Watchdog: marked ${failed}/${stuckTrips.length} stuck "generating" trips as failed`,
+            );
+        }
+
+        return { scanned: stuckTrips.length, failed };
+    },
+});
+
 export const list = authQuery({
     args: {
         token: v.string(),

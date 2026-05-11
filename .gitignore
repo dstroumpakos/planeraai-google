@@ -46,3 +46,10 @@ yarn-error.*
 scripts/flight-deal-extractor/
 convex/dealExtractor.ts
 credentials.json
+
+# FCM / Firebase service account keys (NEVER commit)
+fcm-service-account.json
+*-firebase-adminsdk-*.json
+planera-*-firebase-adminsdk-*.json
+planera-484015-5bd89b7d4285.json
+planera-484015-b81b2d17adf8.json

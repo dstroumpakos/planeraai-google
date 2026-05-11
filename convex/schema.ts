@@ -122,7 +122,6 @@ export default defineSchema({
         productId: v.string(),
         transactionId: v.string(),
         receipt: v.optional(v.string()),
-        platform: v.optional(v.union(v.literal("ios"), v.literal("android"))),
         processedAt: v.float64(),
         status: v.union(
             v.literal("completed"),
@@ -650,6 +649,42 @@ export default defineSchema({
         .index("by_user_type", ["userId", "type"])
         .index("by_trip_type", ["tripId", "type"]),
 
+    // Admin-initiated push broadcasts (one row per "Send" click in the widget).
+    // Used to track tap-through rate and which deal/notification each tap came from.
+    notificationBroadcasts: defineTable({
+        dealId: v.optional(v.id("lowFareRadar")),
+        // Targeted home airport IATA codes (uppercase)
+        origins: v.array(v.string()),
+        // Mode: "auto" sends localized template per user; "custom" sends a fixed copy
+        mode: v.string(), // "auto" | "custom"
+        // For "custom" mode, the exact copy that was sent
+        customTitle: v.optional(v.string()),
+        customBody: v.optional(v.string()),
+        // Snapshot of the deal's route (for display even if the deal is deleted)
+        routeSnapshot: v.optional(v.string()), // e.g. "ATH → CDG"
+        // Counts at send time
+        targeted: v.float64(),
+        sent: v.float64(),
+        skipped: v.float64(),
+        // Tap counter (incremented when users tap the notification in-app)
+        taps: v.optional(v.float64()),
+        // Unique-user tap counter (incremented only on the first tap per user)
+        uniqueTaps: v.optional(v.float64()),
+        createdAt: v.float64(),
+    })
+        .index("by_createdAt", ["createdAt"])
+        .index("by_deal", ["dealId"]),
+
+    // One row per (broadcast, user) tap — used to compute unique tap counts and
+    // (later) per-user funnel analytics.
+    notificationBroadcastTaps: defineTable({
+        broadcastId: v.id("notificationBroadcasts"),
+        userId: v.string(),
+        tappedAt: v.float64(),
+    })
+        .index("by_broadcast", ["broadcastId"])
+        .index("by_broadcast_user", ["broadcastId", "userId"]),
+
     // V1: AI-generated sights for destinations (no limit)
     destinationSights: defineTable({
         // Link to trip for trip-specific sights
@@ -731,17 +766,17 @@ export default defineSchema({
         // Travel date range (which months this deal covers)
         travelMonthFrom: v.optional(v.string()),  // "2026-04" format
         travelMonthTo: v.optional(v.string()),     // "2026-06" format
-        // Price tracking
-        changeCount: v.optional(v.float64()),       // number of price changes observed
-        changeLog: v.optional(v.array(v.string())), // log of price change events
         // Analytics counters
         planTripClicks: v.optional(v.float64()),    // trips generated from this deal
         bookingClicks: v.optional(v.float64()),     // booking URL opens
+        // Change tracking
+        changeCount: v.optional(v.float64()),       // number of times this deal was updated
+        changeLog: v.optional(v.array(v.string())), // human-readable log of changes e.g. ["price 120→99", "airline Ryanair→Aegean"]
         // Status
         active: v.boolean(),
+        deletedAt: v.optional(v.float64()),  // soft-delete timestamp (24h after expiry)
         createdAt: v.float64(),
         updatedAt: v.optional(v.float64()),
-        deletedAt: v.optional(v.float64()),
     })
         .index("by_origin", ["origin"])
         .index("by_destination", ["destination"])
