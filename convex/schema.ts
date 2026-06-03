@@ -114,7 +114,13 @@ export default defineSchema({
         subscriptionType: v.optional(v.union(v.literal("monthly"), v.literal("yearly"))),
         // Apple IAP tracking
         lastTransactionId: v.optional(v.string()),
-    }).index("by_user", ["userId"]),
+        // Stable per-subscription key from Apple. App Store Server Notifications
+        // and renewals reference this (not the per-renewal transactionId), so we
+        // index it to map an inbound notification back to the owning user.
+        originalTransactionId: v.optional(v.string()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_original_transaction", ["originalTransactionId"]),
 
     // Apple In-App Purchase transaction history
     iapTransactions: defineTable({
@@ -122,6 +128,7 @@ export default defineSchema({
         productId: v.string(),
         transactionId: v.string(),
         receipt: v.optional(v.string()),
+        originalTransactionId: v.optional(v.string()),
         processedAt: v.float64(),
         status: v.union(
             v.literal("completed"),
@@ -761,6 +768,13 @@ export default defineSchema({
         isRecommended: v.optional(v.boolean()),
         dealTag: v.optional(v.string()),  // "HOT DEAL", "LOWEST PRICE"
         bookingUrl: v.optional(v.string()),
+        // SerpApi POST-based booking request (Google clk/f endpoint).
+        // When present, the app resolves it server-side to the real
+        // provider URL via `flightsResolve.resolveBookingUrl`.
+        bookingRequest: v.optional(v.object({
+            url: v.string(),
+            postData: v.string(),
+        })),
         expiresAt: v.optional(v.float64()),
         notes: v.optional(v.string()),
         // Travel date range (which months this deal covers)
@@ -963,6 +977,7 @@ export default defineSchema({
     })
         .index("by_user", ["userId"])
         .index("by_user_and_city", ["userId", "cityId"]),
+
     // ─────────────────────────────────────────────────────────
     // OTA PACKAGES — Partner travel packages shown in trip view
     // ─────────────────────────────────────────────────────────
@@ -1077,4 +1092,192 @@ export default defineSchema({
         .index("by_package", ["packageId"])
         .index("by_status", ["status"])
         .index("by_trip", ["tripId"]),
-})});
+
+    // SerpApi Google Flights cache. Reduces latency & API quota use by
+    // caching normalized search responses + booking option lookups for a
+    // short window. Stores `any` because the normalized shape is defined in
+    // types/flights.ts and may evolve faster than the schema.
+    flightSearchCache: defineTable({
+        cacheKey: v.string(),
+        kind: v.union(v.literal("search"), v.literal("booking_options")),
+        departureId: v.optional(v.string()),
+        arrivalId: v.optional(v.string()),
+        outboundDate: v.optional(v.string()),
+        returnDate: v.optional(v.string()),
+        type: v.optional(v.string()),
+        currency: v.optional(v.string()),
+        normalizedResults: v.any(),
+        createdAt: v.float64(),
+        expiresAt: v.float64(),
+    })
+        .index("by_cacheKey", ["cacheKey"])
+        .index("by_expires", ["expiresAt"]),
+
+    // Error report throttle — keeps Postmark spam down by recording the
+    // last time each unique error key (source + message hash) was emailed.
+    errorReports: defineTable({
+        key: v.string(),          // sha1(source + message head)
+        source: v.string(),       // e.g. "tripsActions:generateTrip"
+        message: v.string(),
+        count: v.float64(),       // occurrences since first seen
+        firstSeenAt: v.float64(),
+        lastSentAt: v.float64(),
+    })
+        .index("by_key", ["key"]),
+
+    // =========================================================================
+    // Partner Itinerary API (e.g. spytrip.gr) — versioned /v1/ HTTP surface.
+    // These tables back a self-contained partner API that is isolated from the
+    // app's user-session auth. Partners authenticate with a per-partner Bearer
+    // key (stored hashed). Generation is async + cached.
+    // =========================================================================
+
+    // Per-partner API keys. The raw key is shown ONCE at creation; only the
+    // SHA-256 hash is persisted. Each key carries its own rate limit / caps and
+    // an HMAC secret used to sign outbound webhooks.
+    partnerApiKeys: defineTable({
+        keyHash: v.string(),            // SHA-256 hex of the raw Bearer key
+        keyPrefix: v.string(),          // first chars (e.g. "pk_live_AbC1") for display
+        partnerName: v.string(),        // human label, e.g. "spytrip.gr"
+        partnerRef: v.string(),         // stable partner identifier
+        webhookSecret: v.string(),      // HMAC-SHA256 secret for webhook signing
+        active: v.boolean(),
+        rateLimitPerMin: v.float64(),   // requests / minute
+        dailyCap: v.float64(),          // generations / day
+        monthlyCap: v.float64(),        // generations / month
+        createdAt: v.float64(),
+        lastUsedAt: v.optional(v.float64()),
+        revokedAt: v.optional(v.float64()),
+        // Owning partner account (self-service keys). Admin-minted keys have none.
+        accountId: v.optional(v.id("partnerAccounts")),
+    })
+        .index("by_keyHash", ["keyHash"])
+        .index("by_partnerRef", ["partnerRef"])
+        .index("by_account", ["accountId"]),
+
+    // Partner portal accounts. Partners are invited by email, set a password,
+    // then sign in to self-manage their API keys. Password is PBKDF2-hashed.
+    partnerAccounts: defineTable({
+        email: v.string(),              // lowercased, unique login
+        partnerName: v.string(),        // company / brand label
+        partnerRef: v.string(),         // stable partner identifier
+        passwordHash: v.optional(v.string()), // set once invite is accepted
+        status: v.union(
+            v.literal("invited"),
+            v.literal("active"),
+            v.literal("disabled")
+        ),
+        inviteTokenHash: v.optional(v.string()), // SHA-256 of one-time invite token
+        inviteExpiresAt: v.optional(v.float64()),
+        // Default limits applied to keys this partner creates.
+        rateLimitPerMin: v.float64(),
+        dailyCap: v.float64(),
+        monthlyCap: v.float64(),
+        createdAt: v.float64(),
+        activatedAt: v.optional(v.float64()),
+        lastLoginAt: v.optional(v.float64()),
+    })
+        .index("by_email", ["email"])
+        .index("by_inviteTokenHash", ["inviteTokenHash"])
+        .index("by_partnerRef", ["partnerRef"]),
+
+    // Partner portal sessions (separate from app user sessions). Token is
+    // stored hashed; the raw token lives only in the partner's browser.
+    partnerAccountSessions: defineTable({
+        accountId: v.id("partnerAccounts"),
+        tokenHash: v.string(),          // SHA-256 of the session token
+        createdAt: v.float64(),
+        expiresAt: v.float64(),
+    })
+        .index("by_tokenHash", ["tokenHash"])
+        .index("by_account", ["accountId"]),
+
+    // Rolling usage counters per key + window. `bucket` is the window label,
+    // e.g. minute "2026-06-02T14:31", day "2026-06-02", month "2026-06".
+    partnerUsageCounters: defineTable({
+        keyId: v.id("partnerApiKeys"),
+        // "min"/"day"/"month" = metered LLM generations; "cache_day"/"cache_month"
+        // = free cache hits (tracked for analytics only, not billed).
+        window: v.union(
+            v.literal("min"),
+            v.literal("day"),
+            v.literal("month"),
+            v.literal("cache_day"),
+            v.literal("cache_month")
+        ),
+        bucket: v.string(),
+        count: v.float64(),
+        expiresAt: v.float64(),         // for cleanup of stale buckets
+    })
+        .index("by_key_window_bucket", ["keyId", "window", "bucket"])
+        .index("by_expires", ["expiresAt"]),
+
+    // Canonical partner itinerary resource. Doubles as the async job record and
+    // the cache entry. `cacheKey` = hash(normalizedDestination + days + sorted
+    // preferences). `source` records how the result was produced.
+    partnerItineraries: defineTable({
+        itineraryId: v.string(),        // public id, e.g. "itn_AbC123..."
+        cacheKey: v.string(),           // normalized cache key (see above)
+        keyId: v.id("partnerApiKeys"),  // owning partner key
+        partnerRef: v.string(),
+        idempotencyKey: v.optional(v.string()),
+        destination: v.string(),
+        normalizedDestination: v.string(),
+        days: v.float64(),
+        preferences: v.array(v.string()), // sorted, normalized
+        webhookUrl: v.optional(v.string()),
+        isPregenerated: v.optional(v.boolean()), // produced by the pre-gen job
+        status: v.union(
+            v.literal("queued"),
+            v.literal("generating"),
+            v.literal("ready"),
+            v.literal("failed")
+        ),
+        source: v.optional(v.union(
+            v.literal("llm"),
+            v.literal("cache"),
+            v.literal("pregenerated"),
+            v.literal("template")
+        )),
+        itinerary: v.optional(v.any()),   // { days: [ { day, title, stops: [...] } ] }
+        error: v.optional(v.string()),
+        webhookDeliveredAt: v.optional(v.float64()),
+        createdAt: v.float64(),
+        readyAt: v.optional(v.float64()),
+    })
+        .index("by_itineraryId", ["itineraryId"])
+        .index("by_cacheKey", ["cacheKey"])
+        .index("by_idempotency", ["keyId", "idempotencyKey"]),
+
+    // Demand signal for the pre-generation "budget". Every live (cache-miss) LLM
+    // generation records the requested destination + duration here so the
+    // recurring pre-generation cron can fill in the gaps — pre-building the
+    // other common durations for cities partners actually ask for, turning
+    // future requests into instant cache hits.
+    partnerDemand: defineTable({
+        destinationKey: v.string(),      // normalized destination
+        destination: v.string(),         // last-seen display name
+        days: v.float64(),
+        count: v.float64(),              // live generations seen for this combo
+        firstRequestedAt: v.float64(),
+        lastRequestedAt: v.float64(),
+        covered: v.boolean(),            // pre-generation has handled this city
+        coveredAt: v.optional(v.float64()),
+    })
+        .index("by_dest_days", ["destinationKey", "days"])
+        .index("by_covered_count", ["covered", "count"]),
+
+    // Learned canonical spelling for a city. The first time a partner requests a
+    // city we don't pre-generate (e.g. "Porto"), we lock its `cityToken`
+    // (normalized text before the first comma) to that spelling. Every later
+    // variant ("porto", "Porto, Portugal") then canonicalizes to the same value
+    // so it hits the cache instead of triggering a fresh LLM generation. This is
+    // what guarantees every requested city ends up matched correctly.
+    partnerCityCanonical: defineTable({
+        cityToken: v.string(),               // normalized first segment, e.g. "porto"
+        canonicalDestination: v.string(),    // locked spelling, e.g. "Porto, Portugal"
+        createdAt: v.float64(),
+        lastSeenAt: v.float64(),
+    })
+        .index("by_cityToken", ["cityToken"]),
+});
