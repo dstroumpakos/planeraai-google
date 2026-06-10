@@ -878,6 +878,7 @@ export default defineSchema({
         lastCheckInDate: v.string(), // "YYYY-MM-DD"
         streakShieldUsedAt: v.optional(v.float64()),
         totalCheckIns: v.float64(),
+        rewardedMilestones: v.optional(v.array(v.float64())), // streak milestones already paid out
     })
         .index("by_user", ["userId"]),
 
@@ -1113,6 +1114,16 @@ export default defineSchema({
         .index("by_cacheKey", ["cacheKey"])
         .index("by_expires", ["expiresAt"]),
 
+    // Cache for AI-resolved IATA codes. When the static destination→airport
+    // map can't resolve a city, we ask OpenAI for the nearest airport's IATA
+    // code and persist it here so the same place never re-hits OpenAI.
+    iataResolutionCache: defineTable({
+        cityKey: v.string(),      // normalized (lowercased, trimmed) city name
+        iata: v.string(),         // resolved 3-letter IATA code
+        createdAt: v.float64(),
+    })
+        .index("by_cityKey", ["cityKey"]),
+
     // Error report throttle — keeps Postmark spam down by recording the
     // last time each unique error key (source + message hash) was emailed.
     errorReports: defineTable({
@@ -1176,6 +1187,8 @@ export default defineSchema({
         createdAt: v.float64(),
         activatedAt: v.optional(v.float64()),
         lastLoginAt: v.optional(v.float64()),
+        // When the partner accepted the Partner API Terms during signup.
+        acceptedTermsAt: v.optional(v.float64()),
     })
         .index("by_email", ["email"])
         .index("by_inviteTokenHash", ["inviteTokenHash"])

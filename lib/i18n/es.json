@@ -49,6 +49,9 @@
     "byContinuing": "Al continuar, aceptas nuestros",
     "termsOfUse": "Términos de Uso (EULA)",
     "privacyPolicy": "Política de Privacidad",
+    "acceptTermsPrefix": "He leído y acepto los",
+    "and": "y la",
+    "mustAcceptTerms": "Acepta los Términos de Uso y la Política de Privacidad para crear una cuenta.",
     "loadingProfile": "Cargando tu perfil...",
     "errorFillFields": "Por favor completa todos los campos",
     "accountExists": "La Cuenta Ya Existe",
@@ -987,6 +990,8 @@
     "searchOnEsky": "Buscar Vuelos en eSky",
     "searchFlightsOnIberia": "Vuela a España, Europa y Latinoamérica",
     "searchOnIberia": "Buscar Vuelos en Iberia",
+    "searchFlightsOnVolotea": "Vuelos de bajo coste por Europa",
+    "searchOnVolotea": "Buscar Vuelos en Volotea",
     "searchHotelsOnTripcom": "Hoteles y alojamientos en todo el mundo",
     "searchOnTripcomHotels": "Buscar Hoteles en Trip.com",
     "searchStaysOnEsky": "Ofertas de hoteles y alojamientos",
@@ -1437,7 +1442,10 @@
     "longest": "Más larga",
     "totalDays": "Días Totales",
     "shieldActive": "Escudo de Racha Activo",
-    "checkedInToday": "¡Check-in de hoy hecho!"
+    "checkedInToday": "¡Check-in de hoy hecho!",
+    "rewardTitle": "🔥 ¡Racha de {{count}} días!",
+    "rewardMessage_one": "¡Ganaste {{count}} crédito de viaje gratis! Sigue registrándote para más.",
+    "rewardMessage_other": "¡Ganaste {{count}} créditos de viaje gratis! Sigue registrándote para más."
   },
   "referrals": {
     "title": "Invitar Amigos",

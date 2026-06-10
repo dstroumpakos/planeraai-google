@@ -49,6 +49,9 @@
     "byContinuing": "By continuing, you agree to our",
     "termsOfUse": "Terms of Use (EULA)",
     "privacyPolicy": "Privacy Policy",
+    "acceptTermsPrefix": "I have read and accept the",
+    "and": "and",
+    "mustAcceptTerms": "Please accept the Terms of Use and Privacy Policy to create an account.",
     "loadingProfile": "Loading your profile...",
     "errorFillFields": "Please fill in all fields",
     "accountExists": "Account Exists",
@@ -987,6 +990,8 @@
     "searchOnEsky": "Search Flights on eSky",
     "searchFlightsOnIberia": "Fly to Spain, Europe & Latin America",
     "searchOnIberia": "Search Flights on Iberia",
+    "searchFlightsOnVolotea": "Low-cost flights across Europe",
+    "searchOnVolotea": "Search Flights on Volotea",
     "searchHotelsOnTripcom": "Hotels & stays worldwide",
     "searchOnTripcomHotels": "Search Hotels on Trip.com",
     "searchStaysOnEsky": "Hotels & accommodation deals",
@@ -1437,7 +1442,10 @@
     "longest": "Longest",
     "totalDays": "Total Days",
     "shieldActive": "Streak Shield Active",
-    "checkedInToday": "Checked in today!"
+    "checkedInToday": "Checked in today!",
+    "rewardTitle": "🔥 {{count}}-Day Streak!",
+    "rewardMessage_one": "You earned {{count}} free trip credit! Keep checking in for more.",
+    "rewardMessage_other": "You earned {{count}} free trip credits! Keep checking in for more."
   },
   "referrals": {
     "title": "Invite Friends",

@@ -170,27 +170,31 @@ export const getStats = query({
                 category: i.category,
             }));
         
-        // Most active users (by insights count)
-        const userInsightCounts: Record<string, number> = {};
-        allInsights.forEach((insight: any) => {
-            userInsightCounts[insight.userId] = (userInsightCounts[insight.userId] || 0) + 1;
-        });
-        
-        const topUserIds = Object.entries(userInsightCounts)
-            .sort(([, a], [, b]) => b - a)
+        // Most active users (by daily check-in streak)
+        const allStreaks = await ctx.db.query("userStreaks").collect();
+
+        const topStreaks = [...allStreaks]
+            .sort((a: any, b: any) => {
+                const curDiff = (b.currentStreak || 0) - (a.currentStreak || 0);
+                if (curDiff !== 0) return curDiff;
+                return (b.totalCheckIns || 0) - (a.totalCheckIns || 0);
+            })
+            .filter((s: any) => (s.currentStreak || 0) > 0 || (s.totalCheckIns || 0) > 0)
             .slice(0, 5);
-        
+
         const mostActiveUsers = await Promise.all(
-            topUserIds.map(async ([uId, count]) => {
+            topStreaks.map(async (s: any) => {
                 const settings = await ctx.db
                     .query("userSettings")
-                    .withIndex("by_user", (q: any) => q.eq("userId", uId))
+                    .withIndex("by_user", (q: any) => q.eq("userId", s.userId))
                     .first();
                 return {
-                    userId: uId,
+                    userId: s.userId,
                     name: settings?.name || "Unknown",
                     email: settings?.email || "Unknown",
-                    insightsCount: count,
+                    currentStreak: s.currentStreak || 0,
+                    longestStreak: s.longestStreak || 0,
+                    totalCheckIns: s.totalCheckIns || 0,
                 };
             })
         );
@@ -455,17 +459,25 @@ export const listUsers = query({
         if (!userId) throw new Error("Unauthorized");
         await assertAdmin(ctx, userId);
         
-        // Get all userSettings
-        const allSettings = await ctx.db.query("userSettings").take(args.limit || 50);
-        
+        // Get userSettings, newest first. Without an explicit order, `.take()`
+        // returns the OLDEST rows, so new signups never appear once there are
+        // more than `limit` users. When searching we scan a wider window so
+        // recent-but-not-newest matches are still found.
+        const settingsQuery = ctx.db.query("userSettings").order("desc");
+        const allSettings = args.search
+            ? await settingsQuery.take(1000)
+            : await settingsQuery.take(args.limit || 50);
+
         // Filter by search if provided
         let filteredSettings = allSettings;
         if (args.search) {
             const searchLower = args.search.toLowerCase();
-            filteredSettings = allSettings.filter((s: any) => 
-                s.name?.toLowerCase().includes(searchLower) ||
-                s.email?.toLowerCase().includes(searchLower)
-            );
+            filteredSettings = allSettings
+                .filter((s: any) =>
+                    s.name?.toLowerCase().includes(searchLower) ||
+                    s.email?.toLowerCase().includes(searchLower)
+                )
+                .slice(0, args.limit || 50);
         }
         
         // Enrich with user flags and stats

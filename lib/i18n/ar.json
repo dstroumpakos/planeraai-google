@@ -49,6 +49,9 @@
     "byContinuing": "بالمتابعة، فإنك توافق على",
     "termsOfUse": "شروط الاستخدام (EULA)",
     "privacyPolicy": "سياسة الخصوصية",
+    "acceptTermsPrefix": "لقد قرأت وأوافق على",
+    "and": "و",
+    "mustAcceptTerms": "يرجى قبول شروط الاستخدام وسياسة الخصوصية لإنشاء حساب.",
     "loadingProfile": "جاري تحميل ملفك الشخصي...",
     "errorFillFields": "يرجى ملء جميع الحقول",
     "accountExists": "الحساب موجود",
@@ -992,6 +995,8 @@
     "searchOnEsky": "ابحث عن رحلات على eSky",
     "searchFlightsOnIberia": "سافر إلى إسبانيا وأوروبا وأمريكا اللاتينية",
     "searchOnIberia": "ابحث عن رحلات على Iberia",
+    "searchFlightsOnVolotea": "رحلات اقتصادية عبر أوروبا",
+    "searchOnVolotea": "ابحث عن رحلات على Volotea",
     "searchHotelsOnTripcom": "فنادق وإقامات حول العالم",
     "searchOnTripcomHotels": "ابحث عن فنادق على Trip.com",
     "searchStaysOnEsky": "عروض الفنادق والإقامة",
@@ -1437,7 +1442,10 @@
     "longest": "الأطول",
     "totalDays": "إجمالي الأيام",
     "shieldActive": "درع السلسلة نشط",
-    "checkedInToday": "تم تسجيل الدخول اليوم!"
+    "checkedInToday": "تم تسجيل الدخول اليوم!",
+    "rewardTitle": "🔥 سلسلة {{count}} يوم!",
+    "rewardMessage_one": "لقد حصلت على {{count}} رصيد رحلة مجاني! واصل تسجيل الدخول للحصول على المزيد.",
+    "rewardMessage_other": "لقد حصلت على {{count}} أرصدة رحلات مجانية! واصل تسجيل الدخول للحصول على المزيد."
   },
   "referrals": {
     "title": "دعوة الأصدقاء",

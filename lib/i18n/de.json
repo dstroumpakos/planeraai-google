@@ -49,6 +49,9 @@
     "byContinuing": "Durch Fortfahren akzeptieren Sie unsere",
     "termsOfUse": "Nutzungsbedingungen (EULA)",
     "privacyPolicy": "Datenschutzrichtlinie",
+    "acceptTermsPrefix": "Ich habe die",
+    "and": "und die",
+    "mustAcceptTerms": "Bitte akzeptieren Sie die Nutzungsbedingungen und die Datenschutzrichtlinie, um ein Konto zu erstellen.",
     "loadingProfile": "Ihr Profil wird geladen...",
     "errorFillFields": "Bitte füllen Sie alle Felder aus",
     "accountExists": "Konto Existiert Bereits",
@@ -992,6 +995,8 @@
     "searchOnEsky": "Flüge auf eSky suchen",
     "searchFlightsOnIberia": "Flüge nach Spanien, Europa & Lateinamerika",
     "searchOnIberia": "Flüge auf Iberia suchen",
+    "searchFlightsOnVolotea": "Günstige Flüge durch Europa",
+    "searchOnVolotea": "Flüge auf Volotea suchen",
     "searchHotelsOnTripcom": "Hotels & Unterkünfte weltweit",
     "searchOnTripcomHotels": "Hotels auf Trip.com suchen",
     "searchStaysOnEsky": "Hotel- & Unterkunftsangebote",
@@ -1437,7 +1442,10 @@
     "longest": "Längste",
     "totalDays": "Gesamttage",
     "shieldActive": "Serien-Schutzschild Aktiv",
-    "checkedInToday": "Heute eingecheckt!"
+    "checkedInToday": "Heute eingecheckt!",
+    "rewardTitle": "🔥 {{count}}-Tage-Serie!",
+    "rewardMessage_one": "Du hast {{count}} kostenloses Reise-Guthaben erhalten! Checke weiter täglich ein für mehr.",
+    "rewardMessage_other": "Du hast {{count}} kostenlose Reise-Guthaben erhalten! Checke weiter täglich ein für mehr."
   },
   "referrals": {
     "title": "Freunde einladen",
