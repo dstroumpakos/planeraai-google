@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAuthenticatedMutation, useToken } from "@/lib/useAuthenticatedMutation";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
 import * as Location from "expo-location";
 import { useLocationNotifications } from "@/lib/useLocationNotifications";
 import { TripGuideTooltip, GuideStep } from "@/components/FirstTripGuide";
@@ -887,6 +888,8 @@ export default function TripDetails() {
     }, [trip?.itinerary]);
 
     const [accommodationType, setAccommodationType] = useState<'all' | 'hotel' | 'airbnb'>('all');
+    const [staysSortBy, setStaysSortBy] = useState<'recommended' | 'price' | 'rating'>('recommended');
+    const [showMoreWaysToBook, setShowMoreWaysToBook] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({
         destination: "",
@@ -924,7 +927,9 @@ export default function TripDetails() {
     const [addingToCart, setAddingToCart] = useState<string | null>(null); // Track which item is being added
     const [selectedFlightIndex, setSelectedFlightIndex] = useState<number>(0);
     const [checkedBaggageSelected, setCheckedBaggageSelected] = useState<boolean>(false);
-    const [activeFilter, setActiveFilter] = useState<'all' | 'flights' | 'packages' | 'food' | 'sights' | 'stays' | 'transportation' | 'insights'>('all');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'flights' | 'packages' | 'food' | 'sights' | 'stays' | 'transportation' | 'insights' | 'budget'>('all');
+    // Whether the user has manually overridden the auto cheapest selection in the budget view
+    const budgetSelectionTouchedRef = useRef(false);
 
     // ─── OTA Packages partnership ───
     const [inquiryPackage, setInquiryPackage] = useState<any | null>(null);
@@ -979,6 +984,37 @@ export default function TripDetails() {
             return () => clearTimeout(timer);
         }
     }, [userSettings, trip?.itinerary?.dayByDayItinerary]);
+
+    // Default the budget view to the cheapest flight + cheapest stay (until the user picks another)
+    useEffect(() => {
+        if (budgetSelectionTouchedRef.current) return;
+        const flightOpts = trip?.itinerary?.flights?.options;
+        if (Array.isArray(flightOpts) && flightOpts.length > 0) {
+            let cheapestFlightIdx = 0;
+            let cheapestFlightPrice = Infinity;
+            flightOpts.forEach((opt: any, idx: number) => {
+                const p = typeof opt?.pricePerPerson === "number" ? opt.pricePerPerson : Infinity;
+                if (p < cheapestFlightPrice) {
+                    cheapestFlightPrice = p;
+                    cheapestFlightIdx = idx;
+                }
+            });
+            setSelectedFlightIndex(cheapestFlightIdx);
+        }
+        const stays = trip?.itinerary?.hotels;
+        if (Array.isArray(stays) && stays.length > 0) {
+            let cheapestStayIdx = 0;
+            let cheapestStayPrice = Infinity;
+            stays.forEach((acc: any, idx: number) => {
+                const p = typeof acc?.pricePerNight === "number" ? acc.pricePerNight : Infinity;
+                if (p < cheapestStayPrice) {
+                    cheapestStayPrice = p;
+                    cheapestStayIdx = idx;
+                }
+            });
+            setSelectedHotelIndex(cheapestStayIdx);
+        }
+    }, [trip?.itinerary?.flights?.options, trip?.itinerary?.hotels]);
 
     useEffect(() => {
         if (trip) {
@@ -1486,12 +1522,23 @@ export default function TripDetails() {
     const travelers = trip.travelers || 1;
 
     const allAccommodations = Array.isArray(trip.itinerary?.hotels) ? trip.itinerary.hotels : [];
-    
+
     // Filter accommodations based on selected type
-    const filteredAccommodations = accommodationType === 'all' 
-        ? allAccommodations 
-        : allAccommodations.filter((acc: any) => acc.type === accommodationType);
-    
+    const typeFilteredAccommodations = accommodationType === 'all'
+        ? allAccommodations
+        : allAccommodations.filter((acc: any) => (acc.type || 'hotel') === accommodationType);
+
+    // Apply the active sort (a copy — never mutate the source array)
+    const filteredAccommodations = [...typeFilteredAccommodations].sort((a: any, b: any) => {
+        if (staysSortBy === 'price') {
+            return (a.pricePerNight || Infinity) - (b.pricePerNight || Infinity);
+        }
+        if (staysSortBy === 'rating') {
+            return (b.rating || 0) - (a.rating || 0);
+        }
+        return 0; // recommended — keep supplier order
+    });
+
     // Get hotels and airbnbs counts
     const hotelsCount = allAccommodations.filter((acc: any) => acc.type === 'hotel' || !acc.type).length;
     const airbnbsCount = allAccommodations.filter((acc: any) => acc.type === 'airbnb').length;
@@ -1526,6 +1573,42 @@ export default function TripDetails() {
     
     const grandTotal = totalFlightCost + totalBaggageCost + totalAccommodationCost + totalDailyExpenses;
     const pricePerPerson = grandTotal / travelers;
+
+    // ─── Budget breakdown (marketing view) ───
+    // Whether flight prices come from a live search vs an estimate
+    const flightDataSource = itinerary?.flights?.dataSource;
+    const isLiveFlightData = flightDataSource === 'serpapi' || flightDataSource === 'duffel' || flightDataSource === 'low-fare-radar';
+    // Real supplier deal on the selected stay (only when supplier returned an original price)
+    const stayOriginalPrice = typeof selectedAccommodation?.originalPrice === 'number' ? selectedAccommodation.originalPrice : null;
+    const stayDealLabel = selectedAccommodation?.dealLabel || null;
+    // Category split for the proportional bar
+    const budgetCategories = [
+        { key: 'flights', label: t('tripDetail.flightsCost'), amount: totalFlightCost, color: '#3B82F6', icon: 'airplane' as const },
+        { key: 'stays', label: t('tripDetail.staysCost'), amount: totalAccommodationCost, color: '#8B5CF6', icon: 'bed' as const },
+        { key: 'daily', label: t('tripDetail.dailyCost'), amount: totalDailyExpenses, color: '#10B981', icon: 'wallet' as const },
+        { key: 'baggage', label: t('tripDetail.baggageCost'), amount: totalBaggageCost, color: '#F59E0B', icon: 'briefcase' as const },
+    ].filter((c) => c.amount > 0);
+    const perDay = duration > 0 ? grandTotal / duration : grandTotal;
+    const perPersonPerDay = (duration > 0 && travelers > 0) ? grandTotal / duration / travelers : 0;
+    // Target budget set by the user (vs the estimated total)
+    const targetBudget = typeof trip.budgetTotal === 'number' && trip.budgetTotal > 0
+        ? trip.budgetTotal
+        : (typeof trip.budget === 'number' && trip.budget > 0 ? trip.budget : 0);
+    const budgetDelta = targetBudget > 0 ? targetBudget - grandTotal : 0;
+    const isOverBudget = targetBudget > 0 && grandTotal > targetBudget;
+    const budgetUsedPct = targetBudget > 0 ? Math.min((grandTotal / targetBudget) * 100, 100) : 0;
+    const formatMoney = (n: number) => `€${Math.round(n).toLocaleString()}`;
+
+    const selectBudgetFlight = (idx: number) => {
+        budgetSelectionTouchedRef.current = true;
+        setSelectedFlightIndex(idx);
+        if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
+    };
+    const selectBudgetStay = (idx: number) => {
+        budgetSelectionTouchedRef.current = true;
+        setSelectedHotelIndex(idx);
+        if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
+    };
 
     const openMap = (query: string) => {
         const url = Platform.select({
@@ -1597,6 +1680,36 @@ export default function TripDetails() {
                 { text: t('tripDetail.cancel'), style: "cancel" },
             ]
         );
+    };
+
+    // Open a real hotel/Airbnb listing. Prefer the in-app browser (keeps users in
+    // the app); fall back to the system browser if it's unavailable.
+    const openAccommodation = async (acc: any) => {
+        const url: string | undefined = acc?.bookingLink || acc?.link;
+        if (!url) {
+            // No external link (e.g. fallback hotel) — drop the user into a supplier search instead.
+            openPartnerLink(buildHotelLink('skyscanner', hotelLinkParams()), 'hotel', 'stay-search-fallback');
+            return;
+        }
+        try {
+            await trackClick({
+                token: token || "",
+                tripId: id as Id<"trips">,
+                type: 'hotel',
+                item: acc?.type === 'airbnb' ? 'airbnb-listing' : 'hotel-listing',
+                url,
+            });
+        } catch (e) {
+            console.error("Failed to track click", e);
+        }
+        try {
+            await WebBrowser.openBrowserAsync(url, {
+                presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+                controlsColor: colors.primary,
+            });
+        } catch {
+            Linking.openURL(url);
+        }
     };
 
     // Build affiliate link params from the current trip.
@@ -1740,6 +1853,145 @@ export default function TripDetails() {
             </View>
         </TouchableOpacity>
     );
+
+    // Compact currency formatter for accommodation prices.
+    const formatStayPrice = (amount: number, currency?: string): string => {
+        const symbols: Record<string, string> = { EUR: '€', USD: '$', GBP: '£', JPY: '¥' };
+        const sym = symbols[(currency || 'EUR').toUpperCase()];
+        const rounded = Math.round(amount);
+        return sym ? `${sym}${rounded.toLocaleString(i18n.language)}` : `${rounded.toLocaleString(i18n.language)} ${currency || ''}`.trim();
+    };
+
+    // Premium accommodation result card (real Google Hotels / Airbnb listings).
+    const renderStayCard = (acc: any, index: number, opts?: { featured?: boolean }) => {
+        const featured = opts?.featured;
+        const isAirbnb = acc?.type === 'airbnb';
+        const accentColor = isAirbnb ? '#FF5A5F' : '#003580';
+        const nightly = acc?.pricePerNight || 0;
+        const total = acc?.totalPrice || (nightly ? nightly * duration : 0);
+        const original = acc?.originalPrice;
+        const savePct = original && original > nightly ? Math.round(((original - nightly) / original) * 100) : 0;
+        const photo = acc?.image || (Array.isArray(acc?.images) ? acc.images[0] : undefined);
+        const amenityIcon = (a: string): any => {
+            const s = (a || '').toLowerCase();
+            if (s.includes('wifi') || s.includes('wi‑fi') || s.includes('wi-fi')) return 'wifi';
+            if (s.includes('breakfast')) return 'cafe';
+            if (s.includes('pool')) return 'water';
+            if (s.includes('park')) return 'car';
+            if (s.includes('bed')) return 'bed';
+            if (s.includes('air')) return 'snow';
+            return 'checkmark-circle';
+        };
+
+        return (
+            <TouchableOpacity
+                key={`${acc?.name || 'stay'}-${index}`}
+                activeOpacity={0.9}
+                onPress={() => openAccommodation(acc)}
+                style={{
+                    width: featured ? 280 : undefined,
+                    marginRight: featured ? 14 : 0,
+                    marginTop: featured ? 0 : 16,
+                    backgroundColor: colors.card,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    overflow: 'hidden',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 12,
+                    elevation: 4,
+                }}
+            >
+                {/* Photo */}
+                <View style={{ height: featured ? 150 : 180, backgroundColor: colors.secondary }}>
+                    {photo ? (
+                        <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} />
+                    ) : (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name={isAirbnb ? 'home' : 'bed'} size={40} color={colors.textMuted} />
+                        </View>
+                    )}
+                    <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.55)']}
+                        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 70 }}
+                    />
+                    {/* Type badge */}
+                    <View style={{ position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: accentColor, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                        <Ionicons name={isAirbnb ? 'home' : 'business'} size={12} color="#fff" style={{ marginRight: 4 }} />
+                        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{isAirbnb ? t('tripDetail.airbnbLabel') : t('tripDetail.hotelLabel')}</Text>
+                    </View>
+                    {/* Deal / save badge */}
+                    {savePct > 0 && (
+                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: '#16A34A', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}>
+                            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{t('tripDetail.savePct', { pct: savePct })}</Text>
+                        </View>
+                    )}
+                    {/* Rating pill */}
+                    {acc?.rating ? (
+                        <View style={{ position: 'absolute', bottom: 12, left: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                            <Ionicons name="star" size={12} color="#F59E0B" style={{ marginRight: 3 }} />
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: '#111' }}>{Number(acc.rating).toFixed(1)}</Text>
+                            {acc?.reviews ? <Text style={{ fontSize: 11, color: '#555', marginLeft: 3 }}>({acc.reviews})</Text> : null}
+                        </View>
+                    ) : null}
+                </View>
+
+                {/* Body */}
+                <View style={{ padding: 14 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }} numberOfLines={1}>{acc?.name}</Text>
+
+                    {/* Stars / badges row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
+                        {acc?.stars ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                                {Array.from({ length: Math.min(5, Math.round(acc.stars)) }).map((_, i) => (
+                                    <Ionicons key={i} name="star" size={11} color="#F59E0B" />
+                                ))}
+                            </View>
+                        ) : null}
+                        {Array.isArray(acc?.badges) && acc.badges.slice(0, 1).map((b: string, i: number) => (
+                            <View key={i} style={{ backgroundColor: isDarkMode ? colors.secondary : '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, marginRight: 6 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '700', color: isDarkMode ? colors.text : '#92400E' }}>{b}</Text>
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Amenity chips */}
+                    {!featured && Array.isArray(acc?.amenities) && acc.amenities.length > 0 && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                            {acc.amenities.slice(0, 3).map((a: string, i: number) => (
+                                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? colors.secondary : '#F3F4F6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginRight: 6, marginBottom: 6 }}>
+                                    <Ionicons name={amenityIcon(a)} size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                                    <Text style={{ fontSize: 11, color: colors.textSecondary }} numberOfLines={1}>{a}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Price + CTA */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 12 }}>
+                        <View style={{ flex: 1 }}>
+                            {original && original > nightly ? (
+                                <Text style={{ fontSize: 12, color: colors.textMuted, textDecorationLine: 'line-through' }}>{formatStayPrice(original, acc?.currency)}</Text>
+                            ) : null}
+                            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                                <Text style={{ fontSize: 19, fontWeight: '900', color: colors.text }}>{formatStayPrice(nightly, acc?.currency)}</Text>
+                                <Text style={{ fontSize: 12, color: colors.textMuted, marginLeft: 3 }}>{t('tripDetail.perNight')}</Text>
+                            </View>
+                            {total > 0 ? (
+                                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{t('tripDetail.totalForNights', { price: formatStayPrice(total, acc?.currency), nights: duration })}</Text>
+                            ) : null}
+                        </View>
+                        <View style={{ backgroundColor: accentColor, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '800' }}>{t('tripDetail.viewDeal')}</Text>
+                        </View>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     const handleBookTrip = () => {
         // For now, we'll link to a general travel booking site or a specific package deal
@@ -2401,6 +2653,13 @@ export default function TripDetails() {
 
                 {/* Filter Chips */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+                    <TouchableOpacity 
+                        style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'budget' && { backgroundColor: colors.text, borderColor: colors.text }]}
+                        onPress={() => setActiveFilter('budget')}
+                    >
+                        <Ionicons name="pie-chart" size={18} color={activeFilter === 'budget' ? colors.card : colors.textMuted} />
+                        <Text style={[styles.filterText, { color: colors.textMuted }, activeFilter === 'budget' && { color: colors.card }]}>{t('tripDetail.budgetTab')}</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity 
                         style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, activeFilter === 'all' && { backgroundColor: colors.text, borderColor: colors.text }]}
                         onPress={() => setActiveFilter('all')}
@@ -3473,6 +3732,98 @@ export default function TripDetails() {
                         <View>
                             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('tripDetail.accommodations')}</Text>
 
+                            {/* ===== Live listings (Google Hotels + Airbnb) ===== */}
+                            {allAccommodations.length > 0 && (
+                                <>
+                                    {/* Segmented type tabs */}
+                                    <View style={{ flexDirection: 'row', backgroundColor: colors.secondary, borderRadius: 14, padding: 4, marginTop: 16 }}>
+                                        {([
+                                            { key: 'all', label: t('tripDetail.staysAll'), count: allAccommodations.length },
+                                            { key: 'hotel', label: t('tripDetail.hotelsLabel'), count: hotelsCount },
+                                            { key: 'airbnb', label: 'Airbnb', count: airbnbsCount },
+                                        ] as const).map((tab) => {
+                                            const active = accommodationType === tab.key;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={tab.key}
+                                                    activeOpacity={0.8}
+                                                    onPress={() => { Haptics.selectionAsync().catch(() => {}); setAccommodationType(tab.key); }}
+                                                    style={{ flex: 1, paddingVertical: 9, borderRadius: 11, alignItems: 'center', backgroundColor: active ? colors.card : 'transparent', shadowColor: '#000', shadowOpacity: active ? 0.08 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: active ? 2 : 0 }}
+                                                >
+                                                    <Text style={{ fontSize: 13, fontWeight: active ? '800' : '600', color: active ? colors.text : colors.textMuted }}>
+                                                        {tab.label}{tab.count ? `  ${tab.count}` : ''}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+
+                                    {/* Sort chips */}
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+                                        {([
+                                            { key: 'recommended', label: t('tripDetail.sortRecommended'), icon: 'sparkles' as const },
+                                            { key: 'price', label: t('tripDetail.sortLowestPrice'), icon: 'pricetag' as const },
+                                            { key: 'rating', label: t('tripDetail.sortTopRated'), icon: 'star' as const },
+                                        ] as const).map((s) => {
+                                            const active = staysSortBy === s.key;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={s.key}
+                                                    activeOpacity={0.8}
+                                                    onPress={() => setStaysSortBy(s.key)}
+                                                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.card }}
+                                                >
+                                                    <Ionicons name={s.icon} size={13} color={active ? '#fff' : colors.textMuted} style={{ marginRight: 5 }} />
+                                                    <Text style={{ fontSize: 12, fontWeight: '700', color: active ? '#fff' : colors.textSecondary }}>{s.label}</Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </ScrollView>
+
+                                    {/* Live prices trust microcopy */}
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#16A34A', marginRight: 6 }} />
+                                        <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('tripDetail.pricesUpdateLive')}</Text>
+                                    </View>
+
+                                    {/* Top picks carousel (all tab only) */}
+                                    {accommodationType === 'all' && allAccommodations.length > 3 && (
+                                        <View style={{ marginTop: 18 }}>
+                                            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text, marginBottom: 12 }}>{t('tripDetail.topPicks')}</Text>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                                {[...allAccommodations]
+                                                    .sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0))
+                                                    .slice(0, 3)
+                                                    .map((acc: any, i: number) => renderStayCard(acc, i, { featured: true }))}
+                                            </ScrollView>
+                                        </View>
+                                    )}
+
+                                    {/* Results list */}
+                                    {filteredAccommodations.length > 0 ? (
+                                        filteredAccommodations.map((acc: any, i: number) => renderStayCard(acc, i))
+                                    ) : (
+                                        <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                                            <Ionicons name="bed-outline" size={40} color={colors.textMuted} />
+                                            <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 10 }}>{t('tripDetail.noStaysFound')}</Text>
+                                        </View>
+                                    )}
+
+                                    {/* More ways to book toggle */}
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        onPress={() => setShowMoreWaysToBook((v) => !v)}
+                                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 22, paddingVertical: 12 }}
+                                    >
+                                        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.primary, marginRight: 6 }}>{t('tripDetail.moreWaysToBook')}</Text>
+                                        <Ionicons name={showMoreWaysToBook ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+                                    </TouchableOpacity>
+                                </>
+                            )}
+
+                            {/* ===== Partner search cards (fallback / more ways to book) ===== */}
+                            {(showMoreWaysToBook || allAccommodations.length === 0) && (
+                              <>
                             {/* Airbnb Search Card */}
                             <TouchableOpacity
                                 style={{
@@ -3717,6 +4068,8 @@ export default function TripDetails() {
 
                             {renderAffiliateHotelCard({ partner: 'tripcom', item: 'tripcom-hotels', brand: 'Trip.com', badge: 'Trip', color: '#287DFA', subtitle: t('tripDetail.searchHotelsOnTripcom'), cta: t('tripDetail.searchOnTripcomHotels') })}
                             {renderAffiliateHotelCard({ partner: 'esky', item: 'esky-stays', brand: 'eSky', badge: 'eS', color: '#00A1E0', subtitle: t('tripDetail.searchStaysOnEsky'), cta: t('tripDetail.searchOnEskyStays') })}
+                              </>
+                            )}
                         </View>
                     )}
 
@@ -4095,6 +4448,195 @@ export default function TripDetails() {
                                     </View>
                                 </View>
                             )}
+                        </View>
+                    )}
+
+                    {activeFilter === 'budget' && (
+                        <View>
+                            {/* Hero — estimated total */}
+                            <View style={[styles.budgetHeroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                <View style={styles.budgetHeroHeader}>
+                                    <Text style={[styles.budgetHeroLabel, { color: colors.textMuted }]}>{t('tripDetail.estimatedTotal')}</Text>
+                                    <View style={[styles.budgetSourceTag, { backgroundColor: isLiveFlightData ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)' }]}>
+                                        <Ionicons name={isLiveFlightData ? 'flash' : 'sparkles'} size={11} color={isLiveFlightData ? '#10B981' : colors.textMuted} />
+                                        <Text style={[styles.budgetSourceText, { color: isLiveFlightData ? '#10B981' : colors.textMuted }]}>
+                                            {isLiveFlightData ? t('tripDetail.livePrices') : t('tripDetail.estimatedLabel')}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <Text style={[styles.budgetHeroAmount, { color: colors.text }]}>{formatMoney(grandTotal)}</Text>
+                                <Text style={[styles.budgetHeroSub, { color: colors.textMuted }]}>
+                                    {t('tripDetail.forTravelersNights', { travelers, nights: duration })}
+                                </Text>
+
+                                {/* Proportional category bar */}
+                                {grandTotal > 0 && budgetCategories.length > 0 && (
+                                    <View style={styles.budgetBarTrack}>
+                                        {budgetCategories.map((c) => (
+                                            <View
+                                                key={c.key}
+                                                style={{
+                                                    width: `${(c.amount / grandTotal) * 100}%`,
+                                                    backgroundColor: c.color,
+                                                    height: '100%',
+                                                }}
+                                            />
+                                        ))}
+                                    </View>
+                                )}
+
+                                {/* Category legend */}
+                                <View style={styles.budgetLegend}>
+                                    {budgetCategories.map((c) => (
+                                        <View key={c.key} style={styles.budgetLegendRow}>
+                                            <View style={styles.budgetLegendLeft}>
+                                                <View style={[styles.budgetLegendDot, { backgroundColor: c.color }]} />
+                                                <Ionicons name={c.icon} size={15} color={colors.textMuted} />
+                                                <Text style={[styles.budgetLegendLabel, { color: colors.text }]}>{c.label}</Text>
+                                            </View>
+                                            <View style={styles.budgetLegendRight}>
+                                                <Text style={[styles.budgetLegendAmount, { color: colors.text }]}>{formatMoney(c.amount)}</Text>
+                                                <Text style={[styles.budgetLegendPct, { color: colors.textMuted }]}>
+                                                    {Math.round((c.amount / grandTotal) * 100)}%
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Per-person & per-day stat cards */}
+                            <View style={styles.budgetStatsRow}>
+                                <View style={[styles.budgetStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                    <Ionicons name="person" size={18} color={colors.primary} />
+                                    <Text style={[styles.budgetStatValue, { color: colors.text }]}>{formatMoney(pricePerPerson)}</Text>
+                                    <Text style={[styles.budgetStatLabel, { color: colors.textMuted }]}>{t('tripDetail.perPerson')}</Text>
+                                </View>
+                                <View style={[styles.budgetStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                    <Ionicons name="today" size={18} color={colors.primary} />
+                                    <Text style={[styles.budgetStatValue, { color: colors.text }]}>{formatMoney(perDay)}</Text>
+                                    <Text style={[styles.budgetStatLabel, { color: colors.textMuted }]}>{t('tripDetail.perDay')}</Text>
+                                </View>
+                                <View style={[styles.budgetStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                    <Ionicons name="walk" size={18} color={colors.primary} />
+                                    <Text style={[styles.budgetStatValue, { color: colors.text }]}>{formatMoney(perPersonPerDay)}</Text>
+                                    <Text style={[styles.budgetStatLabel, { color: colors.textMuted }]}>{t('tripDetail.perPersonPerDay')}</Text>
+                                </View>
+                            </View>
+
+                            {/* Budget vs target */}
+                            {targetBudget > 0 && (
+                                <View style={[styles.budgetTargetCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                    <View style={styles.budgetTargetHeader}>
+                                        <Text style={[styles.budgetTargetTitle, { color: colors.text }]}>{t('tripDetail.budgetVsTarget')}</Text>
+                                        <View style={[styles.budgetTargetBadge, { backgroundColor: isOverBudget ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+                                            <Ionicons name={isOverBudget ? 'trending-up' : 'checkmark-circle'} size={13} color={isOverBudget ? '#EF4444' : '#10B981'} />
+                                            <Text style={[styles.budgetTargetBadgeText, { color: isOverBudget ? '#EF4444' : '#10B981' }]}>
+                                                {isOverBudget
+                                                    ? t('tripDetail.overBudget', { amount: formatMoney(Math.abs(budgetDelta)) })
+                                                    : t('tripDetail.underBudget', { amount: formatMoney(budgetDelta) })}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={[styles.budgetTargetTrack, { backgroundColor: colors.border }]}>
+                                        <View style={{ width: `${budgetUsedPct}%`, height: '100%', borderRadius: 6, backgroundColor: isOverBudget ? '#EF4444' : '#10B981' }} />
+                                    </View>
+                                    <Text style={[styles.budgetTargetCaption, { color: colors.textMuted }]}>
+                                        {t('tripDetail.ofBudget', { used: formatMoney(grandTotal), total: formatMoney(targetBudget) })}
+                                    </Text>
+                                </View>
+                            )}
+
+                            {/* Selectable flight */}
+                            {Array.isArray(flightOptions) && flightOptions.length > 0 && (
+                                <View style={styles.budgetPickerSection}>
+                                    <View style={styles.budgetPickerHeader}>
+                                        <Ionicons name="airplane" size={16} color={colors.text} />
+                                        <Text style={[styles.budgetPickerTitle, { color: colors.text }]}>{t('tripDetail.selectFlight')}</Text>
+                                    </View>
+                                    {flightOptions.map((opt: any, idx: number) => {
+                                        const isSelected = idx === selectedFlightIndex;
+                                        const isCheapest = opt.isBestPrice === true;
+                                        return (
+                                            <TouchableOpacity
+                                                key={opt.id || idx}
+                                                style={[styles.budgetOption, { backgroundColor: colors.card, borderColor: isSelected ? colors.primary : colors.border }]}
+                                                onPress={() => selectBudgetFlight(idx)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Ionicons name={isSelected ? 'radio-button-on' : 'radio-button-off'} size={20} color={isSelected ? colors.primary : colors.textMuted} />
+                                                <View style={styles.budgetOptionBody}>
+                                                    <View style={styles.budgetOptionTitleRow}>
+                                                        <Text style={[styles.budgetOptionTitle, { color: colors.text }]} numberOfLines={1}>
+                                                            {opt.outbound?.airline || opt.airline || t('tripDetail.flightOption', { number: idx + 1 })}
+                                                        </Text>
+                                                        {isCheapest && (
+                                                            <View style={[styles.budgetCheapestTag, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                                                                <Text style={styles.budgetCheapestText}>{t('tripDetail.cheapest')}</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                    <Text style={[styles.budgetOptionMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                                                        {opt.checkedBaggageIncluded ? t('tripDetail.bagIncluded') : t('tripDetail.bagExtra')}
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.budgetOptionPriceCol}>
+                                                    <Text style={[styles.budgetOptionPrice, { color: colors.text }]}>{formatMoney(opt.pricePerPerson || 0)}</Text>
+                                                    <Text style={[styles.budgetOptionPriceUnit, { color: colors.textMuted }]}>{t('tripDetail.perPersonShort')}</Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            )}
+
+                            {/* Selectable stay */}
+                            {allAccommodations.length > 0 && (
+                                <View style={styles.budgetPickerSection}>
+                                    <View style={styles.budgetPickerHeader}>
+                                        <Ionicons name="bed" size={16} color={colors.text} />
+                                        <Text style={[styles.budgetPickerTitle, { color: colors.text }]}>{t('tripDetail.selectStay')}</Text>
+                                    </View>
+                                    {allAccommodations.map((acc: any, idx: number) => {
+                                        const isSelected = idx === selectedHotelIndex;
+                                        const accCheapest = allAccommodations.every((other: any) => (acc.pricePerNight || Infinity) <= (other.pricePerNight || Infinity));
+                                        const accOriginal = typeof acc.originalPrice === 'number' && acc.originalPrice > (acc.pricePerNight || 0) ? acc.originalPrice : null;
+                                        return (
+                                            <TouchableOpacity
+                                                key={acc.id || acc.name || idx}
+                                                style={[styles.budgetOption, { backgroundColor: colors.card, borderColor: isSelected ? colors.primary : colors.border }]}
+                                                onPress={() => selectBudgetStay(idx)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Ionicons name={isSelected ? 'radio-button-on' : 'radio-button-off'} size={20} color={isSelected ? colors.primary : colors.textMuted} />
+                                                <View style={styles.budgetOptionBody}>
+                                                    <View style={styles.budgetOptionTitleRow}>
+                                                        <Text style={[styles.budgetOptionTitle, { color: colors.text }]} numberOfLines={1}>{acc.name}</Text>
+                                                        {accCheapest && (
+                                                            <View style={[styles.budgetCheapestTag, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                                                                <Text style={styles.budgetCheapestText}>{t('tripDetail.cheapest')}</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                    <Text style={[styles.budgetOptionMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                                                        {(acc.type === 'airbnb' ? t('tripDetail.airbnbType') : t('tripDetail.hotelType'))}
+                                                        {acc.dealLabel ? ` · ${acc.dealLabel}` : ''}
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.budgetOptionPriceCol}>
+                                                    {accOriginal && (
+                                                        <Text style={[styles.budgetOptionOriginal, { color: colors.textMuted }]}>{formatMoney(accOriginal)}</Text>
+                                                    )}
+                                                    <Text style={[styles.budgetOptionPrice, { color: colors.text }]}>{formatMoney(acc.pricePerNight || 0)}</Text>
+                                                    <Text style={[styles.budgetOptionPriceUnit, { color: colors.textMuted }]}>{t('tripDetail.perNightShort')}</Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            )}
+
+                            <Text style={[styles.budgetDisclaimer, { color: colors.textMuted }]}>{t('tripDetail.budgetDisclaimer')}</Text>
                         </View>
                     )}
                 </View>
@@ -4631,6 +5173,228 @@ const styles = StyleSheet.create({
     },
     filterTextActive: {
         color: "white",
+    },
+    // ─── Budget breakdown ───
+    budgetHeroCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 20,
+        marginTop: 8,
+        marginBottom: 12,
+    },
+    budgetHeroHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    budgetHeroLabel: {
+        fontSize: 13,
+        fontWeight: "600",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    budgetSourceTag: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    budgetSourceText: {
+        fontSize: 11,
+        fontWeight: "700",
+    },
+    budgetHeroAmount: {
+        fontSize: 40,
+        fontWeight: "800",
+        marginTop: 8,
+    },
+    budgetHeroSub: {
+        fontSize: 14,
+        fontWeight: "500",
+        marginTop: 2,
+    },
+    budgetBarTrack: {
+        flexDirection: "row",
+        height: 12,
+        borderRadius: 6,
+        overflow: "hidden",
+        marginTop: 18,
+    },
+    budgetLegend: {
+        marginTop: 16,
+        gap: 12,
+    },
+    budgetLegendRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    budgetLegendLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        flex: 1,
+    },
+    budgetLegendDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    budgetLegendLabel: {
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    budgetLegendRight: {
+        flexDirection: "row",
+        alignItems: "baseline",
+        gap: 6,
+    },
+    budgetLegendAmount: {
+        fontSize: 15,
+        fontWeight: "700",
+    },
+    budgetLegendPct: {
+        fontSize: 12,
+        fontWeight: "600",
+        minWidth: 34,
+        textAlign: "right",
+    },
+    budgetStatsRow: {
+        flexDirection: "row",
+        gap: 10,
+        marginBottom: 12,
+    },
+    budgetStatCard: {
+        flex: 1,
+        borderRadius: 14,
+        borderWidth: 1,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        alignItems: "center",
+        gap: 6,
+    },
+    budgetStatValue: {
+        fontSize: 17,
+        fontWeight: "800",
+    },
+    budgetStatLabel: {
+        fontSize: 11,
+        fontWeight: "600",
+        textAlign: "center",
+    },
+    budgetTargetCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 18,
+        marginBottom: 12,
+    },
+    budgetTargetHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 14,
+    },
+    budgetTargetTitle: {
+        fontSize: 15,
+        fontWeight: "700",
+    },
+    budgetTargetBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    budgetTargetBadgeText: {
+        fontSize: 12,
+        fontWeight: "700",
+    },
+    budgetTargetTrack: {
+        height: 12,
+        borderRadius: 6,
+        overflow: "hidden",
+    },
+    budgetTargetCaption: {
+        fontSize: 13,
+        fontWeight: "500",
+        marginTop: 10,
+    },
+    budgetPickerSection: {
+        marginBottom: 16,
+    },
+    budgetPickerHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 10,
+    },
+    budgetPickerTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+    },
+    budgetOption: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        padding: 14,
+        marginBottom: 8,
+    },
+    budgetOptionBody: {
+        flex: 1,
+    },
+    budgetOptionTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    budgetOptionTitle: {
+        fontSize: 15,
+        fontWeight: "700",
+        flexShrink: 1,
+    },
+    budgetCheapestTag: {
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    budgetCheapestText: {
+        fontSize: 10,
+        fontWeight: "800",
+        color: "#10B981",
+        textTransform: "uppercase",
+    },
+    budgetOptionMeta: {
+        fontSize: 13,
+        fontWeight: "500",
+        marginTop: 3,
+    },
+    budgetOptionPriceCol: {
+        alignItems: "flex-end",
+    },
+    budgetOptionOriginal: {
+        fontSize: 12,
+        fontWeight: "500",
+        textDecorationLine: "line-through",
+    },
+    budgetOptionPrice: {
+        fontSize: 16,
+        fontWeight: "800",
+    },
+    budgetOptionPriceUnit: {
+        fontSize: 11,
+        fontWeight: "500",
+    },
+    budgetDisclaimer: {
+        fontSize: 12,
+        fontWeight: "500",
+        lineHeight: 17,
+        marginTop: 4,
+        marginBottom: 8,
     },
     itineraryContainer: {
         paddingHorizontal: 16,

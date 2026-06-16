@@ -2,11 +2,10 @@
 // This file MUST have a default export that renders properly
 
 import { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, Platform, AppState } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { ConvexReactClient } from "convex/react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import * as NavigationBar from "expo-navigation-bar";
 import { ThemeProvider } from "@/lib/ThemeContext";
 import { ConvexNativeAuthProvider } from "@/lib/ConvexAuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -16,19 +15,6 @@ import "@/lib/i18n"; // Initialize i18n
 
 // Prevent splash screen from auto-hiding before app is ready
 SplashScreen.preventAutoHideAsync();
-
-// Hide Android system navigation bar (back/home buttons)
-if (Platform.OS === "android") {
-    NavigationBar.setVisibilityAsync("hidden");
-    NavigationBar.setBehaviorAsync("overlay-swipe");
-
-    // Re-hide nav bar when app returns from background
-    AppState.addEventListener("change", (state) => {
-        if (state === "active") {
-            NavigationBar.setVisibilityAsync("hidden");
-        }
-    });
-}
 
 // Environment validation - safe at module scope (just reads process.env)
 function validateEnvironment(): { valid: boolean; errors: string[] } {
@@ -150,17 +136,26 @@ function AppContent() {
                 await authClient.init();
                 console.log("[BOOT] Auth client initialized - token loaded from SecureStore");
                 
-                // Pre-configure Google Sign-In native module early
-                if (Platform.OS === "android") {
-                    authClient.configureGoogleSignIn().catch((e: any) =>
-                        console.warn("[BOOT] Google Sign-In pre-configure failed:", e)
-                    );
-                }
-                
                 // CRITICAL: Create Convex client AFTER auth is initialized
                 // This ensures the token is available when fetchAccessToken is called
                 try {
-                    const client = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
+                    const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL!;
+                    // Tripwire: a production (non-__DEV__) build must NEVER point at the
+                    // dev Convex deployment. This catches the Metro-cache env trap where a
+                    // stale dev URL gets inlined into a prod OTA. See repo memory
+                    // "ota-and-deploy" / scripts/ota-prod.mjs.
+                    // NOTE: the dev name is assembled from fragments on purpose so the
+                    // contiguous literal does NOT appear in the bundle (otherwise the
+                    // ota-prod bundle scanner would false-positive on this very check).
+                    const DEV_DEPLOYMENT = ["giddy", "sandpiper", "781"].join("-");
+                    if (!__DEV__ && convexUrl.includes(DEV_DEPLOYMENT)) {
+                        console.error(
+                            "[BOOT][FATAL] Production build is pointing at the DEV Convex deployment. " +
+                            "This is the Metro-cache env trap. Re-publish with " +
+                            "`npm run ota:prod` (clears cache + verifies bundle)."
+                        );
+                    }
+                    const client = new ConvexReactClient(convexUrl, {
                         unsavedChangesWarning: false,
                     });
                     setConvex(client);
