@@ -6,16 +6,19 @@ import { useNavigation } from "@react-navigation/native";
 import { CommonActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "convex/react";
+import { useQuery, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToken, useAuthenticatedMutation } from "@/lib/useAuthenticatedMutation";
+import { clearOfflineCache } from "@/lib/offlineTripCache";
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "@/lib/ThemeContext";
+import { useHideTabBarOnScroll } from "@/lib/tabBarVisibility";
 import * as Haptics from "expo-haptics";
 import { Id } from "@/convex/_generated/dataModel";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
+import * as Updates from "expo-updates";
 import { useMutation } from "convex/react";
 import { useTranslation } from "react-i18next";
 
@@ -33,6 +36,7 @@ export default function Profile() {
     const router = useRouter();
     const navigation = useNavigation();
     const { data: session } = authClient.useSession();
+    const user = session?.user;
     const { token } = useToken();
     const trips = useQuery(api.trips.list as any, { token: token || "skip" });
     const userPlan = useQuery(api.users.getPlan as any, { token: token || "skip" });
@@ -55,6 +59,10 @@ export default function Profile() {
         (api as any).admin.isAdmin,
         token ? { token } : "skip"
     );
+
+    // Live backend identity check — proves which Convex deployment answers
+    const backendWhoami = useQuery((api as any).ping.whoami, {});
+    const liveConvexClient = useConvex();
     
     // Get profile image URL if profilePicture storage ID exists
     const profileImageUrl = useQuery(
@@ -70,6 +78,7 @@ export default function Profile() {
     const deleteAccount = useAuthenticatedMutation(api.users.deleteAccount as any);
     
     const { isDarkMode, toggleDarkMode, colors } = useTheme();
+    const hideOnScroll = useHideTabBarOnScroll();
     const { t, i18n } = useTranslation();
     const [menuVisible, setMenuVisible] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -126,6 +135,7 @@ export default function Profile() {
                 }
             }
             await authClient.signOut();
+            await clearOfflineCache();
         } catch (error) {
             console.error("Logout failed:", error);
         }
@@ -155,6 +165,7 @@ export default function Profile() {
                                         try {
                                             await deleteAccount({});
                                             await authClient.signOut();
+                                            await clearOfflineCache();
                                         } catch (error) {
                                             console.error("Account deletion failed:", error);
                                             Alert.alert(t('common.error'), t('profile.failedDeleteAccount'));
@@ -176,6 +187,21 @@ export default function Profile() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
         await toggleDarkMode();
+    };
+
+    // Send the user to the App Store "write a review" page. We open the page
+    // directly (rather than the native rate-limited prompt) since this is an
+    // explicit, user-initiated action that should always do something.
+    const APP_STORE_ID = "6758346139";
+    const handleRateApp = async () => {
+        const deepLink = `itms-apps://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
+        const webLink = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
+        try {
+            const canOpen = await Linking.canOpenURL(deepLink);
+            await Linking.openURL(canOpen ? deepLink : webLink);
+        } catch {
+            Linking.openURL(webLink).catch(() => {});
+        }
     };
 
     const handlePickImage = async () => {
@@ -235,7 +261,6 @@ export default function Profile() {
         }
     };
 
-    const user = session?.user;
     const tripCount = trips?.length || 0;
     const completedTripsCount = trips?.filter((t: any) => t.status === "completed").length || 0;
     const now = Date.now();
@@ -327,6 +352,14 @@ export default function Profile() {
             action: () => router.push("/(tabs)/trips")
         },
         {
+            title: t('reservations.title', { defaultValue: 'Bookings' }),
+            subtitle: t('reservations.menuSubtitle', { defaultValue: 'Forward confirmations to your trips' }),
+            icon: "mail-outline",
+            iconBg: isDarkMode ? "#2C2410" : "#FEF9C3",
+            iconColor: "#CA8A04",
+            action: () => router.push("/settings/reservations" as any)
+        },
+        {
             title: t('stats.travelStats'),
             subtitle: t('stats.viewYourStats'),
             icon: "bar-chart-outline",
@@ -365,6 +398,14 @@ export default function Profile() {
             iconBg: isDarkMode ? "#1D3D2E" : "#D1FAE5",
             iconColor: "#10B981",
             action: () => router.push("/settings/referrals" as any)
+        },
+        {
+            title: t('profile.rateApp', { defaultValue: 'Rate Planera AI' }),
+            subtitle: t('profile.rateAppSubtitle', { defaultValue: 'Leave a review on the App Store' }),
+            icon: "star-outline",
+            iconBg: isDarkMode ? "#3D2E00" : "#FEF3C7",
+            iconColor: "#F59E0B",
+            action: handleRateApp
         },
         // {
         //     title: "Traveler Profiles",
@@ -503,7 +544,7 @@ export default function Profile() {
                 </TouchableOpacity>
             </Modal>
 
-            <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+            <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent} onScroll={hideOnScroll} scrollEventThrottle={16}>
                 {/* Profile Card */}
                 <View style={styles.profileSection}>
                     <View style={styles.avatarContainer}>
@@ -811,6 +852,46 @@ export default function Profile() {
 
                 {/* Version */}
                 <Text style={styles.versionText}>PLANERA V{Constants.expoConfig?.version || '1.0.0'}</Text>
+
+                {/* Build / environment diagnostic */}
+                <TouchableOpacity
+                    activeOpacity={0.6}
+                    onPress={() => {
+                        const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL || "(unset)";
+                        const siteUrl = process.env.EXPO_PUBLIC_CONVEX_SITE_URL || "(unset)";
+                        const clientUrl = (liveConvexClient as any)?.url ?? "(?)";
+                        const backendUrl = (backendWhoami as any)?.deploymentUrl ?? "(loading…)";
+                        const bundleIsProd = convexUrl.includes("canny-bobcat-846");
+                        const backendIsProd = String(backendUrl).includes("canny-bobcat-846");
+                        Alert.alert(
+                            "Build info",
+                            [
+                                `Bundle env: ${bundleIsProd ? "PROD" : "DEV"}`,
+                                `Bundle URL: ${convexUrl}`,
+                                `Site URL: ${siteUrl}`,
+                                `Client URL: ${clientUrl}`,
+                                "",
+                                `LIVE backend: ${backendIsProd ? "PROD ✅" : "DEV ⚠️"}`,
+                                `Backend URL: ${backendUrl}`,
+                                "",
+                                `Channel: ${(Updates as any).channel ?? "(embedded)"}`,
+                                `Update ID: ${Updates.updateId ?? "(embedded build)"}`,
+                                `Runtime: ${Updates.runtimeVersion ?? "?"}`,
+                                `Embedded: ${Updates.isEmbeddedLaunch ? "yes (no OTA applied)" : "no (OTA active)"}`,
+                            ].join("\n")
+                        );
+                    }}
+                >
+                    <Text style={styles.versionText}>
+                        {String((backendWhoami as any)?.deploymentUrl ?? "").includes("canny-bobcat-846")
+                            ? "BACKEND: PROD"
+                            : backendWhoami
+                                ? "BACKEND: DEV"
+                                : "BACKEND: …"}
+                        {" · "}
+                        {Updates.updateId ? Updates.updateId.slice(0, 8) : "embedded"}
+                    </Text>
+                </TouchableOpacity>
 
                 {/* Bottom Spacing */}
                 <View style={{ height: 120 }} />

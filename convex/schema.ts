@@ -713,6 +713,28 @@ export default defineSchema({
         .index("by_trip", ["tripId"])
         .index("by_destination_key", ["destinationKey"]),
 
+    // Admin-curated attraction affiliate links (GetYourGuide + future partners)
+    attractionAffiliateLinks: defineTable({
+        destinationCity: v.string(), // normalized lowercase city, e.g. "paris"
+        destinationCountry: v.optional(v.string()), // ISO-2 preferred, e.g. "fr"
+        activityTitle: v.string(), // normalized lowercase activity title
+        displayTitle: v.string(),
+        affiliateUrl: v.string(),
+        partner: v.optional(v.string()), // e.g. "getyourguide"
+        price: v.optional(v.float64()), // ticket price shown in itinerary
+        currency: v.optional(v.string()), // ISO 4217, e.g. "EUR"
+        topSite: v.boolean(),
+        travelStyles: v.optional(v.array(v.string())),
+        notes: v.optional(v.string()),
+        active: v.boolean(),
+        createdAt: v.float64(),
+        updatedAt: v.optional(v.float64()),
+    })
+        .index("by_destination_activity", ["destinationCity", "activityTitle"])
+        .index("by_destination", ["destinationCity"])
+        .index("by_active", ["active"])
+        .index("by_topSite", ["topSite"]),
+
     // Low Fare Radar — flight deals managed via website widget, shown in app
     lowFareRadar: defineTable({
         // Route
@@ -1114,6 +1136,16 @@ export default defineSchema({
         .index("by_cacheKey", ["cacheKey"])
         .index("by_expires", ["expiresAt"]),
 
+    // Fixed-window rate limit for user-facing flight searches. Guards the
+    // (paid) SerpApi quota against abuse — especially anonymous public searches
+    // from the marketing widget. One row per user; the window resets lazily.
+    flightSearchRateLimits: defineTable({
+        userId: v.string(),
+        windowStart: v.float64(),
+        count: v.float64(),
+    })
+        .index("by_user", ["userId"]),
+
     // Cache for AI-resolved IATA codes. When the static destination→airport
     // map can't resolve a city, we ask OpenAI for the nearest airport's IATA
     // code and persist it here so the same place never re-hits OpenAI.
@@ -1293,4 +1325,31 @@ export default defineSchema({
         lastSeenAt: v.float64(),
     })
         .index("by_cityToken", ["cityToken"]),
+
+    // Newsletter funnel subscribers (double opt-in + drip sequence).
+    // Captured from the marketing site and in-app opt-in card.
+    newsletterSubscribers: defineTable({
+        email: v.string(),
+        status: v.union(
+            v.literal("pending"),      // awaiting double opt-in confirmation
+            v.literal("active"),       // confirmed, receiving emails
+            v.literal("unsubscribed")  // opted out
+        ),
+        source: v.optional(v.string()),   // "web" | "app" | etc.
+        language: v.optional(v.string()),
+        userId: v.optional(v.string()),   // set if a logged-in app user subscribed
+        // Double opt-in / unsubscribe tokens (unguessable)
+        confirmToken: v.string(),
+        unsubscribeToken: v.string(),
+        // Drip sequence progress (0 = welcome sent, then 1..N)
+        dripStage: v.float64(),
+        lastEmailSentAt: v.optional(v.float64()),
+        confirmedAt: v.optional(v.float64()),
+        unsubscribedAt: v.optional(v.float64()),
+        createdAt: v.float64(),
+    })
+        .index("by_email", ["email"])
+        .index("by_confirm_token", ["confirmToken"])
+        .index("by_unsubscribe_token", ["unsubscribeToken"])
+        .index("by_status", ["status"]),
 });

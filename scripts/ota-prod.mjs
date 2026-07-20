@@ -95,9 +95,11 @@ try {
 
   // 3. Publish OTA. Triple cache-bust: wiped dirs above + EXPO_NO_CACHE + --clear-cache.
   //    eas update also performs the export into dist/.
+  //    --environment production avoids the interactive "Select environment"
+  //    prompt added in newer EAS CLI (otherwise the run is cancelled, exit 130).
   log(`Publishing OTA → branch=production platform=${platform}`);
   execSync(
-    `eas update --branch production --platform ${platform} --clear-cache --message ${JSON.stringify(message)}`,
+    `eas update --branch production --environment production --platform ${platform} --clear-cache --non-interactive --message ${JSON.stringify(message)}`,
     { stdio: "inherit", env: { ...process.env, EXPO_NO_CACHE: "1" } }
   );
 

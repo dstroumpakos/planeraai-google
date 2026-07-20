@@ -11,11 +11,15 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useEffect, useRef, useCallback } from "react";
 import { BlurView } from "expo-blur";
 import { useDestinationImage } from "@/lib/useImages";
+import { maybeAskForReview } from "@/lib/reviewPrompt";
 import ActivityCard from "@/components/ActivityCard";
+import TripGenerationView, { EnrichingToast } from "@/components/TripGenerationView";
 import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthenticatedMutation, useToken } from "@/lib/useAuthenticatedMutation";
+import { useCachedQuery, useIsOffline } from "@/lib/useCachedQuery";
+import { tripCacheKey, sightsCacheKey } from "@/lib/offlineTripCache";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
@@ -25,6 +29,13 @@ import { TripGuideTooltip, GuideStep } from "@/components/FirstTripGuide";
 import ShareTripCard, { ShareTripCardHandle } from "@/components/ShareTripCard";
 import PackageCard from "@/components/PackageCard";
 import PackageInquiryModal from "@/components/PackageInquiryModal";
+import ActivityActionSheet from "@/components/ActivityActionSheet";
+import EditTimeModal from "@/components/EditTimeModal";
+import AddActivityModal, { ManualActivityInput } from "@/components/AddActivityModal";
+import MoveToDayModal from "@/components/MoveToDayModal";
+import ReorderDayModal from "@/components/ReorderDayModal";
+import { TripFlightProviders } from "@/components/flights/TripFlightProviders";
+import TripReservations from "@/components/TripReservations";
 import {
     buildFlightLink,
     buildHotelLink,
@@ -33,6 +44,7 @@ import {
     FlightPartnerKey,
     HotelPartnerKey,
 } from "@/lib/affiliateLinks";
+import { normalizeDestinationToEnglish } from "@/lib/destinationTranslations";
 
 // Sanitize location titles for maps deep links by stripping descriptions, ratings, etc.
 const cleanLocationTitle = (title: string): string => {
@@ -710,7 +722,9 @@ const CITY_TO_SKYSCANNER_ENTITY: Record<string, string> = {
 // Helper to get Skyscanner entity_id for a city
 const getSkyscannerEntityId = (cityName: string | undefined): string | null => {
     if (!cityName) return null;
-    const lower = cityName.toLowerCase().trim();
+    // Destination may be localized (e.g. Greek "Ρώμη"); the entity map is
+    // keyed by English names, so normalize before looking up.
+    const lower = normalizeDestinationToEnglish(cityName).toLowerCase().trim();
     if (CITY_TO_SKYSCANNER_ENTITY[lower]) return CITY_TO_SKYSCANNER_ENTITY[lower];
     for (const [city, id] of Object.entries(CITY_TO_SKYSCANNER_ENTITY)) {
         if (lower.includes(city) || city.includes(lower)) return id;
@@ -734,9 +748,10 @@ const getAirportName = (codeOrCity: string | undefined): string => {
         return AIRPORT_NAMES[codeMatch[1]];
     }
     
-    // Try to find a city name match
-    const lowerInput = codeOrCity.toLowerCase().trim();
-    
+    // Try to find a city name match. Normalize localized names
+    // (e.g. Greek "Ρώμη") to English first — the map is English-keyed.
+    const lowerInput = normalizeDestinationToEnglish(codeOrCity).toLowerCase().trim();
+
     // Direct city match
     if (CITY_TO_AIRPORT[lowerInput]) {
         return AIRPORT_NAMES[CITY_TO_AIRPORT[lowerInput]];
@@ -762,8 +777,10 @@ const getAirportCode = (codeOrCity: string | undefined): string => {
     // Check parentheses like "Athens (ATH)"
     const codeMatch = codeOrCity.match(/\(([A-Z]{3})\)/);
     if (codeMatch) return codeMatch[1];
-    // City name lookup
-    const lower = codeOrCity.toLowerCase().trim();
+    // City name lookup. Normalize localized names (e.g. Greek "Ρώμη") to
+    // English first — the map is English-keyed — so provider deep links
+    // always receive a valid IATA code, never a raw localized string.
+    const lower = normalizeDestinationToEnglish(codeOrCity).toLowerCase().trim();
     if (CITY_TO_AIRPORT[lower]) return CITY_TO_AIRPORT[lower];
     for (const [city, code] of Object.entries(CITY_TO_AIRPORT)) {
         if (lower.includes(city)) return code;
@@ -778,8 +795,18 @@ export default function TripDetails() {
     const { t, i18n } = useTranslation();
     const { colors, isDarkMode } = useTheme();
     const { token } = useToken();
-    // @ts-ignore
-    const trip = useQuery(token ? (api.trips.get as any) : "skip", token ? { token, tripId: id as Id<"trips"> } : "skip");
+    // Offline-first: falls back to the disk snapshot when the live query
+    // can't resolve (no connection), so active trips stay readable abroad.
+    const {
+        data: trip,
+        isFromCache: tripFromCache,
+        cacheChecked: tripCacheChecked,
+    } = useCachedQuery<any>(
+        api.trips.get as any,
+        token ? { token, tripId: id as Id<"trips"> } : "skip",
+        id ? tripCacheKey(String(id)) : null
+    );
+    const isOffline = useIsOffline();
     // @ts-ignore
     const updateTrip = useAuthenticatedMutation(api.trips.update as any);
     // @ts-ignore
@@ -788,6 +815,16 @@ export default function TripDetails() {
     const removeActivityMut = useAuthenticatedMutation(api.trips.removeActivity as any);
     // @ts-ignore
     const replaceActivityMut = useAuthenticatedMutation(api.trips.scheduleReplaceActivity as any);
+    // @ts-ignore — Editable itinerary (Phase 2 backend)
+    const updateActivityMut = useAuthenticatedMutation(api.trips.updateActivity as any);
+    // @ts-ignore
+    const moveActivityMut = useAuthenticatedMutation(api.trips.moveActivity as any);
+    // @ts-ignore
+    const addActivityManualMut = useAuthenticatedMutation(api.trips.addActivityManual as any);
+    // @ts-ignore
+    const scheduleAddActivityAIMut = useAuthenticatedMutation(api.trips.scheduleAddActivityAI as any);
+    // @ts-ignore
+    const scheduleRegenerateDayMut = useAuthenticatedMutation(api.trips.scheduleRegenerateDay as any);
     // @ts-ignore
     const createShareLinkMut = useAuthenticatedMutation(api.tripShareLinks.createShareLink as any);
     // @ts-ignore
@@ -799,6 +836,7 @@ export default function TripDetails() {
     const unlikeInsight = useAuthenticatedMutation(api.insights.unlike as any);
     // @ts-ignore
     const trackClick = useMutation(api.bookings.trackClick);
+    const trackAttractionClick = useMutation((api as any).lowFareRadar.trackAttractionClick);
     const resolveBookingUrl = useAction(api.flightsResolve.resolveBookingUrl);
     const insights = useQuery(api.insights.getDestinationInsights, trip ? { destination: trip.destination } : "skip");
     const myLikedInsightIds = useQuery((api as any).insights.getMyLikedInsightIds, token ? { token } : "skip");
@@ -854,7 +892,11 @@ export default function TripDetails() {
     }, [trip?._id]);
      
     // V1: AI-generated Top 5 Sights (replaces Viator activities)
-    const topSights = useQuery(api.sights.getTopSights, trip ? { tripId: id as Id<"trips"> } : "skip");
+    const { data: topSights } = useCachedQuery<any>(
+        api.sights.getTopSights as any,
+        trip ? { tripId: id as Id<"trips"> } : "skip",
+        id ? sightsCacheKey(String(id)) : null
+    );
     const generateTopSights = useMutation(api.sights.generateTopSights);
     const [generatingSights, setGeneratingSights] = useState(false);
 
@@ -882,10 +924,118 @@ export default function TripDetails() {
     const [selectedHotelIndex, setSelectedHotelIndex] = useState<number | null>(null);
     const [replacingActivity, setReplacingActivity] = useState<string | null>(null); // "dayIndex-actIndex"
 
-    // Clear replacing state when the itinerary changes (AI finished)
+    // ===== Editable itinerary (Phase 3 UI) =====
+    // Which activity's action sheet is open, plus the edit-time / add-activity
+    // targets and the per-day / per-slot async loading keys. These mirror the
+    // existing `replacingActivity` optimistic pattern and auto-clear when the
+    // itinerary changes (server finished).
+    const [actionSheetTarget, setActionSheetTarget] = useState<{ dayIndex: number; actIndex: number } | null>(null);
+    const [editTimeTarget, setEditTimeTarget] = useState<{ dayIndex: number; actIndex: number } | null>(null);
+    const [addManualTarget, setAddManualTarget] = useState<{ dayIndex: number; insertIndex: number } | null>(null);
+    const [regeneratingDay, setRegeneratingDay] = useState<number | null>(null);
+    const [addingActivity, setAddingActivity] = useState<number | null>(null); // dayIndex with a pending AI/manual add
+    const [moveTarget, setMoveTarget] = useState<{ dayIndex: number; actIndex: number } | null>(null);
+    const [reorderDayIndex, setReorderDayIndex] = useState<number | null>(null); // day open in the drag-reorder sheet
+
+    // Clear all transient editing/loading state when the itinerary changes
+    // (the server write landed and the query refreshed).
     useEffect(() => {
         if (replacingActivity) setReplacingActivity(null);
+        if (regeneratingDay !== null) setRegeneratingDay(null);
+        if (addingActivity !== null) setAddingActivity(null);
     }, [trip?.itinerary]);
+
+    const activeActionActivity =
+        actionSheetTarget && trip?.itinerary?.dayByDayItinerary?.[actionSheetTarget.dayIndex]?.activities?.[actionSheetTarget.actIndex];
+    const editTimeActivity =
+        editTimeTarget && trip?.itinerary?.dayByDayItinerary?.[editTimeTarget.dayIndex]?.activities?.[editTimeTarget.actIndex];
+    const editTimeDayActivities: any[] =
+        (editTimeTarget && trip?.itinerary?.dayByDayItinerary?.[editTimeTarget.dayIndex]?.activities) || [];
+
+    // ----- Editable itinerary handlers -----
+    const handleEditTimeSave = useCallback((start: string, end: string) => {
+        if (!editTimeTarget || !trip?._id) return;
+        const { dayIndex, actIndex } = editTimeTarget;
+        setEditTimeTarget(null);
+        updateActivityMut({
+            tripId: trip._id,
+            dayIndex,
+            activityIndex: actIndex,
+            updates: { time: start, startTime: start, endTime: end },
+        }).catch((err: any) => console.error("Edit time failed:", err));
+    }, [editTimeTarget, trip?._id]);
+
+    const handleAddManual = useCallback((activity: ManualActivityInput) => {
+        if (!addManualTarget || !trip?._id) return;
+        const { dayIndex, insertIndex } = addManualTarget;
+        setAddManualTarget(null);
+        setAddingActivity(dayIndex);
+        addActivityManualMut({ tripId: trip._id, dayIndex, insertIndex, activity })
+            .catch((err: any) => {
+                console.error("Add manual activity failed:", err);
+                setAddingActivity(null);
+            });
+    }, [addManualTarget, trip?._id]);
+
+    const handleAddAI = useCallback((dayIndex: number, insertIndex: number) => {
+        if (!trip?._id) return;
+        setAddingActivity(dayIndex);
+        scheduleAddActivityAIMut({ tripId: trip._id, dayIndex, insertIndex, language: i18n.language })
+            .catch((err: any) => {
+                console.error("Add AI activity failed:", err);
+                setAddingActivity(null);
+            });
+    }, [trip?._id]);
+
+    // Move an activity to the END of another day (cross-day move via picker).
+    const handleMoveToDay = useCallback((toDayIndex: number) => {
+        if (!moveTarget || !trip?._id) return;
+        const { dayIndex, actIndex } = moveTarget;
+        const toActivities = trip?.itinerary?.dayByDayItinerary?.[toDayIndex]?.activities || [];
+        setMoveTarget(null);
+        moveActivityMut({
+            tripId: trip._id,
+            fromDayIndex: dayIndex,
+            fromActivityIndex: actIndex,
+            toDayIndex,
+            toActivityIndex: toActivities.length,
+        }).catch((err: any) => console.error("Move activity failed:", err));
+    }, [moveTarget, trip?._id, trip?.itinerary]);
+
+    // Persist a single within-day reorder from the drag-reorder sheet.
+    const handleReorderWithinDay = useCallback((dayIndex: number, from: number, to: number) => {
+        if (!trip?._id || from === to) return;
+        moveActivityMut({
+            tripId: trip._id,
+            fromDayIndex: dayIndex,
+            fromActivityIndex: from,
+            toDayIndex: dayIndex,
+            toActivityIndex: to,
+        }).catch((err: any) => console.error("Reorder activity failed:", err));
+    }, [trip?._id]);
+
+    const handleRegenerateDay = useCallback((dayIndex: number) => {
+        if (!trip?._id) return;
+        Alert.alert(
+            t('tripDetail.regenerateDay'),
+            t('tripDetail.regenerateDayConfirm'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('tripDetail.regenerateDay'),
+                    onPress: () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        setRegeneratingDay(dayIndex);
+                        scheduleRegenerateDayMut({ tripId: trip._id, dayIndex, language: i18n.language })
+                            .catch((err: any) => {
+                                console.error("Regenerate day failed:", err);
+                                setRegeneratingDay(null);
+                            });
+                    },
+                },
+            ]
+        );
+    }, [trip?._id, t]);
 
     const [accommodationType, setAccommodationType] = useState<'all' | 'hotel' | 'airbnb'>('all');
     const [staysSortBy, setStaysSortBy] = useState<'recommended' | 'price' | 'rating'>('recommended');
@@ -984,6 +1134,21 @@ export default function TripDetails() {
             return () => clearTimeout(timer);
         }
     }, [userSettings, trip?.itinerary?.dayByDayItinerary]);
+
+    // Ask for an App Store review once the user is looking at a finished
+    // itinerary — a genuine "this delivered value" moment. Gated (once ever,
+    // not before the 2nd trip, iOS-rate-limited) inside maybeAskForReview, and
+    // held until after the one-time detail guide so they don't overlap.
+    const reviewAskedRef = useRef(false);
+    useEffect(() => {
+        if (reviewAskedRef.current) return;
+        const itineraryReady = (trip?.itinerary?.dayByDayItinerary?.length ?? 0) > 0;
+        if (itineraryReady && trip?.status === "completed" && userSettings?.hasSeenTripDetailGuide) {
+            reviewAskedRef.current = true;
+            const timer = setTimeout(() => { maybeAskForReview(); }, 3500);
+            return () => clearTimeout(timer);
+        }
+    }, [trip?.status, trip?.itinerary?.dayByDayItinerary, userSettings?.hasSeenTripDetailGuide]);
 
     // Default the budget view to the cheapest flight + cheapest stay (until the user picks another)
     useEffect(() => {
@@ -1298,6 +1463,23 @@ export default function TripDetails() {
     }, [trip?.status]);
 
     if (trip === undefined) {
+        // Offline with no saved snapshot — a spinner would hang forever
+        if (isOffline && tripCacheChecked) {
+            return (
+                <View style={[styles.center, { backgroundColor: colors.background }]}>
+                    <Ionicons name="cloud-offline-outline" size={48} color={colors.textMuted} />
+                    <Text style={{ color: colors.text, marginTop: 16, fontSize: 16, fontWeight: "600", textAlign: "center", paddingHorizontal: 32 }}>
+                        {t('offline.tripUnavailable')}
+                    </Text>
+                    <TouchableOpacity
+                        style={{ marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primary }}
+                        onPress={() => router.back()}
+                    >
+                        <Text style={{ color: colors.text, fontWeight: "700" }}>{t('tripDetail.goBack')}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
         return (
             <View style={[styles.center, { backgroundColor: colors.background }]}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -1314,184 +1496,11 @@ export default function TripDetails() {
     }
 
     if (trip.status === "generating") {
-        const currentImage = loadingImages[currentImageIndex];
-        
+        const bg = loadingImages[currentImageIndex]?.url
+            ? optimizeUnsplashUrl(loadingImages[currentImageIndex].url, IMAGE_SIZES.HERO)
+            : undefined;
         return (
-            <View style={styles.loadingContainer}>
-                {/* Background Image Slideshow */}
-                {currentImage ? (
-                    <Image 
-                        source={{ uri: optimizeUnsplashUrl(currentImage.url, IMAGE_SIZES.HERO) }} 
-                        style={styles.loadingBackgroundImage}
-                        blurRadius={Platform.OS === 'ios' ? 1 : 0.5}
-                        cachePolicy="disk"
-                        transition={500}
-                    />
-                ) : (
-                    <View style={[styles.loadingBackgroundImage, { backgroundColor: '#1A1A1A' }]} />
-                )}
-                
-                {/* Dark Overlay */}
-                <LinearGradient
-                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
-                    style={styles.loadingOverlay}
-                />
-                
-                {/* Content */}
-                <SafeAreaView style={styles.loadingContent}>
-                    {/* Back Button */}
-                    <TouchableOpacity 
-                        style={styles.loadingBackButton} 
-                        onPress={() => router.back()}
-                    >
-                        <Ionicons name="chevron-back" size={24} color="white" />
-                    </TouchableOpacity>
-                    
-                    {/* Center Content */}
-                    <ScrollView 
-                        style={styles.loadingCenterContent}
-                        contentContainerStyle={styles.loadingCenterContentInner}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {/* Trip Title with Route */}
-                        <View style={styles.loadingTitleContainer}>
-                            <Text style={styles.loadingDestination}>{trip.origin || t('tripDetail.unknown')}</Text>
-                            <Ionicons name="arrow-down" size={20} color="#FFE500" style={styles.loadingArrow} />
-                            <Text style={styles.loadingDestination}>{trip.destination}</Text>
-                        </View>
-                        
-                        {/* Trip Details */}
-                        <View style={styles.loadingTripDetails}>
-                            <Text style={styles.loadingTripDetailText}>
-                                {t('tripDetail.travelerCount', { count: trip.travelers || 1 })} • {t('tripDetail.daysCount', { count: Math.ceil((trip.endDate - trip.startDate) / (1000 * 60 * 60 * 24)) })}
-                            </Text>
-                        </View>
-                        
-                        {/* Animated Plane Icon */}
-                        <View style={styles.loadingIconContainer}>
-                            <Ionicons name="airplane" size={48} color="#FFE500" />
-                        </View>
-                        
-                        {/* Status Text */}
-                        <Text style={styles.loadingTitle}>{t('tripDetail.aiDesigning')}</Text>
-                        <Text style={styles.loadingSubtitle}>
-                            {loadingMessages[loadingMessageIndex]}
-                        </Text>
-                        
-                        {/* Progress Bar */}
-                        <View style={styles.progressBarContainer}>
-                            <View style={styles.progressBarBackground}>
-                                <View 
-                                    style={[
-                                        styles.progressBarFill, 
-                                        { width: `${Math.min(loadingProgress, 100)}%` }
-                                    ]} 
-                                />
-                            </View>
-                            <Text style={styles.progressText}>{Math.round(loadingProgress)}%</Text>
-                        </View>
-                        
-                        {/* Loading Steps */}
-                        <View style={styles.loadingSteps}>
-                            <View style={styles.loadingStep}>
-                                <Ionicons 
-                                    name={loadingProgress > 15 ? "checkmark-circle" : "ellipse-outline"} 
-                                    size={20} 
-                                    color={loadingProgress > 15 ? "#10B981" : "rgba(255,255,255,0.5)"} 
-                                />
-                                <Text style={[styles.loadingStepText, loadingProgress > 15 && styles.loadingStepComplete]}>
-                                    {t('tripDetail.analyzingPreferences')}
-                                </Text>
-                            </View>
-                            <View style={styles.loadingStep}>
-                                <Ionicons 
-                                    name={loadingProgress > 35 ? "checkmark-circle" : "ellipse-outline"} 
-                                    size={20} 
-                                    color={loadingProgress > 35 ? "#10B981" : "rgba(255,255,255,0.5)"} 
-                                />
-                                <Text style={[styles.loadingStepText, loadingProgress > 35 && styles.loadingStepComplete]}>
-                                    {t('tripDetail.selectingSights')}
-                                </Text>
-                            </View>
-                            <View style={styles.loadingStep}>
-                                <Ionicons 
-                                    name={loadingProgress > 55 ? "checkmark-circle" : "ellipse-outline"} 
-                                    size={20} 
-                                    color={loadingProgress > 55 ? "#10B981" : "rgba(255,255,255,0.5)"} 
-                                />
-                                <Text style={[styles.loadingStepText, loadingProgress > 55 && styles.loadingStepComplete]}>
-                                    {t('tripDetail.planningSchedule')}
-                                </Text>
-                            </View>
-                            <View style={styles.loadingStep}>
-                                <Ionicons 
-                                    name={loadingProgress > 75 ? "checkmark-circle" : "ellipse-outline"} 
-                                    size={20} 
-                                    color={loadingProgress > 75 ? "#10B981" : "rgba(255,255,255,0.5)"} 
-                                />
-                                <Text style={[styles.loadingStepText, loadingProgress > 75 && styles.loadingStepComplete]}>
-                                    {t('tripDetail.optimizingRoutes')}
-                                </Text>
-                            </View>
-                            <View style={styles.loadingStep}>
-                                <Ionicons 
-                                    name={loadingProgress > 90 ? "checkmark-circle" : "ellipse-outline"} 
-                                    size={20} 
-                                    color={loadingProgress > 90 ? "#10B981" : "rgba(255,255,255,0.5)"} 
-                                />
-                                <Text style={[styles.loadingStepText, loadingProgress > 90 && styles.loadingStepComplete]}>
-                                    {t('tripDetail.finalizingItinerary')}
-                                </Text>
-                            </View>
-                        </View>
-                        
-                        {/* Helper Text */}
-                        <Text style={styles.loadingHelperText}>
-                            {t('tripDetail.usuallyTakes')}
-                        </Text>
-                        
-                    </ScrollView>
-
-                    {/* Bottom section: notification hint + attribution, outside center content */}
-                    <View style={styles.loadingBottomSection}>
-                        {/* Leave screen hint */}
-                        <TouchableOpacity 
-                            style={styles.leaveHintContainer} 
-                            onPress={() => router.back()}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="notifications-outline" size={16} color="rgba(255,255,255,0.7)" />
-                            <Text style={styles.leaveHintText}>
-                                {t('tripDetail.leaveScreenHint')}
-                            </Text>
-                        </TouchableOpacity>
-                        
-                        {/* Photo Attribution */}
-                        {currentImage && (
-                            <View style={styles.loadingAttribution}>
-                                <Text style={styles.loadingAttributionText}>
-                                    {t('tripDetail.photoBy', { photographer: currentImage.photographer })}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-                </SafeAreaView>
-                
-                {/* Image Indicators */}
-                {loadingImages.length > 1 && (
-                    <View style={styles.imageIndicators}>
-                        {loadingImages.map((_, index) => (
-                            <View 
-                                key={index} 
-                                style={[
-                                    styles.imageIndicator,
-                                    currentImageIndex === index && styles.imageIndicatorActive
-                                ]} 
-                            />
-                        ))}
-                    </View>
-                )}
-            </View>
+            <TripGenerationView trip={trip} backgroundUrl={bg} onBack={() => router.back()} />
         );
     }
 
@@ -1570,8 +1579,20 @@ export default function TripDetails() {
     const totalFlightCost = flightPricePerPerson * travelers;
     const totalAccommodationCost = accommodationPricePerNight * duration;
     const totalDailyExpenses = dailyExpensesPerPerson * travelers * duration;
-    
-    const grandTotal = totalFlightCost + totalBaggageCost + totalAccommodationCost + totalDailyExpenses;
+
+    // Curated bookable experiences (GetYourGuide etc.): sum their ticket prices
+    // across the itinerary (per person × travelers) so they show in the budget.
+    const totalExperiencesCost = (itinerary?.dayByDayItinerary || []).reduce((sum: number, day: any) => {
+        const acts = day?.activities || [];
+        return sum + acts.reduce((s: number, a: any) => {
+            if (a?.affiliateProvider && typeof a?.price === 'number' && a.price > 0) {
+                return s + a.price * travelers;
+            }
+            return s;
+        }, 0);
+    }, 0);
+
+    const grandTotal = totalFlightCost + totalBaggageCost + totalAccommodationCost + totalDailyExpenses + totalExperiencesCost;
     const pricePerPerson = grandTotal / travelers;
 
     // ─── Budget breakdown (marketing view) ───
@@ -1586,6 +1607,7 @@ export default function TripDetails() {
         { key: 'flights', label: t('tripDetail.flightsCost'), amount: totalFlightCost, color: '#3B82F6', icon: 'airplane' as const },
         { key: 'stays', label: t('tripDetail.staysCost'), amount: totalAccommodationCost, color: '#8B5CF6', icon: 'bed' as const },
         { key: 'daily', label: t('tripDetail.dailyCost'), amount: totalDailyExpenses, color: '#10B981', icon: 'wallet' as const },
+        { key: 'experiences', label: t('tripDetail.experiencesCost', { defaultValue: 'Experiences' }), amount: totalExperiencesCost, color: '#EC4899', icon: 'ticket' as const },
         { key: 'baggage', label: t('tripDetail.baggageCost'), amount: totalBaggageCost, color: '#F59E0B', icon: 'briefcase' as const },
     ].filter((c) => c.amount > 0);
     const perDay = duration > 0 ? grandTotal / duration : grandTotal;
@@ -1725,7 +1747,9 @@ export default function TripDetails() {
     });
 
     const hotelLinkParams = (): HotelLinkParams => ({
-        destination: trip.destination || '',
+        // English label so provider hotel search (Airbnb / Trip.com searchWord)
+        // resolves reliably even when trip.destination is localized.
+        destination: normalizeDestinationToEnglish(trip.destination || ''),
         destEntityId: getSkyscannerEntityId(trip.destination),
         checkIn: new Date(trip.startDate).toISOString().split('T')[0],
         checkOut: new Date(trip.endDate).toISOString().split('T')[0],
@@ -2553,6 +2577,13 @@ export default function TripDetails() {
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor="transparent" translucent={true} />
+            <EnrichingToast phase={trip.generationProgress?.phase} destination={trip.destination} />
+            {tripFromCache && isOffline && (
+                <View style={{ position: "absolute", top: insets.top + 56, alignSelf: "center", zIndex: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}>
+                    <Ionicons name="cloud-offline-outline" size={14} color="#FFFFFF" />
+                    <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "600" }}>{t('offline.tripBanner')}</Text>
+                </View>
+            )}
             {/* Header - Minimal with just back button */}
             <SafeAreaView style={[styles.header, { backgroundColor: 'transparent', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, borderBottomWidth: 0 }]}>
                 <View style={styles.headerContent}>
@@ -2585,7 +2616,7 @@ export default function TripDetails() {
                         onPress={async () => {
                             try {
                                 const result = await createInviteMut({ tripId: trip._id, role: "viewer" });
-                                const inviteUrl = `https://planeraai.app/invite?token=${result.inviteToken}`;
+                                const inviteUrl = `https://planeraai.app/invite/${result.inviteToken}`;
                                 await Share.share({ message: `${t('tripDetail.joinMyTrip', { destination: trip.destination })}\n${inviteUrl}` });
                             } catch (err) {
                                 console.error("Invite failed:", err);
@@ -2730,6 +2761,11 @@ export default function TripDetails() {
 
                 {/* Content based on active filter */}
                 <View style={styles.itineraryContainer}>
+                    {/* Real bookings the user forwarded in. Rendered above the AI
+                        days as a separate layer — these are facts, the days are
+                        suggestions, and regeneration must never touch them. */}
+                    {activeFilter === 'all' && <TripReservations tripId={id as string} />}
+
                     {activeFilter === 'all' && trip.itinerary?.dayByDayItinerary?.map((day: any, index: number) => {
                     // Calculate energy level based on number of activities
                     const activityCount = day.activities?.length || 0;
@@ -2761,10 +2797,40 @@ export default function TripDetails() {
                                     </View>
                                     <Text style={[styles.daySubtitle, { color: colors.textMuted }]}>{day.title || t('tripDetail.exploreDest', { destination: trip.destination })}</Text>
                                 </View>
-                                <View style={[styles.energyBadge, { backgroundColor: isDarkMode ? `${energyColor}33` : `${energyColor}22` }]}>
-                                    <Text style={[styles.energyText, { color: energyColor }]}>{energyLevel}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    {(day.activities?.length || 0) > 1 && (
+                                        <TouchableOpacity
+                                            onPress={() => setReorderDayIndex(index)}
+                                            disabled={regeneratingDay !== null}
+                                            style={[styles.dayRegenBtn, { borderColor: colors.border }]}
+                                            activeOpacity={0.7}
+                                            accessibilityLabel={t('tripDetail.reorderDay')}
+                                        >
+                                            <Ionicons name="reorder-three" size={18} color={colors.textMuted} />
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity
+                                        onPress={() => handleRegenerateDay(index)}
+                                        disabled={regeneratingDay !== null}
+                                        style={[styles.dayRegenBtn, { borderColor: colors.border, opacity: regeneratingDay !== null && regeneratingDay !== index ? 0.4 : 1 }]}
+                                        activeOpacity={0.7}
+                                        accessibilityLabel={t('tripDetail.regenerateDay')}
+                                    >
+                                        <Ionicons name="refresh" size={16} color={colors.textMuted} />
+                                    </TouchableOpacity>
+                                    <View style={[styles.energyBadge, { backgroundColor: isDarkMode ? `${energyColor}33` : `${energyColor}22` }]}>
+                                        <Text style={[styles.energyText, { color: energyColor }]}>{energyLevel}</Text>
+                                    </View>
                                 </View>
                             </View>
+
+                            {/* Day-level loading banner while a regenerate-day is in flight. */}
+                            {regeneratingDay === index && (
+                                <View style={[styles.dayLoadingBanner, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                    <Text style={{ color: colors.textMuted, fontSize: 13, marginLeft: 8 }}>{t('tripDetail.regeneratingDay')}</Text>
+                                </View>
+                            )}
 
                             {/* Trip detail guide — Itinerary tooltip (first day only) */}
                             {index === 0 && currentDetailGuideKey === 'itinerary' && (
@@ -2854,42 +2920,17 @@ export default function TripDetails() {
                                         onLongPress={() => {
                                             if (replacingActivity) return;
                                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                                            Alert.alert(
-                                                activity.title,
-                                                t('tripDetail.replaceActivityMsg'),
-                                                [
-                                                    { text: t('common.cancel'), style: 'cancel' },
-                                                    {
-                                                        text: t('tripDetail.replaceActivity'),
-                                                        onPress: () => {
-                                                            setReplacingActivity(`${index}-${actIndex}`);
-                                                            replaceActivityMut({
-                                                                tripId: trip._id,
-                                                                dayIndex: index,
-                                                                activityIndex: actIndex,
-                                                                language: i18n.language,
-                                                            }).catch((err: any) => {
-                                                                console.error("Replace activity failed:", err);
-                                                                setReplacingActivity(null);
-                                                            });
-                                                        },
-                                                    },
-                                                    {
-                                                        text: t('common.delete'),
-                                                        style: 'destructive',
-                                                        onPress: () => {
-                                                            removeActivityMut({
-                                                                tripId: trip._id,
-                                                                dayIndex: index,
-                                                                activityIndex: actIndex,
-                                                            }).catch((err: any) => console.error("Remove activity failed:", err));
-                                                        },
-                                                    },
-                                                ]
-                                            );
+                                            setActionSheetTarget({ dayIndex: index, actIndex });
                                         }}
                                         delayLongPress={500}
                                         onPress={() => {
+                                            // Curated affiliate attraction: tapping the card opens OUR exact
+                                            // booking link (not a generic search / Maps).
+                                            if (activity.bookingUrl && activity.affiliateProvider) {
+                                                if (activity.affiliateLinkId) trackAttractionClick({ id: activity.affiliateLinkId }).catch(() => {});
+                                                Linking.openURL(activity.bookingUrl);
+                                                return;
+                                            }
                                             const title = activity.title?.toLowerCase() || '';
                                             const description = activity.description?.toLowerCase() || '';
                                             const type = activity.type?.toLowerCase() || '';
@@ -3070,6 +3111,45 @@ export default function TripDetails() {
                                                         <Ionicons name="chevron-forward" size={12} color="#00AA6C" />
                                                     </TouchableOpacity>
                                                 )}
+
+                                                {/* Affiliate booking CTA (admin-curated GetYourGuide links) */}
+                                                {activity.bookingUrl && activity.affiliateProvider && (() => {
+                                                    const isGyg = activity.affiliateProvider === 'getyourguide';
+                                                    const hasPrice = activity.price !== undefined && activity.price !== null;
+                                                    const symbol = activity.currency === 'USD' ? '$' : activity.currency === 'GBP' ? '£' : activity.currency === 'EUR' ? '€' : (activity.currency ? activity.currency + ' ' : '');
+                                                    const priceStr = hasPrice ? `${symbol}${activity.price}` : '';
+                                                    return (
+                                                        <TouchableOpacity
+                                                            style={[styles.gygCtaButton, { backgroundColor: colors.primary }]}
+                                                            onPress={(e) => {
+                                                                e.stopPropagation();
+                                                                if (activity.affiliateLinkId) trackAttractionClick({ id: activity.affiliateLinkId }).catch(() => {});
+                                                                Linking.openURL(activity.bookingUrl);
+                                                            }}
+                                                            activeOpacity={0.85}
+                                                        >
+                                                            <View style={styles.gygCtaTopRow}>
+                                                                <View style={styles.gygCtaLabelWrap}>
+                                                                    <Ionicons name="ticket" size={16} color="#000" />
+                                                                    <Text style={styles.gygCtaTitle} numberOfLines={2}>
+                                                                        {isGyg
+                                                                            ? t('tripDetail.gygReserveSpot', { defaultValue: 'Reserve your spot' })
+                                                                            : t('tripDetail.bookNow', { defaultValue: 'Book Now' })}
+                                                                        {priceStr
+                                                                            ? ` · ${t('tripDetail.priceFrom', { defaultValue: 'from' })} ${priceStr}`
+                                                                            : ''}
+                                                                    </Text>
+                                                                </View>
+                                                                <Ionicons name="arrow-forward" size={15} color="#000" />
+                                                            </View>
+                                                            {isGyg && (
+                                                                <Text style={styles.gygCtaSub} numberOfLines={2}>
+                                                                    {t('tripDetail.gygTrust', { defaultValue: 'Free cancellation · Powered by GetYourGuide' })}
+                                                                </Text>
+                                                            )}
+                                                        </TouchableOpacity>
+                                                    );
+                                                })()}
                                             </View>
                                             <View style={styles.googleMapsIcon}>
                                                 <Ionicons 
@@ -3084,6 +3164,35 @@ export default function TripDetails() {
                                 </View>
                                 );
                             })}
+
+                            {/* Add-activity footer: AI suggestion or manual entry at end of day. */}
+                            {addingActivity === index ? (
+                                <View style={[styles.addActivityRow, { borderColor: colors.border }]}>
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                    <Text style={{ color: colors.textMuted, fontSize: 14, marginLeft: 8 }}>{t('tripDetail.addingActivity')}</Text>
+                                </View>
+                            ) : (
+                                <View style={styles.addActivityFooter}>
+                                    <TouchableOpacity
+                                        style={[styles.addActivityBtn, { borderColor: colors.border }]}
+                                        onPress={() => handleAddAI(index, day.activities.length)}
+                                        disabled={addingActivity !== null}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="sparkles-outline" size={16} color={colors.text} />
+                                        <Text style={[styles.addActivityText, { color: colors.text }]}>{t('tripDetail.addActivityAI')}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.addActivityBtn, { borderColor: colors.border }]}
+                                        onPress={() => setAddManualTarget({ dayIndex: index, insertIndex: day.activities.length })}
+                                        disabled={addingActivity !== null}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="create-outline" size={16} color={colors.text} />
+                                        <Text style={[styles.addActivityText, { color: colors.text }]}>{t('tripDetail.addActivityManual')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
 
                             {/* Trip detail guide — Activity tooltip (first day only) */}
                             {index === 0 && currentDetailGuideKey === 'activity' && (
@@ -3396,18 +3505,75 @@ export default function TripDetails() {
                                             </>
                                         )}
 
-                                        {/* Book button for deals with bookingUrl */}
-                                        {selected.bookingUrl && (
-                                            <TouchableOpacity
-                                                style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}
-                                                onPress={() => Linking.openURL(selected.bookingUrl)}
-                                            >
-                                                <Text style={{ color: '#000', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.bookThisFlight', { defaultValue: 'Book This Flight' })}</Text>
-                                            </TouchableOpacity>
-                                        )}
+                                        {/* Book buttons.
+                                            Rule 1: one link covers both legs → single button.
+                                            Rule 2: separate tickets (outbound + return sold
+                                            apart) → one button per leg. */}
+                                        {(() => {
+                                            const openBooking = async (url?: string, request?: { url?: string; postData?: string }) => {
+                                                let target = url || "";
+                                                if (request?.url && request?.postData) {
+                                                    try {
+                                                        const resolved = await resolveBookingUrl({ url: request.url, postData: request.postData });
+                                                        if (resolved?.ok && resolved.url) target = resolved.url;
+                                                    } catch {}
+                                                }
+                                                if (target) Linking.openURL(target);
+                                            };
+                                            const hasCombined = Boolean(selected.bookingUrl || selected.bookingRequest?.url);
+                                            const hasOutboundLink = Boolean(selected.outboundBookingUrl || selected.outboundBookingRequest?.url);
+                                            const hasReturnLink = Boolean(selected.returnBookingUrl || selected.returnBookingRequest?.url);
+
+                                            if (hasCombined) {
+                                                return (
+                                                    <TouchableOpacity
+                                                        style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}
+                                                        onPress={() => openBooking(selected.bookingUrl, selected.bookingRequest)}
+                                                    >
+                                                        <Text style={{ color: '#000', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.bookThisFlight', { defaultValue: 'Book This Flight' })}</Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            }
+                                            if (hasOutboundLink || hasReturnLink) {
+                                                return (
+                                                    <View style={{ gap: 8, marginTop: 4 }}>
+                                                        {hasOutboundLink && (
+                                                            <TouchableOpacity
+                                                                style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                                                                onPress={() => openBooking(selected.outboundBookingUrl, selected.outboundBookingRequest)}
+                                                            >
+                                                                <Ionicons name="airplane" size={15} color="#000" />
+                                                                <Text style={{ color: '#000', fontSize: 15, fontWeight: '700' }}>{t('tripDetail.bookOutboundFlight', { defaultValue: 'Book Outbound Flight' })}</Text>
+                                                            </TouchableOpacity>
+                                                        )}
+                                                        {hasReturnLink && (
+                                                            <TouchableOpacity
+                                                                style={{ borderColor: colors.primary, borderWidth: 1.5, borderRadius: 10, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                                                                onPress={() => openBooking(selected.returnBookingUrl, selected.returnBookingRequest)}
+                                                            >
+                                                                <Ionicons name="airplane" size={15} color={colors.primary} style={{ transform: [{ scaleX: -1 }] }} />
+                                                                <Text style={{ color: colors.text, fontSize: 15, fontWeight: '700' }}>{t('tripDetail.bookReturnFlight', { defaultValue: 'Book Return Flight' })}</Text>
+                                                            </TouchableOpacity>
+                                                        )}
+                                                    </View>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </View>
                                 );
                             })()}
+
+                            {/* Booking providers for flight-search trips —
+                                same provider list as the search booking sheet. */}
+                            {trip.tripType === 'deal' &&
+                                Array.isArray(trip.itinerary?.flights?.options) &&
+                                trip.itinerary.flights.options[0]?.bookingProviders?.length > 0 && (
+                                    <TripFlightProviders
+                                        providers={trip.itinerary.flights.options[0].bookingProviders}
+                                        travelers={trip.travelerCount ?? trip.travelers ?? 1}
+                                    />
+                                )}
 
                             {/* Trip.com Search Card */}
                             <TouchableOpacity
@@ -3555,6 +3721,8 @@ export default function TripDetails() {
                             {renderAffiliateFlightCard({ partner: 'esky', item: 'esky', brand: 'eSky', badge: 'eS', color: '#00A1E0', subtitle: t('tripDetail.searchFlightsOnEsky'), cta: t('tripDetail.searchOnEsky') })}
                             {renderAffiliateFlightCard({ partner: 'iberia', item: 'iberia', brand: 'Iberia', badge: 'IB', color: '#D7192D', subtitle: t('tripDetail.searchFlightsOnIberia'), cta: t('tripDetail.searchOnIberia') })}
                             {renderAffiliateFlightCard({ partner: 'volotea', item: 'volotea', brand: 'Volotea', badge: 'VO', color: '#9B1B5A', subtitle: t('tripDetail.searchFlightsOnVolotea'), cta: t('tripDetail.searchOnVolotea') })}
+                            {renderAffiliateFlightCard({ partner: 'airserbia', item: 'airserbia', brand: 'Air Serbia', badge: 'JU', color: '#0F2D53', subtitle: t('tripDetail.searchFlightsOnAirSerbia'), cta: t('tripDetail.searchOnAirSerbia') })}
+                            {renderAffiliateFlightCard({ partner: 'lot', item: 'lot', brand: 'LOT Polish Airlines', badge: 'LO', color: '#252668', subtitle: t('tripDetail.searchFlightsOnLot'), cta: t('tripDetail.searchOnLot') })}
                         </View>
                     )}
 
@@ -5043,6 +5211,62 @@ export default function TripDetails() {
                 packageInfo={inquiryPackage}
                 tripId={id as string}
             />
+
+            {/* ===== Editable itinerary modals (Phase 3) ===== */}
+            <ActivityActionSheet
+                visible={!!actionSheetTarget}
+                activityTitle={activeActionActivity?.title}
+                onClose={() => setActionSheetTarget(null)}
+                onEditTime={() => actionSheetTarget && setEditTimeTarget(actionSheetTarget)}
+                onReplaceAI={() => {
+                    if (!actionSheetTarget || !trip?._id) return;
+                    const { dayIndex, actIndex } = actionSheetTarget;
+                    setReplacingActivity(`${dayIndex}-${actIndex}`);
+                    replaceActivityMut({ tripId: trip._id, dayIndex, activityIndex: actIndex, language: i18n.language })
+                        .catch((err: any) => { console.error("Replace activity failed:", err); setReplacingActivity(null); });
+                }}
+                onAddAI={() => actionSheetTarget && handleAddAI(actionSheetTarget.dayIndex, actionSheetTarget.actIndex + 1)}
+                onAddManual={() => actionSheetTarget && setAddManualTarget({ dayIndex: actionSheetTarget.dayIndex, insertIndex: actionSheetTarget.actIndex + 1 })}
+                onMove={() => actionSheetTarget && setMoveTarget(actionSheetTarget)}
+                onRemove={() => {
+                    if (!actionSheetTarget || !trip?._id) return;
+                    const { dayIndex, actIndex } = actionSheetTarget;
+                    removeActivityMut({ tripId: trip._id, dayIndex, activityIndex: actIndex })
+                        .catch((err: any) => console.error("Remove activity failed:", err));
+                }}
+            />
+
+            <EditTimeModal
+                visible={!!editTimeTarget}
+                initialStart={editTimeActivity ? (editTimeActivity.startTime || editTimeActivity.time || "") : ""}
+                initialEnd={editTimeActivity?.endTime || ""}
+                prevEnd={editTimeTarget && editTimeTarget.actIndex > 0 ? (editTimeDayActivities[editTimeTarget.actIndex - 1]?.endTime || editTimeDayActivities[editTimeTarget.actIndex - 1]?.time) : undefined}
+                nextStart={editTimeTarget && editTimeTarget.actIndex < editTimeDayActivities.length - 1 ? (editTimeDayActivities[editTimeTarget.actIndex + 1]?.startTime || editTimeDayActivities[editTimeTarget.actIndex + 1]?.time) : undefined}
+                onClose={() => setEditTimeTarget(null)}
+                onSave={handleEditTimeSave}
+            />
+
+            <AddActivityModal
+                visible={!!addManualTarget}
+                onClose={() => setAddManualTarget(null)}
+                onAdd={handleAddManual}
+            />
+
+            <MoveToDayModal
+                visible={!!moveTarget}
+                dayCount={trip?.itinerary?.dayByDayItinerary?.length || 0}
+                currentDayIndex={moveTarget?.dayIndex ?? 0}
+                onClose={() => setMoveTarget(null)}
+                onSelectDay={handleMoveToDay}
+            />
+
+            <ReorderDayModal
+                visible={reorderDayIndex !== null}
+                dayNumber={(reorderDayIndex ?? 0) + 1}
+                activities={(reorderDayIndex !== null && trip?.itinerary?.dayByDayItinerary?.[reorderDayIndex]?.activities) || []}
+                onClose={() => setReorderDayIndex(null)}
+                onReorder={(from, to) => reorderDayIndex !== null && handleReorderWithinDay(reorderDayIndex, from, to)}
+            />
         </View>
     );
 }
@@ -5402,6 +5626,52 @@ const styles = StyleSheet.create({
     daySection: {
         marginBottom: 32,
     },
+    dayRegenBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        borderWidth: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    dayLoadingBanner: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    addActivityFooter: {
+        flexDirection: "row",
+        gap: 10,
+        marginTop: 4,
+    },
+    addActivityBtn: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        paddingVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderStyle: "dashed",
+    },
+    addActivityText: {
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    addActivityRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderStyle: "dashed",
+        marginTop: 4,
+    },
     dayHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -5486,7 +5756,9 @@ const styles = StyleSheet.create({
     },
     timelineLine: {
         position: "absolute",
-        top: 40,
+        // Start below the icon + time block so the connector doesn't cut
+        // through the time labels (which stack under the icon).
+        top: 88,
         bottom: -24,
         width: 2,
         backgroundColor: "#E2E8F0",
@@ -6396,6 +6668,38 @@ const styles = StyleSheet.create({
         color: "white",
         fontSize: 14,
         fontWeight: "600",
+    },
+    // GetYourGuide / affiliate experience CTA (two-line: action + trust)
+    gygCtaButton: {
+        borderRadius: 10,
+        paddingVertical: 9,
+        paddingHorizontal: 12,
+        marginTop: 8,
+    },
+    gygCtaTopRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+    },
+    gygCtaLabelWrap: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 7,
+        flex: 1,
+    },
+    gygCtaTitle: {
+        color: "#000",
+        fontSize: 13.5,
+        fontWeight: "800",
+        flexShrink: 1,
+    },
+    gygCtaSub: {
+        color: "rgba(0,0,0,0.62)",
+        fontSize: 11,
+        fontWeight: "600",
+        marginTop: 3,
+        marginLeft: 23,
     },
     // Baggage option styles
     baggageOptionLeft: {

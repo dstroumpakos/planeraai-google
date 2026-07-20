@@ -1,5 +1,5 @@
 /**
- * React Hook for In-App Purchases (iOS App Store + Google Play)
+ * React Hook for Apple In-App Purchases
  * 
  * Provides easy access to IAP functionality in React components.
  */
@@ -24,12 +24,25 @@ if (Platform.OS === 'ios' || Platform.OS === 'android') {
     }
 }
 
+/**
+ * Platforms with a real store connection (StoreKit on iOS, Play Billing on
+ * Android). Anywhere else `iapService` hands back mock products, which are fine
+ * for development but must never be shown as a purchasable price — so purchase
+ * UI stays gated on this.
+ */
+export const BILLING_SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
+
+/** User-facing store name, for error copy. */
+export const STORE_NAME = Platform.OS === 'android' ? 'Play Store' : 'App Store';
+
 export interface UseIAPReturn {
     // State
     isLoading: boolean;
     isInitialized: boolean;
     products: IAPProduct[];
     error: string | null;
+    /** False when the platform has no real store connection (e.g. Android). */
+    billingSupported: boolean;
     
     // Products by type
     yearlySubscription: IAPProduct | null;
@@ -55,8 +68,8 @@ export function useIAP(): UseIAPReturn {
     useEffect(() => {
         let mounted = true;
 
-        // Set up purchase event listeners (iOS and Android)
-        if ((Platform.OS === 'ios' || Platform.OS === 'android') && ExpoIAPListeners) {
+        // Set up purchase event listeners (store platforms only)
+        if (BILLING_SUPPORTED && ExpoIAPListeners) {
             try {
                 if (ExpoIAPListeners.purchaseUpdatedListener) {
                     const purchaseSub = ExpoIAPListeners.purchaseUpdatedListener((purchase: any) => {
@@ -80,8 +93,8 @@ export function useIAP(): UseIAPReturn {
         }
 
         const init = async () => {
-            if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-                // Use mock products for non-native (web)
+            if (!BILLING_SUPPORTED) {
+                // No store connection — mock products, development only.
                 const mockProducts = await iapService.getProducts();
                 if (mounted) {
                     setProducts(mockProducts);
@@ -99,11 +112,11 @@ export function useIAP(): UseIAPReturn {
                     if (mounted) {
                         setProducts(fetchedProducts);
                         if (fetchedProducts.length === 0) {
-                            setError('Unable to load products. Please check your connection and try again.');
+                            setError(`Unable to load products from the ${STORE_NAME}. Please check your connection and try again.`);
                         }
                     }
                 } else if (mounted) {
-                    setError('Unable to connect to the store. Please try again later.');
+                    setError(`Unable to connect to the ${STORE_NAME}. Please try again later.`);
                 }
             } catch (err: any) {
                 console.error('[useIAP] Initialization error:', err);
@@ -226,6 +239,7 @@ export function useIAP(): UseIAPReturn {
         isInitialized,
         products,
         error,
+        billingSupported: BILLING_SUPPORTED,
         yearlySubscription,
         monthlySubscription,
         singleTrip,

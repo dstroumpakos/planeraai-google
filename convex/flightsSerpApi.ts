@@ -79,6 +79,8 @@ function buildSearchParams(input: FlightSearchInput): URLSearchParams {
   safeAppend(params, "max_duration", input.maxDuration);
   safeAppend(params, "outbound_times", input.outboundTimes);
   safeAppend(params, "return_times", input.returnTimes);
+  // Return-leg selection: fetches the return options for a chosen outbound.
+  safeAppend(params, "departure_token", input.departureToken);
   if (input.deepSearch) params.append("deep_search", "true");
   if (input.noCache) params.append("no_cache", "true");
 
@@ -239,6 +241,10 @@ async function _runSearch(
     console.error("[SerpApi] cache write failed");
   }
 
+  // Radar seeding only applies to first-leg searches; a return-leg fetch
+  // (departure_token) is already scoped to one outbound and would double-seed.
+  if (input.departureToken) return normalized;
+
   try {
     const all = [...normalized.bestFlights, ...normalized.otherFlights]
       .filter((o) => o.price != null);
@@ -320,6 +326,7 @@ export const searchFlights = action({
       returnTimes: v.optional(v.string()),
       deepSearch: v.optional(v.boolean()),
       noCache: v.optional(v.boolean()),
+      departureToken: v.optional(v.string()),
     }),
     // Optional cache TTL override (ms). Capped at 7 days. Used by
     // background workers like the Low-Fare Radar to keep SerpApi quota
@@ -335,6 +342,18 @@ export const searchFlights = action({
     );
     if (!session || (session.expiresAt && session.expiresAt < Date.now())) {
       throw new Error("Authentication required");
+    }
+    // Per-user rate limit: guards the paid SerpApi quota from abuse (notably
+    // anonymous public searches from the marketing widget). Generous enough
+    // for genuine browsing; strict enough to cap a single session's cost.
+    const rl: { allowed: boolean } = await ctx.runMutation(
+      internal.flightSearchCache.checkRateLimit,
+      { userId: String(session.userId), limit: 60, windowMs: 15 * 60 * 1000 }
+    );
+    if (!rl.allowed) {
+      throw new Error(
+        "You've searched a lot in a short time. Please wait a few minutes and try again."
+      );
     }
     try {
       return await _runSearch(ctx, args.input as FlightSearchInput, args.cacheTtlMs);
@@ -368,6 +387,119 @@ export const searchFlightsInternal = internalAction({
   },
 });
 
+// ========================== enrichTripBooking ===============================
+
+/**
+ * Post-creation enrichment for trips created from the flight search screen.
+ *
+ * Booking tokens are short-lived, so `trips.createFromFlight` schedules this
+ * immediately. It fetches SerpApi booking options for the selected itinerary
+ * and stores booking link(s) on the trip's flight data:
+ *   - "together" option  → one link that books both legs (preferred)
+ *   - "separate tickets" → distinct outbound + return links
+ * Best-effort: failures are swallowed; the trip simply keeps no book button.
+ */
+export const enrichTripBooking = internalAction({
+  args: {
+    tripId: v.id("trips"),
+    bookingToken: v.string(),
+    departureId: v.string(),
+    arrivalId: v.string(),
+    outboundDate: v.string(),
+    returnDate: v.optional(v.string()),
+    currency: v.optional(v.string()),
+    adults: v.optional(v.float64()),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    try {
+      const p = new URLSearchParams();
+      p.append("engine", "google_flights");
+      p.append("departure_id", args.departureId.toUpperCase());
+      p.append("arrival_id", args.arrivalId.toUpperCase());
+      p.append("outbound_date", args.outboundDate);
+      if (args.returnDate) {
+        p.append("return_date", args.returnDate);
+        p.append("type", "1");
+      } else {
+        p.append("type", "2");
+      }
+      p.append("booking_token", args.bookingToken);
+      p.append("currency", (args.currency ?? "EUR").toUpperCase());
+      p.append("hl", "en");
+      // NOTE: no `adults` param — the booking_token already encodes the
+      // passenger count, and sending adults here triggers an HTTP 400.
+
+      const raw = await callSerpApi(p);
+      const opts: any[] = Array.isArray(raw?.booking_options) ? raw.booking_options : [];
+
+      const toRequest = (br: any) =>
+        br?.url && br?.post_data ? { url: String(br.url), postData: String(br.post_data) } : undefined;
+
+      // Full provider list (mirrors the in-app booking sheet) so the trip's
+      // Flights tab can offer the same choice of booking sites. Each entry
+      // keeps the POST-based booking_request, resolved at tap-time.
+      const bookingProviders = opts
+        .map((o) => {
+          const leg = o?.together ?? o?.departing ?? o?.returning ?? o;
+          return {
+            bookWith: leg?.book_with ?? null,
+            price: Number(leg?.price) || null,
+            airlineLogos: Array.isArray(leg?.airline_logos) ? leg.airline_logos : [],
+            extensions: Array.isArray(leg?.extensions) ? leg.extensions.slice(0, 3) : [],
+            bookingRequest: toRequest(leg?.booking_request) ?? null,
+          };
+        })
+        .filter((p) => p.bookingRequest)
+        .sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+
+      // Primary booking link for the prominent button:
+      //   Rule 1 — one provider books both legs with a single link.
+      //   Rule 2 — separate tickets: one link per leg.
+      const together = opts
+        .map((o) => ({
+          price: Number(o?.together?.price) || Infinity,
+          request: toRequest(o?.together?.booking_request),
+        }))
+        .filter((c) => c.request)
+        .sort((a, b) => a.price - b.price);
+
+      const separate = opts
+        .map((o) => ({
+          price:
+            (Number(o?.departing?.price) || 0) + (Number(o?.returning?.price) || 0) || Infinity,
+          outbound: toRequest(o?.departing?.booking_request),
+          ret: toRequest(o?.returning?.booking_request),
+        }))
+        .filter((c) => c.outbound && c.ret)
+        .sort((a, b) => a.price - b.price);
+
+      const patch: any = { tripId: args.tripId };
+      if (bookingProviders.length > 0) patch.bookingProviders = bookingProviders;
+      if (together.length > 0) {
+        patch.bookingRequest = together[0].request;
+      } else if (separate.length > 0) {
+        patch.outboundBookingRequest = separate[0].outbound;
+        patch.returnBookingRequest = separate[0].ret;
+      }
+
+      if (patch.bookingProviders || patch.bookingRequest || patch.outboundBookingRequest) {
+        await ctx.runMutation(internal.trips.setFlightBookingData, patch);
+        console.log(
+          `[SerpApi] trip booking enriched (providers=${bookingProviders.length}, together=${together.length}, separate=${separate.length})`
+        );
+      }
+      return null;
+    } catch (err) {
+      // Best-effort — never block or fail trip creation over booking links.
+      console.error("[SerpApi] trip booking enrichment failed");
+      await reportError(ctx, "flightsSerpApi:enrichTripBooking", err, {
+        tripId: String(args.tripId),
+      });
+      return null;
+    }
+  },
+});
+
 // =========================== getBookingOptions ==============================
 
 export const getBookingOptions = action({
@@ -378,6 +510,11 @@ export const getBookingOptions = action({
       currency: v.optional(v.string()),
       hl: v.optional(v.string()),
       gl: v.optional(v.string()),
+      departureId: v.optional(v.string()),
+      arrivalId: v.optional(v.string()),
+      outboundDate: v.optional(v.string()),
+      returnDate: v.optional(v.string()),
+      adults: v.optional(v.float64()),
     }),
   },
   handler: async (ctx, args): Promise<NormalizedBookingOptionsResponse> => {
@@ -391,7 +528,17 @@ export const getBookingOptions = action({
       throw new Error("Authentication required");
     }
 
-    const { bookingToken, currency, hl, gl } = args.input;
+    const {
+      bookingToken,
+      currency,
+      hl,
+      gl,
+      departureId,
+      arrivalId,
+      outboundDate,
+      returnDate,
+      adults,
+    } = args.input;
     if (!bookingToken || !bookingToken.trim()) {
       throw new Error("Booking token is required.");
     }
@@ -409,12 +556,42 @@ export const getBookingOptions = action({
 
     const params = new URLSearchParams();
     params.append("engine", "google_flights");
+    // SerpApi's booking_options endpoint rejects a bare booking_token — it
+    // needs the same route + dates as the original search. Mirror the exact
+    // param shape used by the proven trip-generation path (tripsActions.ts):
+    // route + dates + type + booking_token + currency + hl, and NOTHING else.
+    // Passing extras like `adults` here triggers an HTTP 400.
+    if (departureId) params.append("departure_id", departureId.toUpperCase());
+    if (arrivalId) params.append("arrival_id", arrivalId.toUpperCase());
+    if (outboundDate) params.append("outbound_date", outboundDate);
+    if (returnDate) {
+      params.append("return_date", returnDate);
+      params.append("type", "1"); // round trip
+    } else if (outboundDate) {
+      params.append("type", "2"); // one way
+    }
     params.append("booking_token", bookingToken);
     params.append("currency", (currency ?? "EUR").toUpperCase());
     params.append("hl", hl ?? "en");
     if (gl) params.append("gl", gl);
+    void adults; // intentionally not sent — see comment above
 
-    const raw = await callSerpApi(params);
+    // Booking options are best-effort. If SerpApi rejects the request (e.g.
+    // an expired/invalid booking_token, which is common by the time a user
+    // taps through), degrade to an empty provider list so the sheet shows
+    // "No providers available" instead of a hard error banner.
+    let raw: any;
+    try {
+      raw = await callSerpApi(params);
+    } catch (serpErr) {
+      console.warn("[SerpApi] booking-options fetch failed; returning empty list");
+      return {
+        selectedFlights: [],
+        baggagePrices: null,
+        bookingOptions: [],
+        priceInsights: null,
+      };
+    }
 
     const priceInsights = normalizePriceInsights(raw?.price_insights);
     const selectedFlights = Array.isArray(raw?.selected_flights)

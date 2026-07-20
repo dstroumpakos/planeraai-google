@@ -1,14 +1,26 @@
-import React from "react";
-import { Image, Linking, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Image, Linking, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
+import { useTranslation } from "react-i18next";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useTheme } from "@/lib/ThemeContext";
 import type { NormalizedBookingOption } from "@/types/flights";
 
 interface Props {
   option: NormalizedBookingOption;
+  /**
+   * Travelers from the search. Provider prices are PER PERSON, while the
+   * flight card shows the TOTAL — so when > 1 we label per-person and also
+   * show the ×N total so the two are directly comparable.
+   */
+  travelers?: number;
 }
 
-export const BookingOptionCard: React.FC<Props> = ({ option }) => {
+export const BookingOptionCard: React.FC<Props> = ({ option, travelers }) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
+  const resolveBookingUrl = useAction(api.flightsResolve.resolveBookingUrl);
+  const [resolving, setResolving] = useState(false);
 
   const styles = StyleSheet.create({
     card: {
@@ -23,7 +35,9 @@ export const BookingOptionCard: React.FC<Props> = ({ option }) => {
     logoRow: { flexDirection: "row", gap: 4 },
     logo: { width: 28, height: 28, borderRadius: 6, backgroundColor: colors.lightGray },
     provider: { color: colors.text, fontWeight: "700", fontSize: 14, flex: 1 },
+    priceCol: { alignItems: "flex-end" },
     price: { color: colors.text, fontWeight: "700", fontSize: 16 },
+    priceCaption: { color: colors.textMuted, fontSize: 10, marginTop: 1, textAlign: "right" },
     title: { color: colors.textSecondary, fontSize: 12 },
     extension: { color: colors.textMuted, fontSize: 11 },
     button: {
@@ -37,28 +51,43 @@ export const BookingOptionCard: React.FC<Props> = ({ option }) => {
     disabledText: { color: colors.textMuted, fontWeight: "600", fontSize: 13 },
   });
 
-  // Some SerpApi booking options return `booking_request.post_data` instead of
-  // a plain `url`. React Native cannot securely submit an external POST from
-  // the device, so for MVP we only deep-link when `url` is present. A future
-  // backend-rendered handoff page can fill the gap for POST-only providers.
-  const url = option.bookingRequest?.url;
-  const postOnly = !url && Boolean(option.bookingRequest?.postData);
+  // SerpApi's `booking_request.url` is usually Google's `clk/f` endpoint that
+  // requires a POST body (`post_data`) and 404s on a plain GET. When post_data
+  // is present we resolve it server-side to the real provider URL first, then
+  // open that. A bare url without post_data is a direct link we can open.
+  const req = option.bookingRequest;
+  const canBook = Boolean(req?.url);
+
+  const openProviderError = () =>
+    Alert.alert(
+      t("flights.couldNotOpenProvider", { defaultValue: "Could not open provider" }),
+      t("flights.tryAnotherOption", { defaultValue: "Please try another option." })
+    );
 
   const onContinue = async () => {
-    if (!url) return;
+    if (!req?.url || resolving) return;
+    setResolving(true);
     try {
-      const can = await Linking.canOpenURL(url);
-      if (!can) {
-        Alert.alert("Cannot open link", "This provider link cannot be opened.");
-        return;
+      let target = req.url;
+      if (req.postData) {
+        const resolved = await resolveBookingUrl({ url: req.url, postData: req.postData });
+        if (resolved?.ok && resolved.url) {
+          target = resolved.url;
+        } else {
+          openProviderError();
+          return;
+        }
       }
-      await Linking.openURL(url);
+      await Linking.openURL(target);
     } catch {
-      Alert.alert("Could not open provider", "Please try another option.");
+      openProviderError();
+    } finally {
+      setResolving(false);
     }
   };
 
   const localEur = option.localPrices?.find((p) => p.currency === "EUR");
+  const multiTraveler = Boolean(travelers && travelers > 1);
 
   return (
     <View style={styles.card}>
@@ -70,11 +99,24 @@ export const BookingOptionCard: React.FC<Props> = ({ option }) => {
           {(option.airlineLogos ?? []).length === 0 && <View style={styles.logo} />}
         </View>
         <Text style={styles.provider} numberOfLines={1}>
-          {option.bookWith ?? "Provider"}
+          {option.bookWith ?? t("flights.provider", { defaultValue: "Provider" })}
         </Text>
-        <Text style={styles.price}>
-          {option.price != null ? `€ ${Math.round(option.price).toLocaleString()}` : "—"}
-        </Text>
+        <View style={styles.priceCol}>
+          <Text style={styles.price}>
+            {option.price != null ? `€ ${Math.round(option.price).toLocaleString()}` : "—"}
+          </Text>
+          {multiTraveler && option.price != null && (
+            <Text style={styles.priceCaption} numberOfLines={2}>
+              {t("flights.perPersonAndTotal", {
+                total: `€ ${Math.round(option.price * (travelers as number)).toLocaleString()}`,
+                count: travelers,
+                defaultValue: `per person · € ${Math.round(
+                  option.price * (travelers as number)
+                ).toLocaleString()} for ${travelers}`,
+              })}
+            </Text>
+          )}
+        </View>
       </View>
 
       {option.optionTitle && <Text style={styles.title}>{option.optionTitle}</Text>}
@@ -89,19 +131,26 @@ export const BookingOptionCard: React.FC<Props> = ({ option }) => {
         </Text>
       ))}
 
-      {url ? (
-        <TouchableOpacity style={styles.button} onPress={onContinue} activeOpacity={0.85}>
-          <Text style={styles.buttonText}>Continue to provider</Text>
+      {canBook ? (
+        <TouchableOpacity
+          style={[styles.button, resolving && { opacity: 0.7 }]}
+          onPress={onContinue}
+          activeOpacity={0.85}
+          disabled={resolving}
+        >
+          {resolving ? (
+            <ActivityIndicator size="small" color="#1A1A1A" />
+          ) : (
+            <Text style={styles.buttonText}>
+              {t("flights.continueToProvider", { defaultValue: "Continue to provider" })}
+            </Text>
+          )}
         </TouchableOpacity>
-      ) : postOnly ? (
-        <View style={[styles.button, styles.disabled]}>
-          <Text style={styles.disabledText}>
-            This provider requires an external booking handoff that is not available in the app yet.
-          </Text>
-        </View>
       ) : (
         <View style={[styles.button, styles.disabled]}>
-          <Text style={styles.disabledText}>Check availability unavailable</Text>
+          <Text style={styles.disabledText}>
+            {t("flights.availabilityUnavailable", { defaultValue: "Availability check unavailable" })}
+          </Text>
         </View>
       )}
     </View>

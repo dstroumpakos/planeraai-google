@@ -114,13 +114,13 @@ export default function FlightBookingScreen() {
     
     // Find matching travelers by ID or use default travelers
     const travelersToUse = travelerIds.length > 0
-      ? travelerIds.map(id => savedTravelers.find(t => t._id === id)).filter(Boolean)
-      : savedTravelers.filter(t => t.isDefault).slice(0, numPassengers);
+      ? travelerIds.map(id => savedTravelers.find((t: any) => t._id === id)).filter(Boolean)
+      : savedTravelers.filter((t: any) => t.isDefault).slice(0, numPassengers);
     
     if (travelersToUse.length > 0) {
       setPassengers(prev => {
         const updated = [...prev];
-        travelersToUse.forEach((traveler, index) => {
+        travelersToUse.forEach((traveler: any, index: number) => {
           if (traveler && index < updated.length) {
             // Use phoneCountryCode and phoneNumber directly from traveler profile
             const countryCode = traveler.phoneCountryCode || "+1";
@@ -160,7 +160,7 @@ export default function FlightBookingScreen() {
       }
 
       try {
-        const result = await getFlightOffer({ offerId });
+        const result = await getFlightOffer({ token: token!, offerId });
         if (result.valid) {
           setOfferValid(true);
           setPriceInfo({
@@ -275,6 +275,7 @@ export default function FlightBookingScreen() {
       // For test mode with Duffel Airways, we can directly create the booking
       // The balance payment will be used automatically in sandbox
       const result = await createBooking({
+        token: token!,
         offerId,
         tripId: tripId as Id<"trips">,
         passengers: passengers.map((p, index) => ({

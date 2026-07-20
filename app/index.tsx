@@ -11,28 +11,60 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useTranslation } from "react-i18next";
 import { LanguagePickerModal } from "@/components/LanguagePickerModal";
+import * as SecureStore from "expo-secure-store";
 
 // Fallback colors for when theme is not available (e.g., during initial load)
 const COLORS = LIGHT_COLORS;
-const ENABLE_GOOGLE = true;
+// Google Sign-In needs only a web client ID on Android, but on iOS it also
+// needs an iOS OAuth client plus its reversed URL scheme registered through the
+// google-signin config plugin. Until that iOS client exists, Android is the
+// only platform where the button can actually complete a sign-in — iOS users
+// have Apple Sign-In, which Google would otherwise sit next to as a dead
+// button. Flip this to `true` once `iosUrlScheme` is configured.
+const ENABLE_GOOGLE = Platform.OS === "android";
+// Mirror of PENDING_INVITE_KEY in app/invite/[token].tsx — a trip invite the
+// user opened before signing in, to be resumed once authenticated.
+const PENDING_INVITE_KEY = "pendingInviteToken";
 
 // Component to handle authenticated user redirect based on onboarding status
 function AuthenticatedRedirect() {
     const { token } = useToken();
     const { t } = useTranslation();
     const [languageDismissed, setLanguageDismissed] = useState(false);
+    // undefined = still reading, null = none, string = invite token to resume.
+    const [pendingInvite, setPendingInvite] = useState<string | null | undefined>(undefined);
+    useEffect(() => {
+        SecureStore.getItemAsync(PENDING_INVITE_KEY)
+            .then((v) => setPendingInvite(v ?? null))
+            .catch(() => setPendingInvite(null));
+    }, []);
     // @ts-ignore
     const settings = useQuery(api.users.getSettings as any, token ? { token } : "skip");
+    // Prefetch the Home screen's core data right here so this "loading your
+    // profile" screen stays up until Home is actually ready. Convex caches these
+    // results, so when we redirect, Home mounts already-populated in one shot
+    // instead of flashing a half-built layout (placeholder avatar, missing
+    // badges, trending fallback). Args mirror Home's queries so the cache hits.
+    // @ts-ignore
+    const plan = useQuery(api.users.getPlan as any, token ? { token } : "skip");
+    // @ts-ignore
+    const deals = useQuery(api.lowFareRadar.getDealsForUser as any, token ? { token } : "skip");
+    const profileImg = useQuery(
+        api.users.getProfileImageUrl as any,
+        token && settings?.profilePicture ? { storageId: settings.profilePicture, token } : "skip"
+    );
+
+    const loadingProfileScreen = (
+        <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>{t('auth.loadingProfile')}</Text>
+        </View>
+    );
 
     // Still loading settings from Convex
     if (settings === undefined) {
         console.log("[Index] AuthenticatedRedirect: Loading settings...");
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>{t('auth.loadingProfile')}</Text>
-            </View>
-        );
+        return loadingProfileScreen;
     }
 
     console.log("[Index] AuthenticatedRedirect: Settings loaded, onboardingCompleted:", settings.onboardingCompleted);
@@ -49,9 +81,27 @@ function AuthenticatedRedirect() {
         );
     }
 
-    // If onboarding not completed, redirect to onboarding
+    // If onboarding not completed, redirect to onboarding (no need for Home data yet)
     if (!settings.onboardingCompleted) {
         return <Redirect href="/onboarding" />;
+    }
+
+    // Heading to Home — keep the loading-profile screen up until its core data
+    // has landed, so Home appears fully populated. The profile image only
+    // matters when the user actually has one set.
+    const profileReady = !settings.profilePicture || profileImg !== undefined;
+    if (plan === undefined || deals === undefined || !profileReady) {
+        console.log("[Index] AuthenticatedRedirect: Warming Home data...");
+        return loadingProfileScreen;
+    }
+
+    // Resume a trip invite the user opened before signing in. The invite screen
+    // clears the stashed token and accepts it, so this won't loop.
+    if (pendingInvite === undefined) {
+        return loadingProfileScreen;
+    }
+    if (pendingInvite) {
+        return <Redirect href={`/invite/${pendingInvite}`} />;
     }
 
     // Otherwise go to tabs
@@ -201,7 +251,12 @@ export default function Index() {
     // Splash Screen
     const renderSplash = () => (
         <View style={styles.splashContainer}>
-            <View style={styles.splashContent}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.splashContent}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+            >
                 <View style={styles.logoContainer}>
                     <View style={styles.logoIconWrapper}>
                         <Image 
@@ -212,7 +267,7 @@ export default function Index() {
                 </View>
                 <Text style={styles.splashTitle}>{t('auth.planera')}</Text>
                 <Text style={styles.splashSubtitle}>{t('auth.tagline')}</Text>
-            </View>
+            </ScrollView>
             
             <View style={styles.splashBottom}>
                 <TouchableOpacity 
@@ -237,7 +292,12 @@ export default function Index() {
         <View style={styles.onboardingContainer}>
             <Text style={styles.onboardingBrand}>PLANERA</Text>
             
-            <ScrollView style={styles.onboardingContent} contentContainerStyle={styles.onboardingScrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.onboardingContent}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+            >
                 <Text style={styles.onboardingTitle}>{onboardingData[0].title}</Text>
                 <Text style={styles.onboardingSubtitle}>{onboardingData[0].subtitle}</Text>
                 
@@ -444,7 +504,7 @@ export default function Index() {
                 )}
                 
                 <Text style={styles.termsText}>
-                    {t('auth.byContinuing')} <Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/terms")}>{t('auth.termsOfUse')}</Text> &{"\n"}<Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>{t('auth.privacyPolicy')}</Text>.
+                    {t('auth.byContinuing')} <Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")}>{t('auth.termsOfUse')}</Text> &{"\n"}<Text style={styles.termsLink} onPress={() => Linking.openURL("https://www.planeraai.app/privacy")}>{t('auth.privacyPolicy')}</Text>.
                 </Text>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -507,7 +567,7 @@ const styles = StyleSheet.create({
         paddingVertical: 40,
     },
     splashContent: {
-        flex: 1,
+        flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
     },
@@ -594,10 +654,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     onboardingContent: {
-        flex: 1,
-    },
-    onboardingScrollContent: {
-        paddingBottom: 16,
+        flexGrow: 1,
     },
     onboardingTitle: {
         fontSize: 32,

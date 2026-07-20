@@ -2,7 +2,7 @@
 
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import OpenAI from "openai";
 import * as duffel from "./flights/duffel";
 import { AIRPORTS } from "../lib/airports";
@@ -1056,6 +1056,25 @@ export const generate = internalAction({
             // 6. Generate day-by-day itinerary with OpenAI
             console.log("📍 STEP 2/5 starting: OpenAI itinerary generation");
             console.log("📝 Generating itinerary with OpenAI...");
+
+            // Pre-fetch admin-curated affiliate attraction links ONCE. Used both to
+            // (a) bias the AI to use our EXACT attraction titles verbatim (so the
+            // itinerary doesn't translate proper names into another language and
+            // produce a cross-language duplicate) and (b) attach booking links after.
+            let curatedAttractionLinks: AttractionAffiliateLink[] = [];
+            try {
+                const curatedCity = extractDestinationCity(trip.destination);
+                curatedAttractionLinks = ((await ctx.runQuery(
+                    api.lowFareRadar.getActiveAttractionLinksForDestination,
+                    { destinationCity: curatedCity },
+                )) as AttractionAffiliateLink[]) || [];
+            } catch (curatedErr) {
+                console.warn(
+                    "⚠️ Could not pre-fetch curated attraction links:",
+                    curatedErr instanceof Error ? curatedErr.message : curatedErr,
+                );
+            }
+
             let dayByDayItinerary;
             if (hasOpenAIKey) {
                 try {
@@ -1121,6 +1140,18 @@ export const generate = internalAction({
                         ? `\n**LANGUAGE REQUIREMENT:** ALL text content (activity titles, descriptions, tips, whyThisFits, duration text, day titles, travelFromPrevious descriptions, culinaryTags labels) MUST be written in ${languageName}. JSON keys/field names stay in English. Only the string VALUES should be in ${languageName}.\n`
                         : '';
 
+                    // Curated bookable attractions: instruct the AI to include these
+                    // and to use the EXACT title verbatim (NOT translated) so the
+                    // booking link attaches cleanly in any language (no duplicates).
+                    const curatedAttractionTitles = curatedAttractionLinks
+                        .filter((l) => l.active)
+                        .map((l) => (l.displayTitle || l.activityTitle || "").trim())
+                        .filter((tName) => tName.length > 0)
+                        .slice(0, 12);
+                    const curatedAttractionsGuidance = curatedAttractionTitles.length > 0
+                        ? `\n**PREFERRED BOOKABLE ATTRACTIONS (CRITICAL):**\nThese specific attractions can be pre-booked and SHOULD be included when they fit the destination and the traveler's interests:\n${curatedAttractionTitles.map((tName) => `- ${tName}`).join("\n")}\nWhen you include any of these, you MUST use the EXACT title shown above VERBATIM as the activity "title" — do NOT translate, rename, abbreviate, or localize it (keep the proper name exactly as written, even when the rest of the itinerary is in another language). Place each on the day where it best fits geographically. These count toward the per-day item limits (they replace a generic activity, they do NOT add an extra item).\n`
+                        : '';
+
                     const itineraryPrompt = `Create a detailed day-by-day itinerary for a ${tripDays}-day trip to ${trip.destination} from ${new Date(trip.startDate).toDateString()} to ${new Date(trip.endDate).toDateString()}.
 ${promptLanguageRequirement}
 **CRITICAL: ${daysInstructions}**${arrivalDayHardConstraint}
@@ -1144,7 +1175,7 @@ Every traveler going to ${trip.destination} expects the iconic, world-famous sig
 - For longer trips, also include 1-2 well-known secondary highlights and at least one notable viewpoint or scenic vantage point of the destination.
 - If a famous landmark genuinely requires advance booking (e.g. timed-entry tickets), note it in "tips" and set skipTheLine accordingly.
 - Respect the per-day item limits below — must-see sights take the place of generic activities, they do NOT add extra items.
-
+${curatedAttractionsGuidance}
 **SPECIFICITY & ACCURACY (CRITICAL):**
 - Use REAL, specific, named venues that actually exist in ${trip.destination} — never generic placeholders like "a local café" or "a popular museum". Name the actual place.
 - Only recommend venues you are confident genuinely exist. Do NOT invent restaurants, attractions, or addresses. If unsure of an exact spot, choose a well-known, established one rather than fabricating.
@@ -1493,6 +1524,21 @@ Make sure prices are realistic for ${trip.destination} and aligned with the ${bu
             } else {
                 console.warn("⚠️ OpenAI not configured, using basic itinerary");
                 dayByDayItinerary = generateBasicItinerary(trip, activities, restaurants);
+            }
+
+            // Inject admin-curated affiliate attraction links (runs for all paths).
+            try {
+                dayByDayItinerary = enrichItineraryWithAffiliateAttractions(
+                    dayByDayItinerary,
+                    trip.destination,
+                    trip.interests || [],
+                    curatedAttractionLinks || [],
+                );
+            } catch (affiliateErr) {
+                console.warn(
+                    "⚠️ Affiliate attraction enrichment skipped:",
+                    affiliateErr instanceof Error ? affiliateErr.message : affiliateErr,
+                );
             }
 
             console.log("📍 STEP 4/5 complete: post-processing finished");
@@ -2413,6 +2459,8 @@ interface ItineraryActivity {
     whyThisFits?: string | null;
     walkability?: string | null;
     culinaryTags?: string[] | null;
+    affiliateProvider?: string;
+    affiliateSource?: string;
 }
 
 interface RestaurantInfo {
@@ -2423,6 +2471,176 @@ interface RestaurantInfo {
     reviewCount?: number;
     address?: string;
     tripAdvisorUrl?: string;
+}
+
+interface AttractionAffiliateLink {
+    destinationCity: string;
+    activityTitle: string;
+    displayTitle: string;
+    affiliateUrl: string;
+    partner?: string;
+    price?: number;
+    currency?: string;
+    topSite: boolean;
+    travelStyles?: string[];
+    active: boolean;
+}
+
+function normalizeAffiliateKey(value: string | undefined | null): string {
+    if (!value) return "";
+    return value
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ");
+}
+
+function extractDestinationCity(destination: string): string {
+    return normalizeAffiliateKey(destination.split(",")[0]);
+}
+
+// Fuzzy title match: exact, or word-boundary containment where the contained
+// side has >= 2 words. This lets an admin link titled "Sagrada Familia Ticket"
+// match a generated activity "Sagrada Família" (and vice versa) without matching
+// overly generic single-word titles like "Barcelona".
+function affiliateTitlesMatch(activityKey: string, linkKey: string): boolean {
+    if (!activityKey || !linkKey) return false;
+    if (activityKey === linkKey) return true;
+    const shorter = activityKey.length <= linkKey.length ? activityKey : linkKey;
+    const longer = activityKey.length <= linkKey.length ? linkKey : activityKey;
+    if (shorter.split(" ").length < 2) return false;
+    return (
+        longer.startsWith(shorter + " ") ||
+        longer.endsWith(" " + shorter) ||
+        longer.includes(" " + shorter + " ")
+    );
+}
+
+// Find the affiliate link that best matches a generated activity title.
+// Prefers an exact normalized match, then falls back to fuzzy matching.
+function findMatchingAffiliateLink(
+    activityKey: string,
+    links: AttractionAffiliateLink[],
+): AttractionAffiliateLink | undefined {
+    for (const link of links) {
+        if (
+            normalizeAffiliateKey(link.activityTitle) === activityKey ||
+            normalizeAffiliateKey(link.displayTitle) === activityKey
+        ) {
+            return link;
+        }
+    }
+    for (const link of links) {
+        if (
+            affiliateTitlesMatch(activityKey, normalizeAffiliateKey(link.activityTitle)) ||
+            affiliateTitlesMatch(activityKey, normalizeAffiliateKey(link.displayTitle))
+        ) {
+            return link;
+        }
+    }
+    return undefined;
+}
+
+function enrichItineraryWithAffiliateAttractions(
+    dayByDayItinerary: ItineraryDay[],
+    destination: string,
+    interests: string[],
+    links: AttractionAffiliateLink[],
+): ItineraryDay[] {
+    if (!Array.isArray(dayByDayItinerary) || dayByDayItinerary.length === 0) {
+        return dayByDayItinerary;
+    }
+
+    const activeLinks = links.filter((l) => l.active);
+    if (activeLinks.length === 0) {
+        return dayByDayItinerary;
+    }
+
+    const travelStyles = new Set((interests || []).map((i) => normalizeAffiliateKey(i)));
+
+    // Track which links have already been applied to an existing activity so we
+    // don't force-insert a duplicate card in Pass 2.
+    const handledLinkKeys = new Set<string>();
+    const markLinkHandled = (link: AttractionAffiliateLink) => {
+        const k1 = normalizeAffiliateKey(link.activityTitle);
+        const k2 = normalizeAffiliateKey(link.displayTitle);
+        if (k1) handledLinkKeys.add(k1);
+        if (k2) handledLinkKeys.add(k2);
+    };
+
+    // Pass 1: enhance existing matching activities with the affiliate booking link.
+    const existingActivityKeys: string[] = [];
+    for (const day of dayByDayItinerary) {
+        if (!day.activities) continue;
+        for (const activity of day.activities) {
+            const key = normalizeAffiliateKey(activity.title);
+            if (!key) continue;
+            existingActivityKeys.push(key);
+            const match = findMatchingAffiliateLink(key, activeLinks);
+            if (match) {
+                activity.bookingUrl = match.affiliateUrl;
+                activity.affiliateProvider = match.partner || "getyourguide";
+                activity.affiliateSource = "admin_curated";
+                if (match.price !== undefined && match.price !== null) {
+                    activity.price = match.price;
+                    if (match.currency) activity.currency = match.currency;
+                }
+                markLinkHandled(match);
+            }
+        }
+    }
+
+    // Pass 2: force-insert links that weren't matched to any existing activity.
+    const sortedLinks = [...activeLinks].sort((a, b) => Number(b.topSite) - Number(a.topSite));
+    let nonTopInserted = 0;
+    const nonTopInsertLimit = Math.max(1, dayByDayItinerary.length);
+    // Our curated affiliate cards are shown first: insert at the top of day 1
+    // (preserving top-site-first order) so the bookable card is the most visible.
+    let affiliateInsertPos = 0;
+
+    for (const link of sortedLinks) {
+        const key = normalizeAffiliateKey(link.activityTitle);
+        const displayKey = normalizeAffiliateKey(link.displayTitle);
+        if (!key) continue;
+        // Skip if already applied to an existing activity, or if it fuzzy-matches
+        // any existing activity title (prevents duplicate cards).
+        if (handledLinkKeys.has(key) || (displayKey && handledLinkKeys.has(displayKey))) continue;
+        if (existingActivityKeys.some((ak) => affiliateTitlesMatch(ak, key) || affiliateTitlesMatch(ak, displayKey))) continue;
+
+        if (!link.topSite && nonTopInserted >= nonTopInsertLimit) {
+            continue;
+        }
+
+        const linkStyles = new Set((link.travelStyles || []).map((s) => normalizeAffiliateKey(s)));
+        const hasStyleMatch = [...linkStyles].some((s) => travelStyles.has(s));
+        const shouldInsert = link.topSite || hasStyleMatch;
+        if (!shouldInsert) continue;
+
+        const targetDay = dayByDayItinerary[0];
+        if (!targetDay.activities) {
+            targetDay.activities = [];
+        }
+
+        targetDay.activities!.splice(affiliateInsertPos, 0, {
+            time: "11:00 AM",
+            title: link.displayTitle || link.activityTitle,
+            description: `Recommended experience in ${destination}`,
+            type: "activity",
+            duration: "2-3 hours",
+            price: link.price ?? undefined,
+            currency: link.currency ?? undefined,
+            bookingUrl: link.affiliateUrl,
+            tips: null,
+            affiliateProvider: link.partner || "getyourguide",
+            affiliateSource: "admin_forced_insertion",
+        });
+        affiliateInsertPos++;
+        existingActivityKeys.push(key);
+        if (!link.topSite) nonTopInserted++;
+    }
+
+    return dayByDayItinerary;
 }
 
 

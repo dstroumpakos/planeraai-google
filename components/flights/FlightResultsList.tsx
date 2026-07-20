@@ -1,5 +1,6 @@
 import React from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/lib/ThemeContext";
 import type { NormalizedFlightOption } from "@/types/flights";
 import { FlightResultCard } from "./FlightResultCard";
@@ -9,6 +10,9 @@ interface Props {
   otherFlights: NormalizedFlightOption[];
   currency?: string;
   onSelect: (option: NormalizedFlightOption) => void;
+  onCreateTrip?: (option: NormalizedFlightOption) => void;
+  ctaLabel?: string;
+  travelers?: number;
 }
 
 export const FlightResultsList: React.FC<Props> = ({
@@ -16,8 +20,12 @@ export const FlightResultsList: React.FC<Props> = ({
   otherFlights,
   currency = "EUR",
   onSelect,
+  onCreateTrip,
+  ctaLabel,
+  travelers,
 }) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const styles = StyleSheet.create({
     section: { color: colors.text, fontWeight: "700", fontSize: 16, marginTop: 8 },
@@ -30,13 +38,21 @@ export const FlightResultsList: React.FC<Props> = ({
   > = [];
 
   if (bestFlights.length > 0) {
-    items.push({ kind: "header", label: "Best flights", key: "h-best" });
+    items.push({
+      kind: "header",
+      label: t("flights.bestFlights", { defaultValue: "Best flights" }),
+      key: "h-best",
+    });
     bestFlights.forEach((o) =>
       items.push({ kind: "card", option: o, key: `b-${o.id}` })
     );
   }
   if (otherFlights.length > 0) {
-    items.push({ kind: "header", label: "Other flights", key: "h-other" });
+    items.push({
+      kind: "header",
+      label: t("flights.otherFlights", { defaultValue: "Other flights" }),
+      key: "h-other",
+    });
     otherFlights.forEach((o) =>
       items.push({ kind: "card", option: o, key: `o-${o.id}` })
     );
@@ -46,7 +62,10 @@ export const FlightResultsList: React.FC<Props> = ({
     return (
       <View>
         <Text style={styles.empty}>
-          No flights found for these dates. Try different dates or fewer filters.
+          {t("flights.noFlightsFound", {
+            defaultValue:
+              "No flights found for these dates. Try different dates or fewer filters.",
+          })}
         </Text>
       </View>
     );
@@ -66,6 +85,9 @@ export const FlightResultsList: React.FC<Props> = ({
             option={item.option}
             currency={currency}
             onPress={() => onSelect(item.option)}
+            onCreateTrip={onCreateTrip ? () => onCreateTrip(item.option) : undefined}
+            ctaLabel={ctaLabel}
+            travelers={travelers}
           />
         )
       }

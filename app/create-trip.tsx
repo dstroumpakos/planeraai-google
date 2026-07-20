@@ -444,6 +444,8 @@ export default function CreateTripScreen() {
     const prefilledBudget = params.prefilledBudget as string | undefined;
     const prefilledTravelers = params.prefilledTravelers as string | undefined;
     const prefilledInterests = params.prefilledInterests as string | undefined;
+    const prefilledArrivalTime = params.prefilledArrivalTime as string | undefined;
+    const prefilledDepartureTime = params.prefilledDepartureTime as string | undefined;
     
     // @ts-ignore
     const createTrip = useAuthenticatedMutation(api.trips.create as any);
@@ -497,7 +499,7 @@ export default function CreateTripScreen() {
         const ref = sectionRefs.current[key];
         if (ref && scrollRef.current) {
             ref.measureLayout(
-                scrollRef.current.getInnerViewRef() as any,
+                (scrollRef.current as any).getInnerViewRef() as any,
                 (_x: number, y: number) => {
                     scrollRef.current?.scrollTo({ y: Math.max(0, y - 20), animated: true });
                 },
@@ -556,9 +558,12 @@ export default function CreateTripScreen() {
         skipFlights: false,
         skipHotel: false,
         preferredFlightTime: "any" as "any" | "morning" | "afternoon" | "evening" | "night",
-        // Arrival/Departure times (optional, ISO string in destination timezone)
-        arrivalTime: null as string | null,
-        departureTime: null as string | null,
+        // Arrival/Departure times (optional, ISO string in destination timezone).
+        // Prefilled when the trip is being created off a real flight booking —
+        // the caller has already encoded them the same way applySelectedTime
+        // does (local wall-clock hours carried on a UTC instant).
+        arrivalTime: (prefilledArrivalTime || null) as string | null,
+        departureTime: (prefilledDepartureTime || null) as string | null,
     });
 
         // V1: Compute per-person budget on the fly
@@ -881,6 +886,8 @@ export default function CreateTripScreen() {
                 departureTime: formData.departureTime || undefined,
                 // Language preference for AI-generated content
                 language: i18n.language || "en",
+                // Platform the trip was generated from (ios/android)
+                platform: Platform.OS,
             });
             
             // Mark first-trip guide as seen so it never shows again
@@ -1416,7 +1423,7 @@ export default function CreateTripScreen() {
                 )}
                 <TouchableOpacity 
                     style={[styles.generateButton, { backgroundColor: colors.text }, loading && styles.disabledButton, currentGuideKey === "generate" ? { borderWidth: 2, borderColor: colors.primary } : {}]}
-                    onPress={handleSubmit}
+                    onPress={() => handleSubmit()}
                     disabled={loading}
                 >
                     {loading ? (

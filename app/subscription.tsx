@@ -1,13 +1,14 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, ActivityIndicator, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { useIAP } from "@/lib/useIAP";
+import { finishRestoredPurchase, type PurchaseResult } from "@/lib/iap";
 import { useTranslation } from "react-i18next";
 
 export default function SubscriptionScreen() {
@@ -16,11 +17,13 @@ export default function SubscriptionScreen() {
     const { token } = useToken();
     const { t } = useTranslation();
     
-    // Convex mutations for processing purchases
-    // @ts-ignore - API types may not include these yet
-    const processPurchase = useMutation(api.users.processPurchase);
-    // @ts-ignore
-    const restorePurchases_ = useMutation(api.users.restorePurchases);
+    // SECURITY: entitlements are granted only through server-side verified
+    // actions. These live on the SHARED Convex backend (deployed from the iOS
+    // repo), not this repo's local convex/, so they're referenced via `as any`.
+    // The old api.users.processPurchase / restorePurchases mutations trusted
+    // client-supplied productId/receipt and must never be used to grant.
+    const verifyApplePurchase = useAction((api as any).iapVerify.verifyAndApplyApplePurchase);
+    const verifyGooglePurchase = useAction((api as any).iapVerifyGoogle.verifyAndApplyGooglePurchase);
     const userPlan = useQuery(api.users.getPlan as any, token ? { token } : "skip");
     
     // IAP hook for store purchases
@@ -61,8 +64,35 @@ export default function SubscriptionScreen() {
     const monthlyPrice = monthlySubscription?.price || null;
     const singleTripPrice = singleTrip?.price || null;
     
-    // Check if products are loaded (real StoreKit products, not mocks)
+    // Check if products are loaded (real store products, not mocks)
     const productsLoaded = yearlyPrice && monthlyPrice;
+
+    // Route each receipt to the verifier for the store that issued it: Apple
+    // takes a StoreKit receipt/JWS, Google takes a Play purchase token. Both
+    // return the same shape and derive the entitlement server-side.
+    const verifyPurchase = async (result: PurchaseResult): Promise<any> => {
+        const common = {
+            token: token!,
+            productId: result.productId!,
+            transactionId: result.transactionId!,
+        };
+        if (result.platform === 'android') {
+            return await verifyGooglePurchase({ ...common, purchaseToken: result.receipt! });
+        }
+        return await verifyApplePurchase({ ...common, receipt: result.receipt! });
+    };
+
+    // Verify a restored purchase, then settle it with the store. Play
+    // auto-refunds anything left unacknowledged/unconsumed after 3 days, so a
+    // granted entitlement must be followed by finishing the purchase.
+    const verifyRestoredPurchase = async (result: PurchaseResult): Promise<boolean> => {
+        const vr: any = await verifyPurchase(result);
+        if (!vr?.success) return false;
+        if (result.platform === 'android' && result.receipt) {
+            await finishRestoredPurchase(result.productId!, result.receipt);
+        }
+        return true;
+    };
 
     const handlePurchase = async () => {
         if (!token) {
@@ -109,14 +139,14 @@ export default function SubscriptionScreen() {
             }
 
             if (result.success && result.transactionId) {
-                // Process the purchase on our backend
-                await processPurchase({
-                    token,
-                    productId: result.productId!,
-                    transactionId: result.transactionId,
-                    receipt: result.receipt,
-                    platform: Platform.OS === "ios" ? "ios" : "android",
-                });
+                if (!result.receipt) {
+                    throw new Error(t('subscription.failedCompletePurchase'));
+                }
+                // Verify the receipt with the store, then grant server-side.
+                const verifyRes: any = await verifyPurchase(result);
+                if (!verifyRes?.success) {
+                    throw new Error(verifyRes?.error || t('subscription.failedCompletePurchase'));
+                }
 
                 if (Platform.OS !== "web") {
                     if (selectedPlan === "single") {
@@ -135,17 +165,18 @@ export default function SubscriptionScreen() {
                 try {
                     const restoreResults = await restorePurchases();
                     const successfulRestores = restoreResults.filter(r => r.success && r.transactionId);
-                    
-                    if (successfulRestores.length > 0) {
-                        await restorePurchases_({
-                            token,
-                            purchases: successfulRestores.map(r => ({
-                                productId: r.productId!,
-                                transactionId: r.transactionId!,
-                                receipt: r.receipt,
-                            })),
-                            platform: Platform.OS === "ios" ? "ios" : "android",
-                        });
+
+                    let anyVerified = false;
+                    for (const r of successfulRestores) {
+                        if (!r.receipt) continue;
+                        try {
+                            if (await verifyRestoredPurchase(r)) anyVerified = true;
+                        } catch (e) {
+                            console.warn("[Subscription] Restore verify failed for", r.productId, e);
+                        }
+                    }
+
+                    if (anyVerified) {
                         Alert.alert(
                             t('subscription.subscriptionRestored') + " ✓",
                             t('subscription.alreadyActiveRestored')
@@ -189,18 +220,18 @@ export default function SubscriptionScreen() {
             // Filter successful restores
             const successfulRestores = results.filter(r => r.success && r.transactionId);
             
-            if (successfulRestores.length > 0) {
-                // Send to backend
-                await restorePurchases_({
-                    token,
-                    purchases: successfulRestores.map(r => ({
-                        productId: r.productId!,
-                        transactionId: r.transactionId!,
-                        receipt: r.receipt,
-                    })),
-                    platform: Platform.OS === "ios" ? "ios" : "android",
-                });
+            // Verify each restored receipt server-side before granting anything.
+            let anyVerified = false;
+            for (const r of successfulRestores) {
+                if (!r.receipt) continue;
+                try {
+                    if (await verifyRestoredPurchase(r)) anyVerified = true;
+                } catch (e) {
+                    console.warn("[Subscription] Restore verify failed for", r.productId, e);
+                }
+            }
 
+            if (anyVerified) {
                 Alert.alert(
                     t('subscription.purchasesRestored') + " ✓",
                     t('subscription.previousPurchasesRestored')

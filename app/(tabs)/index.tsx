@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -22,16 +22,20 @@ import { useToken } from "@/lib/useAuthenticatedMutation";
 import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTranslation } from "react-i18next";
+import { useHideTabBarOnScroll } from "@/lib/tabBarVisibility";
 import { LanguagePickerModal } from "@/components/LanguagePickerModal";
 import { FirstTripPopup } from "@/components/FirstTripGuide";
 import { LowFareRadar } from "@/components/LowFareRadar";
 import StreakWidget from "@/components/StreakWidget";
 import AchievementUnlocked from "@/components/AchievementUnlocked";
+import AirplaneIntro from "@/components/AirplaneIntro";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, Easing } from "react-native-reanimated";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { colors, isDarkMode } = useTheme();
+  const hideOnScroll = useHideTabBarOnScroll();
   const { token, isLoading: tokenLoading } = useToken();
   const { t, i18n } = useTranslation();
   const [destinationImages, setDestinationImages] = useState<Record<string, any>>({});
@@ -42,6 +46,39 @@ export default function HomeScreen() {
   const checkIn = useMutation(api.streaks.checkIn as any);
   const trackBookingClick = useMutation(api.lowFareRadar.trackBookingClick as any);
   const [checkedIn, setCheckedIn] = useState(false);
+
+  // One-shot airplane intro: flies up and slides INTO the search field when Home
+  // first appears. We capture the field's full window rect so a replica of it can
+  // sit above the plane and "swallow" it at the end.
+  const searchRef = useRef<any>(null);
+  const introMeasured = useRef(false);
+  const [introRect, setIntroRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [introDone, setIntroDone] = useState(false);
+  // Gold glow pulse on the search field as the plane slides into it.
+  const fieldGlow = useSharedValue(0);
+  const fieldGlowStyle = useAnimatedStyle(() => ({
+    opacity: fieldGlow.value * 0.6,
+    transform: [{ scale: 0.94 + fieldGlow.value * 0.12 }],
+  }));
+  const triggerFieldGlow = useCallback(() => {
+    fieldGlow.value = withSequence(
+      withTiming(1, { duration: 160 }),
+      withTiming(0, { duration: 720, easing: Easing.out(Easing.quad) })
+    );
+  }, []);
+  const handleSearchLayout = useCallback(() => {
+    if (introMeasured.current) return;
+    // Measure on the next frame so window coordinates are final. Only lock in
+    // once we get valid coords, so a too-early layout pass can retry.
+    requestAnimationFrame(() => {
+      searchRef.current?.measureInWindow?.((x: number, y: number, w: number, h: number) => {
+        if (w > 0 && h > 0 && !introMeasured.current) {
+          introMeasured.current = true;
+          setIntroRect({ x, y, w, h });
+        }
+      });
+    });
+  }, []);
 
   // Debug logging
   useEffect(() => {
@@ -228,10 +265,12 @@ export default function HomeScreen() {
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={hideOnScroll}
+        scrollEventThrottle={16}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -264,7 +303,9 @@ export default function HomeScreen() {
         </View>
 
         {/* Search Bar */}
-        <TouchableOpacity 
+        <TouchableOpacity
+          ref={searchRef}
+          onLayout={handleSearchLayout}
           style={[styles.searchContainer, { backgroundColor: colors.card }]}
           onPress={() => router.push("/create-trip")}
           activeOpacity={0.7}
@@ -363,6 +404,31 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.storyButton}
+            onPress={() => router.push("/flights/search" as any)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={["#FEDA77", "#F58529", "#DD2A7B", "#8134AF", "#515BD4"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.storyRing}
+            >
+              <View style={[styles.storyAvatar, { backgroundColor: "#1E7BD4" }]}>
+                <Ionicons name="airplane-outline" size={26} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
+            <Text
+              style={[styles.storyLabel, { color: colors.text }]}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {t("home.flightSearch", { defaultValue: "Flight Search" })}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.storyButton}
             onPress={() => router.push("/worldprint" as any)}
             activeOpacity={0.8}
           >
@@ -414,6 +480,33 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Explore destinations ("Where can I go?") */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => router.push({ pathname: "/flights/explore", params: homeIata ? { homeIata } : {} } as any)}
+          style={{ marginHorizontal: 20, marginBottom: 24 }}
+        >
+          <LinearGradient
+            colors={[colors.primary, "#34C759"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderRadius: 20 }}
+          >
+            <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.15)", justifyContent: "center", alignItems: "center" }}>
+              <Ionicons name="compass" size={24} color="#000" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 17, fontWeight: "800", color: "#000", letterSpacing: -0.3 }}>
+                {t("explore.homeCardTitle", { defaultValue: "Where can I go?" })}
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "rgba(0,0,0,0.7)", marginTop: 2 }}>
+                {t("explore.homeCardSubtitle", { defaultValue: "Find destinations you can afford" })}
+              </Text>
+            </View>
+            <Ionicons name="arrow-forward" size={20} color="#000" />
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* Low Fare Radar */}
         {lowFareDeals && lowFareDeals.length > 0 && (
@@ -484,7 +577,6 @@ export default function HomeScreen() {
                     params: {
                       destination: destination.destination,
                       avgBudget: destination.avgBudget.toString(),
-                      avgRating: destination.avgRating.toString(),
                       count: destination.count.toString(),
                     }
                   })}
@@ -504,23 +596,35 @@ export default function HomeScreen() {
                   )}
                   
                   <View style={styles.trendingOverlay}>
-                    <View style={styles.ratingBadge}>
-                      <Ionicons name="star" size={12} color={colors.primary} />
-                      <Text style={[styles.ratingText, { color: "#000000" }]}>{destination.avgRating.toFixed(1)}</Text>
-                    </View>
-                    
                     <View style={styles.trendingCardContent}>
-                      <Text style={styles.trendingName}>{destination.destination}</Text>
-                      <View style={styles.trendingLocationRow}>
-                        <Ionicons name="location-sharp" size={12} color="#FFFFFF" />
-                        <Text style={styles.trendingCountry}>{t("home.popularDestination")}</Text>
-                      </View>
+                      {/* When a UNWTO spend figure exists, the name sits up top and
+                          the price fills the footer. Without it, the name drops into
+                          the footer beside the arrow so it isn't left floating. */}
+                      {destination.avgTripSpend != null && (
+                        <>
+                          <Text style={styles.trendingName}>{destination.destination}</Text>
+                          <View style={styles.trendingLocationRow}>
+                            <Ionicons name="location-sharp" size={12} color="#FFFFFF" />
+                            <Text style={styles.trendingCountry}>{t("home.popularDestination")}</Text>
+                          </View>
+                        </>
+                      )}
                       <View style={styles.trendingFooter}>
-                        <View>
-                          <Text style={[styles.trendingPriceLabel, { color: "#000000" }]}>{t("home.estTotal")}</Text>
-                          <Text style={[styles.trendingPrice, { color: colors.primary }]}>€{Math.round(destination.avgBudget)}</Text>
-                          <Text style={[styles.trendingPriceSubtitle, { color: "#000000" }]}>{t("home.basedOnBudget")}</Text>
-                        </View>
+                        {destination.avgTripSpend != null ? (
+                          <View>
+                            <Text style={[styles.trendingPriceLabel, { color: "#FFFFFF" }]}>{t("home.avgTripSpend")}</Text>
+                            <Text style={[styles.trendingPrice, { color: colors.primary }]}>€{Math.round(destination.avgTripSpend)}</Text>
+                            <Text style={[styles.trendingPriceSubtitle, { color: "#FFFFFF" }]}>{t("home.perPersonTrip")}</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.trendingFooterInfo}>
+                            <Text style={styles.trendingName} numberOfLines={1}>{destination.destination}</Text>
+                            <View style={[styles.trendingLocationRow, { marginBottom: 0 }]}>
+                              <Ionicons name="location-sharp" size={12} color="#FFFFFF" />
+                              <Text style={styles.trendingCountry}>{t("home.popularDestination")}</Text>
+                            </View>
+                          </View>
+                        )}
                         <View style={styles.trendingArrow}>
                           <Ionicons name="arrow-forward" size={16} color="#000000" />
                         </View>
@@ -530,6 +634,11 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            {trendingDestinations.some((d: any) => d.avgTripSpend != null) && (
+              <Text style={[styles.trendingSource, { color: colors.textMuted }]}>
+                {t("home.spendSourceUnwto")}
+              </Text>
+            )}
           </View>
         )}
 
@@ -565,6 +674,52 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    {/* Airplane intro: flies on top of the content, then slides INTO the search
+        field — a replica of the field sits above the plane and swallows it. */}
+    {introRect && !introDone && (
+      <>
+        <AirplaneIntro
+          targetX={introRect.x + introRect.w / 2}
+          targetY={introRect.y + introRect.h / 2}
+          color={colors.primary}
+          imageSource={require("@/assets/images/airplane-intro.png")}
+          onArrive={triggerFieldGlow}
+          onDone={() => setIntroDone(true)}
+        />
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", left: introRect.x, top: introRect.y, width: introRect.w, height: introRect.h }}
+        >
+          {/* Gold glow halo that pulses when the plane slides into the field. */}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                top: -14,
+                left: -14,
+                right: -14,
+                bottom: -14,
+                borderRadius: 38,
+                backgroundColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOpacity: 1,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 0 },
+              },
+              fieldGlowStyle,
+            ]}
+          />
+          {/* Replica of the search field (sits above the plane so it's swallowed). */}
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", borderRadius: 30, padding: 8, backgroundColor: colors.card }}>
+            <Ionicons name="search-outline" size={20} color={colors.textMuted} style={styles.searchIcon} />
+            <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>{t("home.whereToGo")}</Text>
+            <View style={[styles.searchButton, { backgroundColor: colors.primary }]}>
+              <Ionicons name="arrow-forward" size={20} color={colors.text} />
+            </View>
+          </View>
+        </View>
+      </>
+    )}
     <AchievementUnlocked />
     </>
   );
@@ -774,6 +929,11 @@ const styles = StyleSheet.create({
   trendingScroll: {
     paddingLeft: 20,
   },
+  trendingSource: {
+    fontSize: 11,
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
   trendingContent: {
     paddingRight: 20,
     gap: 16,
@@ -808,23 +968,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     padding: 16,
     backgroundColor: "rgba(0,0,0,0.1)",
-  },
-  ratingBadge: {
-    alignSelf: "flex-end",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "700",
   },
   trendingCardContent: {
     width: "100%",
@@ -855,6 +1001,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  trendingFooterInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
   trendingPrice: {
     fontSize: 20,
     fontWeight: "700",
@@ -862,13 +1012,19 @@ const styles = StyleSheet.create({
   },
   trendingPriceLabel: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "700",
     marginBottom: 4,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   trendingPriceSubtitle: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "700",
     marginTop: 2,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   trendingArrow: {
     width: 40,

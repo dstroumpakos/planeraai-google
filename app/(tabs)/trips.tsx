@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, StatusBar } from "react-native";
-import { useQuery } from "convex/react";
+import { useEffect } from "react";
 import { useToken, useAuthenticatedMutation } from "@/lib/useAuthenticatedMutation";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "expo-router";
@@ -8,14 +8,45 @@ import { Id } from "@/convex/_generated/dataModel";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTranslation } from "react-i18next";
+import { useHideTabBarOnScroll } from "@/lib/tabBarVisibility";
+import { useCachedQuery, useIsOffline } from "@/lib/useCachedQuery";
+import { readCache, writeCache, pruneTripCaches, tripCacheKey, TRIPS_LIST_CACHE_KEY } from "@/lib/offlineTripCache";
 
 export default function TripsScreen() {
     const router = useRouter();
     const { token } = useToken();
     const { colors, isDarkMode } = useTheme();
+    const hideOnScroll = useHideTabBarOnScroll();
     const { t, i18n } = useTranslation();
-    const trips = useQuery(api.trips.list as any, { token: token || "skip" });
+    const { data: trips, isFromCache } = useCachedQuery<any[]>(
+        api.trips.list as any,
+        { token: token || "skip" },
+        TRIPS_LIST_CACHE_KEY
+    );
+    const isOffline = useIsOffline();
     const deleteTrip = useAuthenticatedMutation(api.trips.deleteTrip as any);
+
+    // Snapshot each trip so the detail screen opens offline even for trips
+    // never viewed before. Plan fields (hasFullAccess etc.) only exist on
+    // trips.get results, so keep them from an existing snapshot if present.
+    useEffect(() => {
+        if (isFromCache || !Array.isArray(trips)) return;
+        (async () => {
+            for (const trip of trips) {
+                const existing = await readCache<any>(tripCacheKey(trip._id));
+                const planFields = existing?.data
+                    ? {
+                          userPlan: existing.data.userPlan,
+                          hasFullAccess: existing.data.hasFullAccess,
+                          isSubscriptionActive: existing.data.isSubscriptionActive,
+                          tripCredits: existing.data.tripCredits,
+                      }
+                    : {};
+                await writeCache(tripCacheKey(trip._id), { ...trip, ...planFields });
+            }
+            await pruneTripCaches(trips.map((trip: any) => trip._id));
+        })();
+    }, [trips, isFromCache]);
 
     const handleDelete = (tripId: Id<"trips">) => {
         Alert.alert(
@@ -57,6 +88,13 @@ export default function TripsScreen() {
                 </TouchableOpacity>
             </View>
 
+            {isFromCache && isOffline && (
+                <View style={[styles.offlineBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Ionicons name="cloud-offline-outline" size={16} color={colors.textMuted} />
+                    <Text style={[styles.offlineBannerText, { color: colors.textMuted }]}>{t('offline.showingSaved')}</Text>
+                </View>
+            )}
+
             {tripsList.length === 0 ? (
                 <View style={styles.emptyState}>
                     <View style={[styles.emptyIconContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -76,6 +114,8 @@ export default function TripsScreen() {
                     data={tripsList}
                     keyExtractor={(item) => item._id}
                     contentContainerStyle={styles.listContent}
+                    onScroll={hideOnScroll}
+                    scrollEventThrottle={16}
                     renderItem={({ item }) => (
                         <TouchableOpacity 
                             style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]} 
@@ -174,6 +214,22 @@ const styles = StyleSheet.create({
     listContent: {
         padding: 20,
         paddingBottom: 100,
+    },
+    offlineBanner: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        marginHorizontal: 20,
+        marginBottom: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    offlineBannerText: {
+        fontSize: 13,
+        fontWeight: "600",
     },
     card: {
         borderRadius: 16,
