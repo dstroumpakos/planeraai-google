@@ -87,6 +87,7 @@
     "setTravelPreferences": "Configura tus preferencias de viaje",
     "getPersonalizedTrips": "Obtén planes de viaje con IA",
     "startSetup": "Iniciar Configuración",
+    "newsletterConsent": "Te enviaremos de vez en cuando consejos de viaje y ofertas de vuelos a tu correo. Cancela cuando quieras.",
     "whosTraveling": "¿Quién viaja?",
     "helpsSetupProfiles": "Esto nos ayuda a configurar los perfiles correctos para tus viajes",
     "justMe": "Solo yo",
@@ -1815,7 +1816,13 @@
     "linkInvalidBody": "Este enlace de confirmación no es válido o ya se ha utilizado.",
     "backHome": "Volver al inicio",
     "unsubscribedTitle": "Cancelaste la suscripción",
-    "unsubscribedBody": "No recibirás más correos del boletín. Puedes volver a suscribirte cuando quieras."
+    "unsubscribedBody": "No recibirás más correos del boletín. Puedes volver a suscribirte cuando quieras.",
+    "promptTitle": "No te pierdas ninguna oferta de vuelo",
+    "promptBody": "Recibe ideas de viaje con IA y ofertas de vuelos exclusivas en tu correo. Cancela cuando quieras.",
+    "promptAccept": "Sí, envíame ofertas",
+    "promptDismiss": "Ahora no",
+    "promptDoneTitle": "¡Todo listo!",
+    "promptDoneBody": "Tus primeras ofertas van de camino a tu correo."
   },
   "invite": {
     "joining": "Uniéndote al viaje…",

@@ -87,6 +87,7 @@
     "setTravelPreferences": "Set your travel preferences",
     "getPersonalizedTrips": "Get AI-powered trip plans",
     "startSetup": "Start Setup",
+    "newsletterConsent": "We'll send occasional travel tips and flight deals to your email. Unsubscribe anytime.",
     "whosTraveling": "Who's traveling?",
     "helpsSetupProfiles": "This helps us set up the right profiles for your trips",
     "justMe": "Just me",
@@ -1815,7 +1816,13 @@
     "linkInvalidBody": "This confirmation link is invalid or has already been used.",
     "backHome": "Back to home",
     "unsubscribedTitle": "You're unsubscribed",
-    "unsubscribedBody": "You won't receive any more newsletter emails. You can resubscribe anytime."
+    "unsubscribedBody": "You won't receive any more newsletter emails. You can resubscribe anytime.",
+    "promptTitle": "Never miss a flight deal",
+    "promptBody": "Get AI trip ideas and members-only flight deals in your inbox. Unsubscribe anytime.",
+    "promptAccept": "Yes, send me deals",
+    "promptDismiss": "Not now",
+    "promptDoneTitle": "You're all set!",
+    "promptDoneBody": "Your first deals are on the way to your inbox."
   },
   "invite": {
     "joining": "Joining trip…",

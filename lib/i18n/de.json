@@ -87,6 +87,7 @@
     "setTravelPreferences": "Legen Sie Ihre Reisepräferenzen fest",
     "getPersonalizedTrips": "Erhalten Sie KI-gestützte Reisepläne",
     "startSetup": "Einrichtung Starten",
+    "newsletterConsent": "Wir senden dir gelegentlich Reisetipps und Flugangebote per E-Mail. Jederzeit abbestellbar.",
     "whosTraveling": "Wer reist?",
     "helpsSetupProfiles": "Dies hilft uns, die richtigen Profile für Ihre Reisen einzurichten",
     "justMe": "Nur ich",
@@ -1815,7 +1816,13 @@
     "linkInvalidBody": "Dieser Bestätigungslink ist ungültig oder wurde bereits verwendet.",
     "backHome": "Zurück zur Startseite",
     "unsubscribedTitle": "Abmeldung erfolgreich",
-    "unsubscribedBody": "Du erhältst keine Newsletter-E-Mails mehr. Du kannst dich jederzeit wieder anmelden."
+    "unsubscribedBody": "Du erhältst keine Newsletter-E-Mails mehr. Du kannst dich jederzeit wieder anmelden.",
+    "promptTitle": "Verpasse kein Flugangebot mehr",
+    "promptBody": "Erhalte KI-Reiseideen und exklusive Flugangebote in dein Postfach. Jederzeit abbestellbar.",
+    "promptAccept": "Ja, schick mir Angebote",
+    "promptDismiss": "Jetzt nicht",
+    "promptDoneTitle": "Alles erledigt!",
+    "promptDoneBody": "Deine ersten Angebote sind schon auf dem Weg in dein Postfach."
   },
   "invite": {
     "joining": "Reise wird beigetreten…",
