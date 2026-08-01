@@ -189,13 +189,13 @@ export default function Profile() {
         await toggleDarkMode();
     };
 
-    // Send the user to the App Store "write a review" page. We open the page
-    // directly (rather than the native rate-limited prompt) since this is an
-    // explicit, user-initiated action that should always do something.
-    const APP_STORE_ID = "6758346139";
+    // Send the user to the Play Store listing so they can leave a review. We open
+    // the page directly (rather than the native rate-limited prompt) since this is
+    // an explicit, user-initiated action that should always do something.
+    const PLAY_STORE_PACKAGE = "com.dstroump.planeraaitravelplanner";
     const handleRateApp = async () => {
-        const deepLink = `itms-apps://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
-        const webLink = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
+        const deepLink = `market://details?id=${PLAY_STORE_PACKAGE}`;
+        const webLink = `https://play.google.com/store/apps/details?id=${PLAY_STORE_PACKAGE}`;
         try {
             const canOpen = await Linking.canOpenURL(deepLink);
             await Linking.openURL(canOpen ? deepLink : webLink);
@@ -401,7 +401,7 @@ export default function Profile() {
         },
         {
             title: t('profile.rateApp', { defaultValue: 'Rate Planera AI' }),
-            subtitle: t('profile.rateAppSubtitle', { defaultValue: 'Leave a review on the App Store' }),
+            subtitle: t('profile.rateAppSubtitle', { defaultValue: 'Leave a review on Google Play' }),
             icon: "star-outline",
             iconBg: isDarkMode ? "#3D2E00" : "#FEF3C7",
             iconColor: "#F59E0B",
