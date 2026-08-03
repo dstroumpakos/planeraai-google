@@ -206,15 +206,7 @@ export default function Profile() {
 
     const handlePickImage = async () => {
         try {
-            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            
-            if (!permissionResult.granted) {
-                if (Platform.OS !== 'web') {
-                    Alert.alert(t('profile.permissionRequired'), t('profile.allowPhotoAccess'));
-                }
-                return;
-            }
-
+            // System photo picker requires no storage permission (Play policy compliant).
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
