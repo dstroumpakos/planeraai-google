@@ -11,6 +11,8 @@
     "dev": "bunx convex dev",
     "ota:prod": "node scripts/ota-prod.mjs --platform android",
     "ota:prod:all": "node scripts/ota-prod.mjs --platform all",
+    "play:notes": "node scripts/set-play-release-notes.mjs",
+    "submit:prod:android": "eas submit -p android --profile production && node scripts/set-play-release-notes.mjs",
     "check-bundle": "node scripts/check-bundle-safety.js",
     "prebuild": "node scripts/check-bundle-safety.js",
     "postinstall": "patch-package && node scripts/fix-better-auth.js",

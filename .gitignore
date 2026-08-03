@@ -55,3 +55,4 @@ planera-484015-5bd89b7d4285.json
 planera-484015-b81b2d17adf8.json
 google-service-account.json
 scripts/check-purchase-token.js
+scripts/set-play-release-notes.mjs
