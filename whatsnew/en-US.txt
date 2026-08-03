@@ -1,1 +1,4 @@
-Bug fixes and performance improvements.
+What's new:
+• Refreshed app icon
+• Smoother photo selection
+• Bug fixes and performance improvements

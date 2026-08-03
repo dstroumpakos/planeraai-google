@@ -1,0 +1,4 @@
+Novedades:
+• Icono de la aplicación renovado
+• Selección de fotos más fluida
+• Corrección de errores y mejoras de rendimiento
