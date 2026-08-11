@@ -1,4 +1,4 @@
 What's new:
-• Refreshed app icon
-• Smoother photo selection
+• Smaller app download and install size
+• Faster startup and lower memory usage
 • Bug fixes and performance improvements

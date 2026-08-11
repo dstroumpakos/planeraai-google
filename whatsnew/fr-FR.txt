@@ -1,4 +1,4 @@
 Nouveautés :
-• Icône de l'application actualisée
-• Sélection des photos plus fluide
+• Taille de téléchargement et d'installation réduite
+• Démarrage plus rapide et consommation de mémoire réduite
 • Corrections de bugs et améliorations des performances
