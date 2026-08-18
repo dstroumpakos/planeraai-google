@@ -70,6 +70,12 @@ export default function TravelPreferences() {
     };
 
     const handleSave = async () => {
+        // The base airport is required: the low-fare radar, Explore and flight
+        // search all key off it, so it can't be cleared once set.
+        if (!homeAirport.trim()) {
+            Alert.alert(t('onboarding.homeAirportRequiredTitle'), t('onboarding.homeAirportRequired'));
+            return;
+        }
         try {
             await updatePreferences({
                 token: token || "",
@@ -132,7 +138,7 @@ export default function TravelPreferences() {
 
                 {/* Home Airport */}
                 <View style={[styles.section, { zIndex: 10 }]}>
-                    <Text style={styles.sectionTitle}>{t('settings.travelPreferences.homeAirport')}</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.travelPreferences.homeAirport')} <Text style={styles.required}>*</Text></Text>
                     <View style={styles.inputContainer}>
                         <Ionicons name="airplane-outline" size={20} color="#1A1A1A" style={styles.inputIcon} />
                         <TextInput
@@ -333,7 +339,11 @@ export default function TravelPreferences() {
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                <TouchableOpacity
+                    style={[styles.saveButton, !homeAirport.trim() && styles.saveButtonDisabled]}
+                    onPress={handleSave}
+                    disabled={!homeAirport.trim()}
+                >
                     <Text style={styles.saveButtonText}>{t('settings.travelPreferences.savePreferences')}</Text>
                 </TouchableOpacity>
                 
@@ -407,6 +417,9 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         color: "#1A1A1A",
         marginBottom: 12,
+    },
+    required: {
+        color: "#DC2626",
     },
     row: {
         flexDirection: "row",
@@ -523,6 +536,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "700",
         color: "#FFFFFF",
+    },
+    saveButtonDisabled: {
+        opacity: 0.5,
     },
     suggestionsContainer: {
         position: 'absolute',

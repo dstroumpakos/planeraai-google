@@ -131,6 +131,8 @@
     "defaultLocation": "الموقع الافتراضي",
     "homeAirport": "المطار الأساسي",
     "homeAirportPlaceholder": "مثال: الرياض، RUH",
+    "homeAirportRequiredTitle": "المطار الأساسي مطلوب",
+    "homeAirportRequired": "أضف مطارك الأساسي للمتابعة — نستخدمه للعثور على رحلات من مدينتك.",
     "defaults": "الإعدادات الافتراضية",
     "budgetLabel": "الميزانية ($)",
     "defaultInterests": "الاهتمامات الافتراضية",
@@ -242,7 +244,9 @@
     "selectInterests": "يرجى اختيار اهتمام واحد على الأقل",
     "outbound": "ذهاب",
     "return": "عودة",
-    "fromFlightSearch": "البحث عن رحلات"
+    "fromFlightSearch": "البحث عن رحلات",
+    "locked": "مثبّت",
+    "total": "الإجمالي"
   },
   "createTrip": {
     "designYour": "صمم",
@@ -318,7 +322,11 @@
     "natureOutdoor": "طبيعة وأنشطة خارجية",
     "nightlife": "حياة ليلية وبارات محلية",
     "neighborhoodWalks": "جولات في الأحياء",
-    "festivals": "مهرجانات وفعاليات موسمية"
+    "festivals": "مهرجانات وفعاليات موسمية",
+    "travelers": "المسافرون",
+    "traveler": "مسافر",
+    "interests": "الاهتمامات",
+    "perPerson": "لكل شخص"
   },
   "trips": {
     "myTrips": "رحلاتي",
@@ -648,7 +656,6 @@
     "showCheapest": "أرخص الرحلات",
     "showHidden": "إظهار المخفية",
     "hideSelfTransfer": "إخفاء النقل الذاتي",
-    "createTripWithFlight": "إنشاء رحلة بهذه الرحلة الجوية",
     "findFlights": "البحث عن رحلات",
     "searching": "جارٍ البحث…",
     "fromIata": "من (IATA)",
@@ -924,6 +931,9 @@
     "tripsLabel": "رحلات",
     "avgBudget": "متوسط الميزانية",
     "cheapestDays": "أرخص أيام السفر",
+    "soonest": "الأقرب",
+    "loadingFares": "جارٍ التحقق من الأسعار…",
+    "noFaresForMonth": "لا توجد أسعار في {{month}}",
     "bestSeason": "أفضل موسم",
     "daysUnitShort": "ي",
     "flightsFromCity": "رحلات من {{origin}}",

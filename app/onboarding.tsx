@@ -105,6 +105,19 @@ export default function Onboarding() {
   };
 
   const handleFinishOnboarding = async () => {
+    // The base airport is required: every flight feature (radar, Explore,
+    // trip generation) keys off it, so we don't let onboarding continue
+    // without one.
+    if (!homeAirport.trim()) {
+      const title = t('onboarding.homeAirportRequiredTitle');
+      const message = t('onboarding.homeAirportRequired');
+      if (Platform.OS !== "web") {
+        Alert.alert(title, message);
+      } else {
+        alert(message);
+      }
+      return;
+    }
     setSaving(true);
     try {
       await saveTravelPreferences({
@@ -297,7 +310,7 @@ export default function Onboarding() {
             <View style={[styles.formSection, { zIndex: 10 }]}>
               <Text style={styles.sectionLabel}>{t('onboarding.defaultLocation')}</Text>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{t('onboarding.homeAirport')}</Text>
+                <Text style={styles.inputLabel}>{t('onboarding.homeAirport')} <Text style={styles.required}>*</Text></Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="airplane-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                   <TextInput
@@ -483,9 +496,9 @@ export default function Onboarding() {
           
           <View style={styles.footer}>
             <TouchableOpacity
-              style={[styles.primaryButton, saving && styles.primaryButtonDisabled]}
+              style={[styles.primaryButton, (saving || !homeAirport.trim()) && styles.primaryButtonDisabled]}
               onPress={handleFinishOnboarding}
-              disabled={saving}
+              disabled={saving || !homeAirport.trim()}
             >
               {saving ? (
                 <ActivityIndicator color="#FFF" />

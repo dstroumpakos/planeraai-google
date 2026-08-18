@@ -131,6 +131,8 @@
     "defaultLocation": "EMPLACEMENT PAR DÉFAUT",
     "homeAirport": "Aéroport de Base",
     "homeAirportPlaceholder": "ex. Paris, CDG",
+    "homeAirportRequiredTitle": "Aéroport de base requis",
+    "homeAirportRequired": "Ajoutez votre aéroport de base pour continuer — il nous sert à trouver les vols au départ de votre ville.",
     "defaults": "PARAMÈTRES PAR DÉFAUT",
     "budgetLabel": "Budget ($)",
     "defaultInterests": "INTÉRÊTS PAR DÉFAUT",
@@ -242,7 +244,9 @@
     "selectInterests": "Veuillez sélectionner au moins un intérêt",
     "outbound": "Aller",
     "return": "Retour",
-    "fromFlightSearch": "Recherche de Vols"
+    "fromFlightSearch": "Recherche de Vols",
+    "locked": "Verrouillé",
+    "total": "total"
   },
   "createTrip": {
     "designYour": "Concevez votre",
@@ -318,7 +322,11 @@
     "natureOutdoor": "Nature et plein air",
     "nightlife": "Vie nocturne et bars locaux",
     "neighborhoodWalks": "Promenades de quartier",
-    "festivals": "Festivals et événements saisonniers"
+    "festivals": "Festivals et événements saisonniers",
+    "travelers": "Voyageurs",
+    "traveler": "voyageur",
+    "interests": "Centres d'intérêt",
+    "perPerson": "par personne"
   },
   "trips": {
     "myTrips": "Mes Voyages",
@@ -648,7 +656,6 @@
     "showCheapest": "Vols les moins chers",
     "showHidden": "Afficher masqués",
     "hideSelfTransfer": "Masquer auto-correspondance",
-    "createTripWithFlight": "Créer un voyage avec ce vol",
     "findFlights": "Rechercher des vols",
     "searching": "Recherche…",
     "fromIata": "De (IATA)",
@@ -924,6 +931,9 @@
     "tripsLabel": "voyages",
     "avgBudget": "budget moy.",
     "cheapestDays": "Jours les moins chers",
+    "soonest": "Au plus tôt",
+    "loadingFares": "Recherche des tarifs…",
+    "noFaresForMonth": "Aucun tarif trouvé pour {{month}}",
     "bestSeason": "meilleure saison",
     "daysUnitShort": "j",
     "flightsFromCity": "Vols depuis {{origin}}",

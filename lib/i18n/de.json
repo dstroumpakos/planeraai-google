@@ -131,6 +131,8 @@
     "defaultLocation": "STANDARDSTANDORT",
     "homeAirport": "Heimatflughafen",
     "homeAirportPlaceholder": "z.B. Berlin, BER",
+    "homeAirportRequiredTitle": "Heimatflughafen erforderlich",
+    "homeAirportRequired": "Gib deinen Heimatflughafen ein, um fortzufahren — damit finden wir Flüge ab deiner Stadt.",
     "defaults": "STANDARDWERTE",
     "budgetLabel": "Budget ($)",
     "defaultInterests": "STANDARDINTERESSEN",
@@ -242,7 +244,9 @@
     "selectInterests": "Bitte wählen Sie mindestens ein Interesse",
     "outbound": "Hinflug",
     "return": "Rückflug",
-    "fromFlightSearch": "Flugsuche"
+    "fromFlightSearch": "Flugsuche",
+    "locked": "Fixiert",
+    "total": "gesamt"
   },
   "createTrip": {
     "designYour": "Gestalten Sie Ihren",
@@ -318,7 +322,11 @@
     "natureOutdoor": "Natur & Outdoor",
     "nightlife": "Nachtleben & lokale Bars",
     "neighborhoodWalks": "Stadtteil-Spaziergänge",
-    "festivals": "Festivals & saisonale Veranstaltungen"
+    "festivals": "Festivals & saisonale Veranstaltungen",
+    "travelers": "Reisende",
+    "traveler": "Reisender",
+    "interests": "Interessen",
+    "perPerson": "pro Person"
   },
   "trips": {
     "myTrips": "Meine Reisen",
@@ -648,7 +656,6 @@
     "showCheapest": "Günstigste Flüge",
     "showHidden": "Ausgeblendete anzeigen",
     "hideSelfTransfer": "Selbst-Umstieg ausblenden",
-    "createTripWithFlight": "Reise mit diesem Flug erstellen",
     "findFlights": "Flüge finden",
     "searching": "Suche läuft…",
     "fromIata": "Von (IATA)",
@@ -924,6 +931,9 @@
     "tripsLabel": "Reisen",
     "avgBudget": "Ø Budget",
     "cheapestDays": "Günstigste Reisetage",
+    "soonest": "Demnächst",
+    "loadingFares": "Preise werden geprüft…",
+    "noFaresForMonth": "Keine Preise für {{month}} gefunden",
     "bestSeason": "beste Zeit",
     "daysUnitShort": "T",
     "flightsFromCity": "Flüge ab {{origin}}",

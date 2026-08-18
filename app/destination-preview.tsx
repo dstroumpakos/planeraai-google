@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
     View,
     Text,
@@ -9,6 +9,7 @@ import {
     StatusBar,
     Animated,
     Platform,
+    ScrollView,
     useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -522,6 +523,67 @@ function weatherGradient(isDay: boolean): [string, string] {
     return isDay ? ["#3B82F6", "#6366F1"] : ["#1E293B", "#4338CA"];
 }
 
+// ------------------------- Month browsing (flight calendar) -----------------
+// The calendar engine never prices a departure sooner than 8 days out and scans
+// in ~14-day windows (see convex/lib/searchApiFlightCalendar.ts). Both numbers
+// are mirrored here so a month chip can ask for exactly the windows it needs —
+// each window is one searchapi call on a cache miss, so a half-elapsed month
+// costs one call instead of three.
+const CAL_MIN_LEAD_DAYS = 8;
+const CAL_WINDOW_DAYS = 14;
+const CAL_MAX_CHIPS = 12; // dates shown in the grid
+const MONTH_CHOICES = 6;
+
+type MonthOption = {
+    key: string; // "YYYY-MM" — also the prefix every date in this month shares
+    label: string; // localized short label for the chip ("Sep", "Jan 27")
+    fullLabel: string; // localized full month name, for the empty state
+    startOffsetDays: number;
+    windows: number;
+};
+
+function startOfToday(): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function daysFromToday(date: Date): number {
+    return Math.round((date.getTime() - startOfToday().getTime()) / 86400000);
+}
+
+/**
+ * The next few months a traveller can actually be priced into, each carrying
+ * the scan window the calendar action needs to cover it. A month with less than
+ * the minimum lead time left in it is dropped — it has nothing to show.
+ */
+function buildMonthOptions(locale: string): MonthOption[] {
+    const today = startOfToday();
+    const options: MonthOption[] = [];
+    for (let i = 0; i <= MONTH_CHOICES; i++) {
+        const first = new Date(today.getFullYear(), today.getMonth() + i, 1);
+        const last = new Date(today.getFullYear(), today.getMonth() + i + 1, 0);
+        // Where a scan can actually start inside this month, and how much of the
+        // month is left after that point.
+        const scanStart = Math.max(daysFromToday(first), CAL_MIN_LEAD_DAYS);
+        const span = daysFromToday(last) - scanStart + 1;
+        if (span < 1) continue;
+        options.push({
+            key: `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}`,
+            label: first.toLocaleDateString(
+                locale,
+                first.getFullYear() === today.getFullYear()
+                    ? { month: "short" }
+                    : { month: "short", year: "2-digit" }
+            ),
+            fullLabel: first.toLocaleDateString(locale, { month: "long" }),
+            startOffsetDays: Math.max(daysFromToday(first), 0),
+            windows: Math.min(3, Math.max(1, Math.ceil(span / CAL_WINDOW_DAYS))),
+        });
+    }
+    return options.slice(0, MONTH_CHOICES);
+}
+
 export default function DestinationPreviewScreen() {
     const router = useRouter();
     const { colors, isDarkMode } = useTheme();
@@ -685,17 +747,55 @@ export default function DestinationPreviewScreen() {
 
     // "Cheapest days to fly" strip — round-trip price calendar for the same
     // resolved origin. Same logged-in gate as the teaser; hidden otherwise.
-    const { data: flightCalendar, fetchCalendar } = useFlightCalendar(token);
+    // A month chip re-scans that month instead of the default near-term window,
+    // so travellers can browse "when is this cheap?" rather than only "soon".
+    const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+    const monthOptions = useMemo(() => buildMonthOptions(i18n.language), [i18n.language]);
+    // Stable identity: the option object comes out of the memoized list.
+    const activeMonth = monthOptions.find((m) => m.key === selectedMonth) ?? null;
+
+    const { data: flightCalendar, loading: calendarLoading, fetchCalendar } = useFlightCalendar(token);
     useEffect(() => {
         if (!originIata || !arrivalIata) return;
-        fetchCalendar({
-            departureId: originIata,
-            arrivalId: arrivalIata,
-            currency: "EUR",
-        }).catch(() => {
+        fetchCalendar(
+            {
+                departureId: originIata,
+                arrivalId: arrivalIata,
+                currency: "EUR",
+            },
+            activeMonth
+                ? {
+                      startOffsetDays: activeMonth.startOffsetDays,
+                      windows: activeMonth.windows,
+                      // Ask for far more dates than the grid shows: the scan can
+                      // spill past the month end, and everything outside the
+                      // month is filtered out below.
+                      maxDates: 40,
+                  }
+                : undefined
+        ).catch(() => {
             // Non-fatal: the strip just stays hidden.
         });
-    }, [originIata, arrivalIata, fetchCalendar]);
+    }, [originIata, arrivalIata, activeMonth, fetchCalendar]);
+
+    // Dates for the grid: scoped to the chosen month, cheapest first, then back
+    // into date order for display.
+    const calendarDates = useMemo(() => {
+        const all = flightCalendar?.dates ?? [];
+        const scoped = activeMonth
+            ? all.filter((d) => d.date.startsWith(activeMonth.key))
+            : all;
+        return [...scoped]
+            .sort((a, b) => a.price - b.price)
+            .slice(0, CAL_MAX_CHIPS)
+            .sort((a, b) => a.date.localeCompare(b.date));
+    }, [flightCalendar, activeMonth]);
+    const cheapestShown = calendarDates.length
+        ? Math.min(...calendarDates.map((d) => d.price))
+        : null;
+    // The month row only appears once there is a calendar to browse, so routes
+    // with no data keep behaving exactly as before (nothing renders).
+    const showCalendar = calendarDates.length > 0 || selectedMonth != null;
 
     const formatShortDate = (iso: string) =>
         new Date(iso).toLocaleDateString(i18n.language, { day: "numeric", month: "short" });
@@ -945,8 +1045,9 @@ export default function DestinationPreviewScreen() {
                 </TouchableOpacity>
 
                 {/* Cheapest days to fly — round-trip price calendar for the same
-                    resolved origin. Tapping a date opens search prefilled. */}
-                {flightCalendar && flightCalendar.dates.length > 0 && (
+                    resolved origin, browsable by month. Tapping a date opens
+                    search prefilled. */}
+                {showCalendar && (
                     <View style={styles.calSection}>
                         <View style={styles.calHeader}>
                             <Ionicons name="pricetags-outline" size={14} color={colors.primary} />
@@ -954,40 +1055,105 @@ export default function DestinationPreviewScreen() {
                                 {t('destinationPreview.cheapestDays', { defaultValue: 'Cheapest days to fly' })}
                             </Text>
                         </View>
-                        <View style={styles.calRow}>
-                            {flightCalendar.dates.map((d) => (
-                                <TouchableOpacity
-                                    key={d.date}
-                                    style={[
-                                        styles.calChip,
-                                        {
-                                            backgroundColor: colors.card,
-                                            borderColor: d.isLowest ? colors.primary : colors.border,
-                                        },
-                                    ]}
-                                    onPress={() => openCalendarDate(d)}
-                                    activeOpacity={0.85}
-                                >
-                                    <Text style={[styles.calDate, { color: colors.text }]} numberOfLines={1}>
-                                        {formatShortDate(d.date)}
-                                    </Text>
-                                    {d.returnDate ? (
-                                        <Text style={[styles.calReturn, { color: colors.textMuted }]} numberOfLines={1}>
-                                            → {formatShortDate(d.returnDate)}
-                                        </Text>
-                                    ) : null}
-                                    <Text
+
+                        {/* Month filter — "Soonest" keeps the original near-term
+                            window; a month re-scans that month. */}
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.monthRow}
+                            style={styles.monthScroll}
+                        >
+                            {[null, ...monthOptions].map((m) => {
+                                const key = m?.key ?? "soonest";
+                                const active = (m?.key ?? null) === selectedMonth;
+                                return (
+                                    <TouchableOpacity
+                                        key={key}
                                         style={[
-                                            styles.calPrice,
-                                            { color: d.isLowest ? colors.primary : colors.textMuted },
+                                            styles.monthChip,
+                                            {
+                                                backgroundColor: active
+                                                    ? colors.primary
+                                                    : colors.card,
+                                                borderColor: active ? colors.primary : colors.border,
+                                            },
                                         ]}
-                                        numberOfLines={1}
+                                        onPress={() => setSelectedMonth(m?.key ?? null)}
+                                        activeOpacity={0.85}
                                     >
-                                        {formatFare(d.price, flightCalendar.currency)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                                        <Text
+                                            style={[
+                                                styles.monthChipText,
+                                                { color: active ? "#000000" : colors.textSecondary },
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            {m
+                                                ? m.label
+                                                : t('destinationPreview.soonest', { defaultValue: 'Soonest' })}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+
+                        {calendarLoading && calendarDates.length === 0 ? (
+                            <View style={[styles.calStatus, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                <ActivityIndicator size="small" color={colors.primary} />
+                                <Text style={[styles.calStatusText, { color: colors.textSecondary }]}>
+                                    {t('destinationPreview.loadingFares', { defaultValue: 'Checking fares…' })}
+                                </Text>
+                            </View>
+                        ) : calendarDates.length === 0 ? (
+                            <View style={[styles.calStatus, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                                <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
+                                <Text style={[styles.calStatusText, { color: colors.textSecondary }]}>
+                                    {t('destinationPreview.noFaresForMonth', {
+                                        month: activeMonth?.fullLabel ?? "",
+                                        defaultValue: `No fares found for ${activeMonth?.fullLabel ?? ""}`,
+                                    })}
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={styles.calRow}>
+                                {calendarDates.map((d) => {
+                                    const isCheapest = d.isLowest || d.price === cheapestShown;
+                                    return (
+                                        <TouchableOpacity
+                                            key={d.date}
+                                            style={[
+                                                styles.calChip,
+                                                {
+                                                    backgroundColor: colors.card,
+                                                    borderColor: isCheapest ? colors.primary : colors.border,
+                                                },
+                                            ]}
+                                            onPress={() => openCalendarDate(d)}
+                                            activeOpacity={0.85}
+                                        >
+                                            <Text style={[styles.calDate, { color: colors.text }]} numberOfLines={1}>
+                                                {formatShortDate(d.date)}
+                                            </Text>
+                                            {d.returnDate ? (
+                                                <Text style={[styles.calReturn, { color: colors.textMuted }]} numberOfLines={1}>
+                                                    → {formatShortDate(d.returnDate)}
+                                                </Text>
+                                            ) : null}
+                                            <Text
+                                                style={[
+                                                    styles.calPrice,
+                                                    { color: isCheapest ? colors.primary : colors.textMuted },
+                                                ]}
+                                                numberOfLines={1}
+                                            >
+                                                {formatFare(d.price, flightCalendar?.currency || "EUR")}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -1215,6 +1381,13 @@ const styles = StyleSheet.create({
     calSection: { marginTop: -14, marginBottom: 26 },
     calHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
     calTitle: { fontSize: 12.5, fontWeight: "700", letterSpacing: 0.1, textTransform: "uppercase" },
+    // Month filter — horizontal chip row above the date grid
+    monthScroll: { marginBottom: 12, marginHorizontal: -20 },
+    monthRow: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
+    monthChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
+    monthChipText: { fontSize: 13, fontWeight: "700", letterSpacing: -0.1 },
+    calStatus: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16, borderRadius: 14, borderWidth: 1 },
+    calStatusText: { fontSize: 13.5, fontWeight: "500", flexShrink: 1 },
     calRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     calChip: { flexBasis: "22%", flexGrow: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, borderRadius: 14, borderWidth: 1.5 },
     calDate: { fontSize: 12.5, fontWeight: "700" },

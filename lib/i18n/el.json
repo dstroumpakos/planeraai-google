@@ -131,6 +131,8 @@
     "defaultLocation": "ΠΡΟΕΠΙΛΕΓΜΕΝΗ ΤΟΠΟΘΕΣΙΑ",
     "homeAirport": "Αεροδρόμιο Βάσης",
     "homeAirportPlaceholder": "π.χ. Αθήνα, ATH",
+    "homeAirportRequiredTitle": "Απαιτείται αεροδρόμιο βάσης",
+    "homeAirportRequired": "Προσθέστε το αεροδρόμιο βάσης σας για να συνεχίσετε — το χρησιμοποιούμε για να βρίσκουμε πτήσεις από την πόλη σας.",
     "defaults": "ΠΡΟΕΠΙΛΟΓΕΣ",
     "budgetLabel": "Προϋπολογισμός ($)",
     "defaultInterests": "ΠΡΟΕΠΙΛΕΓΜΕΝΑ ΕΝΔΙΑΦΕΡΟΝΤΑ",
@@ -242,7 +244,9 @@
     "selectInterests": "Παρακαλώ επιλέξτε τουλάχιστον ένα ενδιαφέρον",
     "outbound": "Μετάβαση",
     "return": "Επιστροφή",
-    "fromFlightSearch": "Αναζήτηση Πτήσεων"
+    "fromFlightSearch": "Αναζήτηση Πτήσεων",
+    "locked": "Κλειδωμένο",
+    "total": "σύνολο"
   },
   "createTrip": {
     "designYour": "Σχεδιάστε την",
@@ -318,7 +322,11 @@
     "natureOutdoor": "Φύση & υπαίθριοι χώροι",
     "nightlife": "Νυχτερινή ζωή & τοπικά μπαρ",
     "neighborhoodWalks": "Περίπατοι στις γειτονιές",
-    "festivals": "Φεστιβάλ & εποχιακές εκδηλώσεις"
+    "festivals": "Φεστιβάλ & εποχιακές εκδηλώσεις",
+    "travelers": "Ταξιδιώτες",
+    "traveler": "ταξιδιώτης",
+    "interests": "Ενδιαφέροντα",
+    "perPerson": "ανά άτομο"
   },
   "trips": {
     "myTrips": "Τα Ταξίδια μου",
@@ -648,7 +656,6 @@
     "showCheapest": "Φθηνότερες πτήσεις",
     "showHidden": "Εμφάνιση κρυφών",
     "hideSelfTransfer": "Απόκρυψη αυτο-μεταφοράς",
-    "createTripWithFlight": "Δημιουργία ταξιδιού με αυτή την πτήση",
     "findFlights": "Εύρεση πτήσεων",
     "searching": "Αναζήτηση…",
     "fromIata": "Από (IATA)",
@@ -924,6 +931,9 @@
     "tripsLabel": "ταξίδια",
     "avgBudget": "μέσος προϋπ.",
     "cheapestDays": "Φθηνότερες μέρες πτήσης",
+    "soonest": "Άμεσα",
+    "loadingFares": "Έλεγχος τιμών…",
+    "noFaresForMonth": "Δεν βρέθηκαν τιμές για {{month}}",
     "bestSeason": "καλύτερη εποχή",
     "daysUnitShort": "ημ",
     "flightsFromCity": "Πτήσεις από {{origin}}",

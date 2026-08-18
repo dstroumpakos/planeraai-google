@@ -21,6 +21,7 @@ import { useAuthenticatedMutation, useToken } from "@/lib/useAuthenticatedMutati
 import { useCachedQuery, useIsOffline } from "@/lib/useCachedQuery";
 import { tripCacheKey, sightsCacheKey } from "@/lib/offlineTripCache";
 import { optimizeUnsplashUrl, IMAGE_SIZES } from "@/lib/imageUtils";
+import { formatFare } from "@/lib/currency";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
 import * as Location from "expo-location";
@@ -1620,7 +1621,9 @@ export default function TripDetails() {
     // ─── Budget breakdown (marketing view) ───
     // Whether flight prices come from a live search vs an estimate
     const flightDataSource = itinerary?.flights?.dataSource;
-    const isLiveFlightData = flightDataSource === 'serpapi' || flightDataSource === 'duffel' || flightDataSource === 'low-fare-radar';
+    // 'flight-search' = a fare the traveler picked themselves in the flight
+    // search screen — as live as it gets, so it must not read as an estimate.
+    const isLiveFlightData = flightDataSource === 'serpapi' || flightDataSource === 'duffel' || flightDataSource === 'low-fare-radar' || flightDataSource === 'flight-search';
     // Real supplier deal on the selected stay (only when supplier returned an original price)
     const stayOriginalPrice = typeof selectedAccommodation?.originalPrice === 'number' ? selectedAccommodation.originalPrice : null;
     const stayDealLabel = selectedAccommodation?.dealLabel || null;
@@ -3456,10 +3459,11 @@ export default function TripDetails() {
                                             </View>
                                         )}
 
-                                        {/* Price */}
+                                        {/* Price — in the currency the fare was
+                                            searched in, not assumed euros. */}
                                         <View style={{ marginBottom: 12 }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                                                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text }}>€{Math.round(selected.pricePerPerson)}</Text>
+                                                <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text }}>{formatFare(selected.pricePerPerson, selected.currency)}</Text>
                                                 <Text style={{ fontSize: 13, color: colors.textMuted, marginLeft: 4 }}>{t('tripDetail.perPerson')}</Text>
                                                 {selected.luggage && (
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', backgroundColor: isDarkMode ? colors.secondary : '#F0FDFA', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
@@ -3468,8 +3472,8 @@ export default function TripDetails() {
                                                     </View>
                                                 )}
                                             </View>
-                                            {selected.totalPrice && (
-                                                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>€{Math.round(selected.totalPrice)} {t('tripDetail.totalFor2', { defaultValue: 'total for 2' })}</Text>
+                                            {selected.totalPrice && travelers > 1 && (
+                                                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>{t('flights.totalForTravelers', { count: travelers, defaultValue: `Total · ${travelers} travelers` })} · {formatFare(selected.totalPrice, selected.currency)}</Text>
                                             )}
                                         </View>
 
@@ -3587,6 +3591,7 @@ export default function TripDetails() {
                                     <TripFlightProviders
                                         providers={trip.itinerary.flights.options[0].bookingProviders}
                                         travelers={trip.travelerCount ?? trip.travelers ?? 1}
+                                        currency={trip.itinerary.flights.options[0].currency}
                                     />
                                 )}
 

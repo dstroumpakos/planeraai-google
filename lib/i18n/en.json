@@ -131,6 +131,8 @@
     "defaultLocation": "DEFAULT LOCATION",
     "homeAirport": "Home Airport",
     "homeAirportPlaceholder": "e.g. Athens, ATH",
+    "homeAirportRequiredTitle": "Base airport required",
+    "homeAirportRequired": "Add your base airport to continue — we use it to find flights from your city.",
     "defaults": "DEFAULTS",
     "budgetLabel": "Budget ($)",
     "defaultInterests": "DEFAULT INTERESTS",
@@ -242,7 +244,9 @@
     "selectInterests": "Please select at least one interest",
     "outbound": "Outbound",
     "return": "Return",
-    "fromFlightSearch": "Flight Search"
+    "fromFlightSearch": "Flight Search",
+    "locked": "Locked",
+    "total": "total"
   },
   "createTrip": {
     "designYour": "Design your",
@@ -318,7 +322,11 @@
     "natureOutdoor": "Nature & outdoor spots",
     "nightlife": "Nightlife & local bars",
     "neighborhoodWalks": "Neighborhood walks",
-    "festivals": "Festivals & seasonal events"
+    "festivals": "Festivals & seasonal events",
+    "travelers": "Travelers",
+    "traveler": "traveler",
+    "interests": "Interests",
+    "perPerson": "per person"
   },
   "trips": {
     "myTrips": "My Trips",
@@ -648,7 +656,6 @@
     "showCheapest": "Cheapest flights",
     "showHidden": "Show hidden",
     "hideSelfTransfer": "Hide self-transfer",
-    "createTripWithFlight": "Create trip with this flight",
     "findFlights": "Find flights",
     "searching": "Searching…",
     "fromIata": "From (IATA)",
@@ -919,6 +926,9 @@
     "tripsLabel": "trips",
     "avgBudget": "avg budget",
     "cheapestDays": "Cheapest days to fly",
+    "soonest": "Soonest",
+    "loadingFares": "Checking fares…",
+    "noFaresForMonth": "No fares found for {{month}}",
     "bestSeason": "best season",
     "daysUnitShort": "d",
     "flightsFromCity": "Flights from {{origin}}",

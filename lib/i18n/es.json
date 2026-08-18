@@ -131,6 +131,8 @@
     "defaultLocation": "UBICACIÓN PREDETERMINADA",
     "homeAirport": "Aeropuerto Base",
     "homeAirportPlaceholder": "ej. Madrid, MAD",
+    "homeAirportRequiredTitle": "Aeropuerto base obligatorio",
+    "homeAirportRequired": "Añade tu aeropuerto base para continuar: lo usamos para encontrar vuelos desde tu ciudad.",
     "defaults": "PREDETERMINADOS",
     "budgetLabel": "Presupuesto ($)",
     "defaultInterests": "INTERESES PREDETERMINADOS",
@@ -242,7 +244,9 @@
     "selectInterests": "Por favor selecciona al menos un interés",
     "outbound": "Ida",
     "return": "Vuelta",
-    "fromFlightSearch": "Búsqueda de Vuelos"
+    "fromFlightSearch": "Búsqueda de Vuelos",
+    "locked": "Bloqueado",
+    "total": "total"
   },
   "createTrip": {
     "designYour": "Diseña tu",
@@ -318,7 +322,11 @@
     "natureOutdoor": "Naturaleza y aire libre",
     "nightlife": "Vida nocturna y bares locales",
     "neighborhoodWalks": "Paseos por el barrio",
-    "festivals": "Festivales y eventos de temporada"
+    "festivals": "Festivales y eventos de temporada",
+    "travelers": "Viajeros",
+    "traveler": "viajero",
+    "interests": "Intereses",
+    "perPerson": "por persona"
   },
   "trips": {
     "myTrips": "Mis Viajes",
@@ -648,7 +656,6 @@
     "showCheapest": "Vuelos más baratos",
     "showHidden": "Mostrar ocultos",
     "hideSelfTransfer": "Ocultar autoconexión",
-    "createTripWithFlight": "Crear viaje con este vuelo",
     "findFlights": "Buscar vuelos",
     "searching": "Buscando…",
     "fromIata": "Desde (IATA)",
@@ -919,6 +926,9 @@
     "tripsLabel": "viajes",
     "avgBudget": "presupuesto medio",
     "cheapestDays": "Días más baratos para volar",
+    "soonest": "Próximos",
+    "loadingFares": "Buscando tarifas…",
+    "noFaresForMonth": "No se encontraron tarifas para {{month}}",
     "bestSeason": "mejor época",
     "daysUnitShort": "d",
     "flightsFromCity": "Vuelos desde {{origin}}",

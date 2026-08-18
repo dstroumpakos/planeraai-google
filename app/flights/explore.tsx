@@ -203,6 +203,13 @@ export default function ExploreScreen() {
     const matches = raw.toUpperCase().match(/\b([A-Z]{3})\b/g);
     return matches ? matches[matches.length - 1] : undefined;
   }, [userSettings]);
+  // Party size for the live fare search this screen hands off to. Explore's own
+  // prices stay at the engine's 1-adult basis — they're per-person discovery
+  // signals, and the budget chips below read as "per person" because of it.
+  const searchAdults = useMemo(() => {
+    const saved = Number((userSettings as any)?.defaultTravelers);
+    return Number.isFinite(saved) && saved >= 1 ? Math.min(Math.round(saved), 9) : 1;
+  }, [userSettings]);
 
   const currency = (params.currency || "EUR").toUpperCase();
 
@@ -304,6 +311,9 @@ export default function ExploreScreen() {
         departureId: origin,
         arrivalId,
         arrivalCityName: dest.name.split(",")[0].trim(),
+        // Without this the auto-run search prices for a single adult, and the
+        // fare that gets locked into the trip is for the wrong party size.
+        adults: String(searchAdults),
         currency,
         ...(dest.outboundDate ? { outboundDate: dest.outboundDate } : {}),
         ...(dest.returnDate ? { returnDate: dest.returnDate } : {}),

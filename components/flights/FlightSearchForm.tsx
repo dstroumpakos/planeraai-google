@@ -156,6 +156,16 @@ export const FlightSearchForm: React.FC<Props> = ({ initial, loading, onSubmit }
     }
   }, [initial?.departureId]);
 
+  // Same story for the party size: it can come from the traveler's saved
+  // `defaultTravelers`, which lands after the first render. Only adopt it while
+  // the stepper is untouched, so an explicit choice is never overwritten.
+  const adultsTouched = useRef(false);
+  useEffect(() => {
+    if (initial?.adults != null && !adultsTouched.current) {
+      setAdults(initial.adults);
+    }
+  }, [initial?.adults]);
+
   const suggestions = useMemo(() => {
     if (activeField === "from") return filterAirports(fromText);
     if (activeField === "to") return filterAirports(toText);
@@ -605,7 +615,10 @@ export const FlightSearchForm: React.FC<Props> = ({ initial, loading, onSubmit }
         <View style={styles.stepperRow}>
           <TouchableOpacity
             style={[styles.stepperBtn, adults <= 1 && { opacity: 0.4 }]}
-            onPress={() => setAdults(Math.max(1, adults - 1))}
+            onPress={() => {
+              adultsTouched.current = true;
+              setAdults(Math.max(1, adults - 1));
+            }}
             disabled={adults <= 1}
           >
             <Ionicons name="remove" size={18} color={colors.text} />
@@ -619,7 +632,10 @@ export const FlightSearchForm: React.FC<Props> = ({ initial, loading, onSubmit }
               styles.stepperBtn,
               (adults >= 9 || !canAddPassenger) && { opacity: 0.4 },
             ]}
-            onPress={() => setAdults(Math.min(9, adults + 1))}
+            onPress={() => {
+              adultsTouched.current = true;
+              setAdults(Math.min(9, adults + 1));
+            }}
             disabled={adults >= 9 || !canAddPassenger}
           >
             <Ionicons name="add" size={18} color={colors.text} />
