@@ -1,4 +1,6 @@
 What's new:
-• Smaller app download and install size
-• Faster startup and lower memory usage
+• Flight fares now show in your own currency
+• More accurate departure and arrival times in results
+• Refreshed destination preview with cheapest days to fly
+• Smoother onboarding and travel preferences setup
 • Bug fixes and performance improvements

@@ -1,4 +1,6 @@
 Novedades:
-• Menor tamaño de descarga e instalación
-• Inicio más rápido y menor uso de memoria
+• Las tarifas de vuelos se muestran en tu propia moneda
+• Horarios de salida y llegada más precisos en los resultados
+• Vista previa del destino renovada con los días más baratos para volar
+• Configuración inicial y preferencias de viaje más fluidas
 • Corrección de errores y mejoras de rendimiento

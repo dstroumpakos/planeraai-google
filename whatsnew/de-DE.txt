@@ -1,4 +1,6 @@
 Neuigkeiten:
-• Geringere Download- und Installationsgröße
-• Schnellerer Start und weniger Speicherverbrauch
+• Flugpreise werden in deiner eigenen Währung angezeigt
+• Genauere Abflug- und Ankunftszeiten in den Ergebnissen
+• Überarbeitete Zielvorschau mit den günstigsten Flugtagen
+• Flüssigerer Einstieg und Reiseeinstellungen
 • Fehlerbehebungen und Leistungsverbesserungen
