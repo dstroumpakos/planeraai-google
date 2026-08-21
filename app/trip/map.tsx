@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, StatusBar, ScrollView, Dimensions, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, StatusBar, ScrollView, Dimensions, Animated, Alert } from "react-native";
 import MapView, { Marker, Polyline, Callout, PROVIDER_DEFAULT } from "react-native-maps";
 import { useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
@@ -8,9 +8,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "@/lib/ThemeContext";
-import { useToken } from "@/lib/useAuthenticatedMutation";
+import { useToken, useAuthenticatedMutation } from "@/lib/useAuthenticatedMutation";
 import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
+import ShareRouteCard, { ShareRouteCardHandle } from "@/components/ShareRouteCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -35,13 +36,17 @@ interface GeocodedSight {
 
 interface RouteSegment {
     coordinates: { latitude: number; longitude: number }[];
+    /** Real walking distance in km (OSRM); haversine when the router is unreachable. */
+    distanceKm: number;
+    /** Real walking time in minutes (OSRM); estimated at 4.5 km/h on fallback. */
+    durationMin: number;
 }
 
 // Fetch walking route between two points using OSRM (free, no API key)
 async function fetchWalkingRoute(
     from: { lat: number; lng: number },
     to: { lat: number; lng: number }
-): Promise<{ latitude: number; longitude: number }[]> {
+): Promise<RouteSegment> {
     try {
         const url =
             "https://router.project-osrm.org/route/v1/foot/" +
@@ -52,17 +57,27 @@ async function fetchWalkingRoute(
         const data = await response.json();
 
         if (data.code === "Ok" && data.routes && data.routes.length > 0) {
-            const coords = data.routes[0].geometry.coordinates;
-            return coords.map((c: number[]) => ({ latitude: c[1], longitude: c[0] }));
+            const route = data.routes[0];
+            const coords = route.geometry.coordinates;
+            return {
+                coordinates: coords.map((c: number[]) => ({ latitude: c[1], longitude: c[0] })),
+                distanceKm: typeof route.distance === "number" ? route.distance / 1000 : 0,
+                durationMin: typeof route.duration === "number" ? route.duration / 60 : 0,
+            };
         }
     } catch (e) {
         console.error("OSRM route fetch failed:", e);
     }
-    // Fallback: straight line
-    return [
-        { latitude: from.lat, longitude: from.lng },
-        { latitude: to.lat, longitude: to.lng },
-    ];
+    // Fallback: straight line, distance from haversine at an average walking pace
+    const straightKm = haversineDistance(from.lat, from.lng, to.lat, to.lng);
+    return {
+        coordinates: [
+            { latitude: from.lat, longitude: from.lng },
+            { latitude: to.lat, longitude: to.lng },
+        ],
+        distanceKm: straightKm,
+        durationMin: (straightKm / 4.5) * 60,
+    };
 }
 
 // Geocode the destination city to get a center point + country code for constraining searches
@@ -281,11 +296,38 @@ export default function TripMap() {
     const [buildPhase, setBuildPhase] = useState<string | null>(null); // floating status text
     const [isLoadingSights, setIsLoadingSights] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isSharing, setIsSharing] = useState(false);
+    const routeCardRef = useRef<ShareRouteCardHandle>(null);
+    // `api.trips as any`, not `api.trips.scheduleBackfillDayMaps as any`: this
+    // repo's convex/ is a type-generation copy only (the iOS repo owns the
+    // shared prod deployment and is the only one that deploys), so the
+    // generated types here don't list this mutation even though it exists in
+    // prod. The Convex api object resolves function references by path at
+    // runtime, so the call still lands; the .catch() below covers the case
+    // where iOS hasn't deployed it yet.
+    const scheduleBackfillDayMaps = useAuthenticatedMutation((api.trips as any).scheduleBackfillDayMaps);
+    const backfillRequestedRef = useRef(false);
 
     const itinerary = trip?.itinerary;
     const days: any[] = itinerary?.dayByDayItinerary || [];
     const currentDay = days.find((d: any) => d.day === selectedDay) || days[0];
     const totalActivities = currentDay?.activities?.length || 0;
+
+    // Lazy backfill: if this trip predates cached map data (or generation-time
+    // enrichment failed), kick off server-side geocoding once per screen visit
+    // so it's cached for next time — this screen keeps working off its own
+    // live geocode below in the meantime, so it's fire-and-forget.
+    useEffect(() => {
+        if (backfillRequestedRef.current || !trip?._id || days.length === 0) return;
+        const needsBackfill = days.some(
+            (d: any) => d?.mapImageUrl === undefined && (d?.activities?.length || 0) > 0
+        );
+        if (!needsBackfill) return;
+        backfillRequestedRef.current = true;
+        scheduleBackfillDayMaps({ tripId: trip._id }).catch((e) =>
+            console.warn("scheduleBackfillDayMaps failed:", e)
+        );
+    }, [trip?._id, days, scheduleBackfillDayMaps]);
 
     // Request location permission and get user location
     const requestLocation = useCallback(async () => {
@@ -330,45 +372,72 @@ export default function TripMap() {
         setBuildPhase(t('tripMap.findingDestination'));
 
         const geocodeAndRoute = async () => {
-            const results: GeocodedActivity[] = [];
+            let results: GeocodedActivity[] = [];
             const destination = trip.destination;
             const totalActs = currentDay.activities.length;
 
-            // Phase 0: Geocode the destination to get center + country code
-            const destCenter = await geocodeDestination(destination);
-            if (destCenter) {
-                console.log(`📍 Destination center: ${destCenter.lat}, ${destCenter.lng} (${destCenter.countryCode})`);
-                // Fly to destination immediately
+            // Prefer cached coordinates (server-geocoded at generation/backfill
+            // time) when every activity in this day already has them — skips
+            // the Nominatim round-trips below entirely. Falls back to the live
+            // geocode flow if the cache is only partial or empty.
+            const allCached = currentDay.activities.every(
+                (a: any) => typeof a.lat === "number" && typeof a.lng === "number"
+            );
+
+            if (allCached) {
+                results = currentDay.activities.map((activity: any, i: number) => ({
+                    title: activity.title,
+                    address: activity.address || "",
+                    lat: activity.lat,
+                    lng: activity.lng,
+                    time: activity.time,
+                    type: activity.type,
+                    index: i,
+                }));
+                setGeocodedActivities(results);
                 if (mapRef.current) {
-                    mapRef.current.animateToRegion({
-                        latitude: destCenter.lat,
-                        longitude: destCenter.lng,
-                        latitudeDelta: 0.06,
-                        longitudeDelta: 0.06,
-                    }, 600);
+                    mapRef.current.fitToCoordinates(
+                        results.map(r => ({ latitude: r.lat, longitude: r.lng })),
+                        { edgePadding: { top: 120, right: 60, bottom: 250, left: 60 }, animated: true }
+                    );
                 }
-            }
-            await new Promise(r => setTimeout(r, 1100)); // Rate limit
-
-            // Phase 1: Geocode activities one-by-one — each pin appears immediately
-            for (let i = 0; i < totalActs; i++) {
-                if (cancelled) return;
-                const activity = currentDay.activities[i];
-                setBuildPhase(t('tripMap.placingPin', { current: i + 1, total: totalActs }));
-
-                if (i > 0) await new Promise(r => setTimeout(r, 1100));
-
-                const result = await geocodeActivity(activity, destination, i, destCenter);
-                if (result) {
-                    results.push(result);
-                    // Push pin onto map immediately
-                    setGeocodedActivities([...results]);
-                    // Fit map to show all current pins
+            } else {
+                // Phase 0: Geocode the destination to get center + country code
+                const destCenter = await geocodeDestination(destination);
+                if (destCenter) {
+                    console.log(`📍 Destination center: ${destCenter.lat}, ${destCenter.lng} (${destCenter.countryCode})`);
+                    // Fly to destination immediately
                     if (mapRef.current) {
-                        mapRef.current.fitToCoordinates(
-                            results.map(r => ({ latitude: r.lat, longitude: r.lng })),
-                            { edgePadding: { top: 120, right: 60, bottom: 250, left: 60 }, animated: true }
-                        );
+                        mapRef.current.animateToRegion({
+                            latitude: destCenter.lat,
+                            longitude: destCenter.lng,
+                            latitudeDelta: 0.06,
+                            longitudeDelta: 0.06,
+                        }, 600);
+                    }
+                }
+                await new Promise(r => setTimeout(r, 1100)); // Rate limit
+
+                // Phase 1: Geocode activities one-by-one — each pin appears immediately
+                for (let i = 0; i < totalActs; i++) {
+                    if (cancelled) return;
+                    const activity = currentDay.activities[i];
+                    setBuildPhase(t('tripMap.placingPin', { current: i + 1, total: totalActs }));
+
+                    if (i > 0) await new Promise(r => setTimeout(r, 1100));
+
+                    const result = await geocodeActivity(activity, destination, i, destCenter);
+                    if (result) {
+                        results.push(result);
+                        // Push pin onto map immediately
+                        setGeocodedActivities([...results]);
+                        // Fit map to show all current pins
+                        if (mapRef.current) {
+                            mapRef.current.fitToCoordinates(
+                                results.map(r => ({ latitude: r.lat, longitude: r.lng })),
+                                { edgePadding: { top: 120, right: 60, bottom: 250, left: 60 }, animated: true }
+                            );
+                        }
                     }
                 }
             }
@@ -390,11 +459,11 @@ export default function TripMap() {
                 setBuildPhase(t('tripMap.drawingRoute', { current: i + 1, total: totalRoutes }));
                 const from = results[i];
                 const to = results[i + 1];
-                const coordinates = await fetchWalkingRoute(
+                const segment = await fetchWalkingRoute(
                     { lat: from.lat, lng: from.lng },
                     { lat: to.lat, lng: to.lng }
                 );
-                segments.push({ coordinates });
+                segments.push(segment);
                 // Draw route segment immediately
                 setRouteSegments([...segments]);
                 if (i < totalRoutes - 1) {
@@ -522,6 +591,89 @@ export default function TripMap() {
             fitMapToMarkers();
         }
     }, [geocodedSights, isBuilding]);
+
+    // ─── Share this day as a route-map card ───────────────────────────────
+    // The map is snapshotted through react-native-maps' own takeSnapshot():
+    // captureRef() on a native MapView returns a blank tile on iOS.
+    const shareRoute = useCallback(async () => {
+        if (geocodedActivities.length < 2 || !mapRef.current) {
+            Alert.alert(t('tripMap.shareUnavailableTitle'), t('tripMap.shareUnavailableBody'));
+            return;
+        }
+        try {
+            setIsSharing(true);
+
+            const legKms = routeSegments.map(s => s.distanceKm);
+            const totalKm = legKms.reduce((sum, km) => sum + km, 0);
+            const walkMinutes = routeSegments.reduce((sum, s) => sum + s.durationMin, 0);
+
+            // Prefer the cached static map (same one the share sheet's per-day
+            // slides use) — skips the live on-screen snapshot entirely and
+            // keeps both entry points showing the same image. Falls back to a
+            // fresh takeSnapshot() of the interactive map when it's missing
+            // (trip predates backfill, or backfill hasn't reached this day yet).
+            let mapUri = currentDay?.mapImageUrl as string | undefined;
+            if (!mapUri) {
+                // Frame the snapshot on the day's stops, with a little breathing room.
+                const lats = geocodedActivities.map(a => a.lat);
+                const lngs = geocodedActivities.map(a => a.lng);
+                const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+                const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+                const region = {
+                    latitude: (minLat + maxLat) / 2,
+                    longitude: (minLng + maxLng) / 2,
+                    latitudeDelta: Math.max((maxLat - minLat) * 1.6, 0.008),
+                    longitudeDelta: Math.max((maxLng - minLng) * 1.6, 0.008),
+                };
+
+                const snapshot = await mapRef.current.takeSnapshot({
+                    width: 540,
+                    height: 320,
+                    region,
+                    format: "png",
+                    result: "file",
+                });
+                // iOS hands back a bare path; expo-image needs the scheme.
+                mapUri = /^(file|https?|data):/.test(snapshot) ? snapshot : `file://${snapshot}`;
+            }
+
+            const activityByIndex = currentDay?.activities || [];
+            const stops = geocodedActivities.map((a, i) => ({
+                title: a.title,
+                time: a.time,
+                image: activityByIndex[a.index]?.image,
+                lat: a.lat,
+                lng: a.lng,
+                // legKm[i] is the walk that *arrives* at stop i
+                legKm: i > 0 ? legKms[i - 1] : undefined,
+            }));
+
+            const dayDate = trip?.startDate
+                ? trip.startDate + (selectedDay - 1) * 24 * 60 * 60 * 1000
+                : undefined;
+
+            const firstTip = activityByIndex.find((a: any) => a?.tips)?.tips;
+
+            routeCardRef.current?.open({
+                destination: trip.destination,
+                dayNumber: selectedDay,
+                dayCount: days.length,
+                dayTitle: currentDay?.title || t('tripDetail.exploreDest', { destination: trip.destination }),
+                date: dayDate,
+                travelers: trip.travelerCount || trip.travelers || 1,
+                stops,
+                mapUri,
+                totalKm,
+                walkMinutes,
+                tip: typeof firstTip === "string" ? firstTip : undefined,
+            });
+        } catch (e) {
+            console.error("Route snapshot failed:", e);
+            Alert.alert(t('common.error'), t('tripMap.shareFailed'));
+        } finally {
+            setIsSharing(false);
+        }
+    }, [geocodedActivities, routeSegments, currentDay, days.length, selectedDay, trip, t]);
 
     if (!trip) {
         return (
@@ -683,9 +835,23 @@ export default function TripMap() {
                             {t('tripMap.day', { number: selectedDay })}
                         </Text>
                     </View>
-                    <View style={{ width: 44 }} />
+                    <TouchableOpacity
+                        style={[
+                            styles.backButton,
+                            { backgroundColor: isDarkMode ? colors.card : "#FFFFFF" },
+                            (isBuilding || geocodedActivities.length < 2) && { opacity: 0.4 },
+                        ]}
+                        onPress={shareRoute}
+                        disabled={isSharing || isBuilding || geocodedActivities.length < 2}
+                    >
+                        {isSharing
+                            ? <ActivityIndicator size="small" color={colors.primary} />
+                            : <Ionicons name="share-outline" size={20} color={colors.text} />}
+                    </TouchableOpacity>
                 </View>
             </SafeAreaView>
+
+            <ShareRouteCard ref={routeCardRef} />
 
             {/* Bottom Sheet with Day Selector + Activities */}
             {!error && (

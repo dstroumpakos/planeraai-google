@@ -3034,6 +3034,7 @@ export default function TripDetails() {
                                                     ) :
                                                     activity.type === 'museum' ? 'easel' :
                                                     activity.type === 'attraction' ? 'ticket' :
+                                                    activity.type === 'departure' ? 'airplane' :
                                                     'location'
                                                 } 
                                                 size={20} 
@@ -5222,6 +5223,26 @@ export default function TripDetails() {
             <ShareTripCard
                 ref={shareCardRef}
                 trip={trip}
+                budget={{
+                    total: grandTotal,
+                    travelers,
+                    nights: duration,
+                    isLive: isLiveFlightData,
+                    categories: budgetCategories.map((c) => ({
+                        key: c.key,
+                        label: c.label,
+                        amount: c.amount,
+                        color: c.color,
+                        icon: c.icon,
+                    })),
+                    perPerson: pricePerPerson,
+                    perDay,
+                    perPersonPerDay,
+                    targetBudget,
+                    delta: budgetDelta,
+                    isOverBudget,
+                    usedPct: budgetUsedPct,
+                }}
             />
 
             {/* OTA Package inquiry modal */}

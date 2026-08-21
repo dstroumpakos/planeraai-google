@@ -101,9 +101,11 @@ export default function DealTripScreen() {
     ? `https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${destCountryCode}/vector.svg`
     : null;
 
+  // Calendar days the trip covers, inclusive of both the outbound and the return
+  // day - this must match the itinerary day count the generator produces.
   const tripDays = returnDate
-    ? Math.ceil((new Date(returnDate).getTime() - new Date(outboundDate).getTime()) / (24 * 60 * 60 * 1000))
-    : 3;
+    ? Math.round((new Date(returnDate).getTime() - new Date(outboundDate).getTime()) / (24 * 60 * 60 * 1000)) + 1
+    : 4; // one-way trips default to a 3-night stay server-side
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);

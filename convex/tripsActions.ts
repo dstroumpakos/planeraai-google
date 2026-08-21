@@ -203,6 +203,36 @@ This is a low-budget trip. STRICTLY limit to 2 total items per day (1 activity +
     return { budgetTier, dailyBudgetPerPerson, guidance };
 }
 
+/**
+ * Number of calendar days a trip covers, inclusive of both the outbound and the
+ * return date. Trips store startDate/endDate as midnight of the outbound and
+ * return day, so their difference is the number of NIGHTS - using it directly as
+ * the day count silently drops the departure day from the itinerary.
+ */
+function countTripDays(startDate: number, endDate: number): number {
+    const nights = Math.round((endDate - startDate) / (24 * 60 * 60 * 1000));
+    return Math.max(1, nights + 1);
+}
+
+/**
+ * Read the wall-clock hour/minute out of an arrival/departure timestamp.
+ *
+ * These strings carry a LOCAL-to-the-destination clock time, not an instant: the
+ * app encodes the picked time with Date.UTC ("...T09:00:00.000Z") and the deal
+ * flow concatenates the flight's clock time ("...T09:00:00"). Reading the digits
+ * textually gives the same answer for both and, unlike `new Date(...).getUTCHours()`,
+ * does not silently shift if the runtime's timezone is ever not UTC.
+ * Returns null when the string carries no recognizable time.
+ */
+function parseWallClock(timestamp: string): { hour: number; minute: number } | null {
+    const m = /T(\d{2}):(\d{2})/.exec(timestamp);
+    if (!m) return null;
+    const hour = parseInt(m[1], 10);
+    const minute = parseInt(m[2], 10);
+    if (isNaN(hour) || isNaN(minute) || hour > 23 || minute > 59) return null;
+    return { hour, minute };
+}
+
 // Helper function to generate time-aware itinerary guidance based on arrival/departure times
 function generateTimeAwareGuidance(
     arrivalTime: string | undefined,
@@ -215,10 +245,10 @@ function generateTimeAwareGuidance(
     let firstDayStartTime: string | null = null;
     let lastDayEndTime: string | null = null;
     
-    if (arrivalTime) {
-        const arrival = new Date(arrivalTime);
-        const arrivalHour = arrival.getUTCHours();
-        const arrivalMinutes = arrival.getUTCMinutes();
+    const arrivalClock = arrivalTime ? parseWallClock(arrivalTime) : null;
+    if (arrivalClock) {
+        const arrivalHour = arrivalClock.hour;
+        const arrivalMinutes = arrivalClock.minute;
         const arrivalTimeDisplay = `${String(arrivalHour).padStart(2, '0')}:${String(arrivalMinutes).padStart(2, '0')}`;
         
         // Determine first day activity guidance based on arrival time
@@ -278,10 +308,10 @@ function generateTimeAwareGuidance(
         }
     }
     
-    if (departureTime) {
-        const departure = new Date(departureTime);
-        const departureHour = departure.getUTCHours();
-        const departureTimeDisplay = `${String(departureHour).padStart(2, '0')}:${String(departure.getUTCMinutes()).padStart(2, '0')}`;
+    const departureClock = departureTime ? parseWallClock(departureTime) : null;
+    if (departureClock) {
+        const departureHour = departureClock.hour;
+        const departureTimeDisplay = `${String(departureHour).padStart(2, '0')}:${String(departureClock.minute).padStart(2, '0')}`;
         
         // Calculate end time (3 hours before departure for airport transfer)
         const endHour = departureHour - 3;
@@ -330,6 +360,146 @@ function generateTimeAwareGuidance(
     }
     
     return { guidance, skipLastDay, firstDayStartTime, lastDayEndTime };
+}
+
+// Localized copy for the synthetic departure day. The itinerary itself is
+// generated in the traveler's language, so this closing stub must be too.
+const DEPARTURE_DAY_COPY: Record<string, {
+    dayTitle: string;
+    activityTitle: string;
+    description: (time: string) => string;
+    tips: string;
+}> = {
+    en: {
+        dayTitle: "Departure day — checkout & transfer",
+        activityTitle: "Checkout & airport transfer",
+        description: (time) => `Check out of your accommodation and head to the airport for your ${time} flight home.`,
+        tips: "Aim to be at the airport about 3 hours before departure. If checkout is earlier, most hotels will store your luggage for free.",
+    },
+    el: {
+        dayTitle: "Ημέρα αναχώρησης — check-out & μεταφορά",
+        activityTitle: "Check-out & μεταφορά στο αεροδρόμιο",
+        description: (time) => `Κάντε check-out από το κατάλυμά σας και κατευθυνθείτε στο αεροδρόμιο για την πτήση επιστροφής στις ${time}.`,
+        tips: "Να είστε στο αεροδρόμιο περίπου 3 ώρες πριν την αναχώρηση. Αν το check-out γίνει νωρίτερα, τα περισσότερα ξενοδοχεία φυλάσσουν δωρεάν τις αποσκευές σας.",
+    },
+    es: {
+        dayTitle: "Día de salida — check-out y traslado",
+        activityTitle: "Check-out y traslado al aeropuerto",
+        description: (time) => `Haz el check-out de tu alojamiento y dirígete al aeropuerto para tu vuelo de vuelta de las ${time}.`,
+        tips: "Procura estar en el aeropuerto unas 3 horas antes de la salida. Si el check-out es antes, la mayoría de los hoteles guardan el equipaje sin coste.",
+    },
+    fr: {
+        dayTitle: "Jour du départ — check-out et transfert",
+        activityTitle: "Check-out et transfert vers l’aéroport",
+        description: (time) => `Libérez votre hébergement et rejoignez l’aéroport pour votre vol retour de ${time}.`,
+        tips: "Prévoyez d’être à l’aéroport environ 3 heures avant le départ. Si le check-out est plus tôt, la plupart des hôtels gardent vos bagages gratuitement.",
+    },
+    de: {
+        dayTitle: "Abreisetag — Check-out & Transfer",
+        activityTitle: "Check-out & Transfer zum Flughafen",
+        description: (time) => `Checken Sie aus Ihrer Unterkunft aus und fahren Sie zum Flughafen für Ihren Rückflug um ${time} Uhr.`,
+        tips: "Seien Sie etwa 3 Stunden vor Abflug am Flughafen. Bei früherem Check-out lagern die meisten Hotels Ihr Gepäck kostenlos.",
+    },
+    ar: {
+        dayTitle: "يوم المغادرة — تسجيل الخروج والانتقال",
+        activityTitle: "تسجيل الخروج والانتقال إلى المطار",
+        description: (time) => `سجّل الخروج من مكان إقامتك وتوجّه إلى المطار للحاق برحلة العودة في الساعة ${time}.`,
+        tips: "احرص على الوصول إلى المطار قبل نحو 3 ساعات من الإقلاع. إذا كان تسجيل الخروج أبكر، فمعظم الفنادق تحفظ أمتعتك مجانًا.",
+    },
+};
+
+/**
+ * The closing "checkout & airport transfer" item for the departure day: starts
+ * three hours before take-off (clamped to midnight so it never spills into the
+ * previous day) and ends at the flight time. Returns null for an unparseable
+ * departure timestamp.
+ */
+function buildDepartureActivity(departureTime: string, language: string | undefined): any | null {
+    const clock = parseWallClock(departureTime);
+    if (!clock) return null;
+
+    const depHour = clock.hour;
+    const depMinute = clock.minute;
+    const depMinutes = depHour * 60 + depMinute;
+    const timeDisplay = `${String(depHour).padStart(2, "0")}:${String(depMinute).padStart(2, "0")}`;
+
+    const startMinutes = Math.max(0, depMinutes - 180);
+    const startTime = `${String(Math.floor(startMinutes / 60)).padStart(2, "0")}:${String(startMinutes % 60).padStart(2, "0")}`;
+    const durationMinutes = depMinutes - startMinutes;
+
+    const copy = DEPARTURE_DAY_COPY[language || "en"] || DEPARTURE_DAY_COPY.en;
+
+    return {
+        time: startTime,
+        startTime,
+        endTime: timeDisplay,
+        title: copy.activityTitle,
+        description: copy.description(timeDisplay),
+        address: null,
+        type: "departure",
+        price: 0,
+        currency: "EUR",
+        skipTheLine: false,
+        skipTheLinePrice: null,
+        durationMinutes,
+        duration: `${Math.max(1, Math.round(durationMinutes / 60))}h`,
+        tips: copy.tips,
+        isLocalExperience: false,
+        travelFromPrevious: null,
+        culinaryMoment: null,
+        culinaryType: null,
+        whyThisFits: null,
+        priceRange: null,
+        walkability: null,
+        culinaryTags: null,
+    };
+}
+
+/**
+ * Close the itinerary out with the return-flight logistics so the day list always
+ * spans every calendar day the trip header advertises. When the departure day was
+ * skipped (early flight, nothing schedulable) it is appended as a transfer-only
+ * day; when it already holds activities the transfer becomes its last item.
+ * No-ops on a one-way trip or an unexpected day count. Mutates and returns `days`.
+ */
+function appendDepartureDay(
+    days: any[],
+    opts: { departureTime?: string; startDate: number; totalTripDays: number; language?: string },
+): any[] {
+    if (!opts.departureTime || !Array.isArray(days) || days.length === 0) return days;
+
+    const activity = buildDepartureActivity(opts.departureTime, opts.language);
+    if (!activity) return days;
+
+    const lastIndex = opts.totalTripDays - 1;
+    if (lastIndex < 1) return days; // single-day trip: leave it alone
+
+    if (days.length === lastIndex) {
+        // The departure day was skipped entirely - add it back as a transfer-only day.
+        const copy = DEPARTURE_DAY_COPY[opts.language || "en"] || DEPARTURE_DAY_COPY.en;
+        const dayDate = new Date(opts.startDate + lastIndex * 24 * 60 * 60 * 1000);
+        days.push({
+            day: opts.totalTripDays,
+            date: dayDate.toISOString().split("T")[0],
+            title: copy.dayTitle,
+            isDepartureDay: true,
+            activities: [activity],
+        });
+        console.log("Added departure day stub (checkout & transfer)");
+        return days;
+    }
+
+    if (days.length === opts.totalTripDays) {
+        const lastDay = days[lastIndex];
+        if (!lastDay || !Array.isArray(lastDay.activities)) return days;
+        // Idempotent: never stack two transfers on the same day.
+        if (lastDay.activities.some((a: any) => a?.type === "departure")) return days;
+        lastDay.activities.push(activity);
+        lastDay.isDepartureDay = true;
+        console.log("Appended checkout & transfer to the departure day");
+    }
+
+    return days;
 }
 
 export const generate = internalAction({
@@ -1081,11 +1251,11 @@ export const generate = internalAction({
                     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
                     const localExperiencesGuidance = generateLocalExperiencesGuidance(trip.localExperiences);
                     
-                    // Calculate the number of days
-                    const tripDays = Math.ceil((trip.endDate - trip.startDate) / (24 * 60 * 60 * 1000));
+                    // Calculate the number of days (inclusive of the departure day)
+                    const tripDays = countTripDays(trip.startDate, trip.endDate);
                     
-                    // Enforce max 15-day limit
-                    if (tripDays > 15) {
+                    // Enforce max 15-night limit
+                    if (tripDays > 16) {
                         throw new Error("Trip duration cannot exceed 15 days. Please shorten your trip dates.");
                     }
                     
@@ -1442,12 +1612,12 @@ Make sure prices are realistic for ${trip.destination} and aligned with the ${bu
                         console.log(`✅ OpenAI generated ${dayByDayItinerary.length} days of itinerary (requested ${tripDays})`);
                         
                         // Check if OpenAI generated enough days - if not, supplement with fallback
-                        if (dayByDayItinerary.length < tripDays) {
-                            console.warn(`⚠️ OpenAI only generated ${dayByDayItinerary.length}/${tripDays} days, supplementing with fallback`);
+                        if (dayByDayItinerary.length < effectiveTripDays) {
+                            console.warn(`⚠️ OpenAI only generated ${dayByDayItinerary.length}/${effectiveTripDays} days, supplementing with fallback`);
                             const fallbackItinerary = generateBasicItinerary(trip, activities, restaurants);
                             
                             // Add missing days from fallback
-                            for (let i = dayByDayItinerary.length; i < tripDays; i++) {
+                            for (let i = dayByDayItinerary.length; i < effectiveTripDays; i++) {
                                 if (fallbackItinerary[i]) {
                                     // Update the day number and date for the fallback day
                                     const dayDate = new Date(trip.startDate + i * 24 * 60 * 60 * 1000);
@@ -1525,6 +1695,15 @@ Make sure prices are realistic for ${trip.destination} and aligned with the ${bu
                 console.warn("⚠️ OpenAI not configured, using basic itinerary");
                 dayByDayItinerary = generateBasicItinerary(trip, activities, restaurants);
             }
+
+            // Close the trip out with the return-flight logistics so the itinerary
+            // covers every calendar day shown on the trip header.
+            dayByDayItinerary = appendDepartureDay(dayByDayItinerary, {
+                departureTime,
+                startDate: trip.startDate,
+                totalTripDays: countTripDays(trip.startDate, trip.endDate),
+                language: language || trip.language,
+            });
 
             // Inject admin-curated affiliate attraction links (runs for all paths).
             try {
@@ -2852,7 +3031,7 @@ interface TripData {
 }
 
 function generateBasicItinerary(trip: TripData, activities: Array<{ title?: string }>, restaurants: RestaurantInfo[]) {
-    const days = Math.ceil((trip.endDate - trip.startDate) / (24 * 60 * 60 * 1000));
+    const days = countTripDays(trip.startDate, trip.endDate);
     const dailyPlan = [];
     const hasCulinary = (trip.interests || []).some(i => i === 'Food' || i === 'Culinary');
     
