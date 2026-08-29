@@ -1152,6 +1152,12 @@ export default defineSchema({
     iataResolutionCache: defineTable({
         cityKey: v.string(),      // normalized (lowercased, trimmed) city name
         iata: v.string(),         // resolved 3-letter IATA code
+        // English city/country, filled in by the base-airport resolver
+        // (homeAirportAi.ts) so we can rebuild a readable label
+        // ("Kalamata, Greece KLX") without another OpenAI round-trip. Absent on
+        // rows written by the older destination-only resolver.
+        city: v.optional(v.string()),
+        country: v.optional(v.string()),
         createdAt: v.float64(),
     })
         .index("by_cityKey", ["cityKey"]),

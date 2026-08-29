@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";
+import { hasTerraApiKey, terraSearchLocations } from "./lib/tripadvisorTerra";
 
 // ===== WEATHER API INTEGRATION =====
 // Using Open-Meteo (free, no API key required)
@@ -179,70 +180,30 @@ function detectRestaurantQuery(message: string): string | null {
 }
 
 async function searchRestaurantsForAtlas(destination: string): Promise<RestaurantData[]> {
-    const tripadvisorKey = process.env.TRIPADVISOR_API_KEY;
-
-    if (!tripadvisorKey) {
+    if (!hasTerraApiKey()) {
         console.log(`[Atlas] TripAdvisor API key not configured`);
         return [];
     }
 
     try {
-        const searchUrl = `https://api.content.tripadvisor.com/api/v1/location/search?key=${tripadvisorKey}&searchQuery=${encodeURIComponent("restaurants " + destination)}&category=restaurants&language=en`;
-
-        const searchResponse = await fetch(searchUrl, {
-            method: "GET",
-            headers: { "Accept": "application/json" },
+        // Terra returns full Location objects inline, so the old per-result
+        // /details fan-out is gone — this is one call instead of 1+N.
+        const places = await terraSearchLocations({
+            query: `restaurants ${destination}`,
+            geoName: destination,
+            category: "RESTAURANT",
+            size: 5,
         });
 
-        if (!searchResponse.ok) {
-            console.error(`[Atlas] TripAdvisor search failed: ${searchResponse.status}`);
-            return [];
-        }
-
-        const searchData = await searchResponse.json() as any;
-
-        if (!searchData.data || searchData.data.length === 0) {
-            return [];
-        }
-
-        // Get details for top 5 restaurants
-        const restaurants = await Promise.all(
-            searchData.data.slice(0, 5).map(async (item: any) => {
-                try {
-                    const detailsUrl = `https://api.content.tripadvisor.com/api/v1/location/${item.location_id}/details?key=${tripadvisorKey}&language=en`;
-                    const detailsResponse = await fetch(detailsUrl, {
-                        method: "GET",
-                        headers: { "Accept": "application/json" },
-                    });
-
-                    if (detailsResponse.ok) {
-                        const details = await detailsResponse.json() as any;
-                        return {
-                            name: details.name || item.name || "Restaurant",
-                            cuisine: details.cuisine?.map((c: any) => c.localized_name || c.name).join(", ") || "Various",
-                            priceRange: details.price_level || "€€",
-                            rating: parseFloat(details.rating) || 4.0,
-                            reviewCount: parseInt(details.num_reviews) || 0,
-                            address: details.address_obj?.address_string || destination,
-                            tripAdvisorUrl: details.web_url || `https://www.tripadvisor.com`,
-                        };
-                    }
-                } catch (e) {
-                    console.log(`[Atlas] Could not fetch details for ${item.name}`);
-                }
-                return {
-                    name: item.name || "Restaurant",
-                    cuisine: "Various",
-                    priceRange: "€€",
-                    rating: 4.0,
-                    reviewCount: 0,
-                    address: item.address_obj?.address_string || destination,
-                    tripAdvisorUrl: `https://www.tripadvisor.com`,
-                };
-            })
-        );
-
-        return restaurants;
+        return places.map((p) => ({
+            name: p.name,
+            cuisine: p.cuisine || "Various",
+            priceRange: p.priceRange || "€€",
+            rating: p.rating ?? 4.0,
+            reviewCount: p.reviewCount ?? 0,
+            address: p.address || destination,
+            tripAdvisorUrl: p.webUrl || `https://www.tripadvisor.com`,
+        }));
     } catch (error) {
         console.error("[Atlas] TripAdvisor API error:", error);
         return [];

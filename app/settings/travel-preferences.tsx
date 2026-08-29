@@ -2,12 +2,13 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useState, useEffect } from "react";
 import { INTERESTS } from "@/lib/data";
 import { AIRPORTS } from "@/lib/airports";
+import { canonicalHomeAirport, needsAiHomeAirportLookup } from "@/lib/homeAirport";
 import AIConsentModal from "@/components/AIConsentModal";
 import { useTranslation } from "react-i18next";
 
@@ -18,6 +19,9 @@ export default function TravelPreferences() {
     const settings = useQuery(api.users.getSettings as any, { token: token || "skip" }) as any;
     const updatePreferences = useMutation(api.users.updateTravelPreferences);
     const updateAiConsent = useMutation(api.users.updateAiConsent);
+    // Airports missing from lib/airports.ts are resolved server-side via
+    // OpenAI. `as any` because the generated api types lag a `npx convex codegen`.
+    const resolveBaseAirport = useAction((api as any).homeAirportAi.resolveBaseAirport);
 
     const [homeAirport, setHomeAirport] = useState("");
     const [defaultBudget, setDefaultBudget] = useState("2000");
@@ -28,6 +32,7 @@ export default function TravelPreferences() {
     const [aiDataConsent, setAiDataConsent] = useState(false);
     const [showAiConsentModal, setShowAiConsentModal] = useState(false);
 
+    const [resolvingAirport, setResolvingAirport] = useState(false);
     const [showAirportSuggestions, setShowAirportSuggestions] = useState(false);
     const [airportSuggestions, setAirportSuggestions] = useState<typeof AIRPORTS>([]);
 
@@ -76,10 +81,37 @@ export default function TravelPreferences() {
             Alert.alert(t('onboarding.homeAirportRequiredTitle'), t('onboarding.homeAirportRequired'));
             return;
         }
+        // The base airport has to end up as English + IATA — that's what the
+        // low-fare radar, Explore and flight search all key off. A name our own
+        // dataset knows is rewritten offline ("Αθήνα" → "Athens, Greece ATH");
+        // anything it doesn't ("Kalamata", "Podgorica") goes to the server,
+        // which asks OpenAI for the nearest airport and hands back the
+        // canonical label. If both miss, we store what the user typed, exactly
+        // as before.
+        let homeAirportLabel = canonicalHomeAirport(homeAirport)?.label;
+        if (needsAiHomeAirportLookup(homeAirport)) {
+            setResolvingAirport(true);
+            try {
+                const aiResolved: any = await resolveBaseAirport({
+                    token: token || "",
+                    query: homeAirport.trim(),
+                });
+                if (aiResolved?.label) {
+                    homeAirportLabel = aiResolved.label;
+                    // Show the user what we're actually storing.
+                    setHomeAirport(aiResolved.label);
+                }
+            } catch (error) {
+                console.warn("Base airport AI lookup failed:", error);
+            } finally {
+                setResolvingAirport(false);
+            }
+        }
+
         try {
             await updatePreferences({
                 token: token || "",
-                homeAirport,
+                homeAirport: homeAirportLabel ?? homeAirport,
                 defaultInterests,
                 defaultSkipFlights,
                 defaultSkipHotel,
@@ -340,9 +372,12 @@ export default function TravelPreferences() {
                 </View>
 
                 <TouchableOpacity
-                    style={[styles.saveButton, !homeAirport.trim() && styles.saveButtonDisabled]}
+                    style={[
+                        styles.saveButton,
+                        (!homeAirport.trim() || resolvingAirport) && styles.saveButtonDisabled,
+                    ]}
                     onPress={handleSave}
-                    disabled={!homeAirport.trim()}
+                    disabled={!homeAirport.trim() || resolvingAirport}
                 >
                     <Text style={styles.saveButtonText}>{t('settings.travelPreferences.savePreferences')}</Text>
                 </TouchableOpacity>

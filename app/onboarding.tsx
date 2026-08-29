@@ -2,11 +2,12 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import { INTERESTS } from "@/lib/data";
 import { AIRPORTS } from "@/lib/airports";
+import { canonicalHomeAirport, needsAiHomeAirportLookup } from "@/lib/homeAirport";
 import * as Haptics from "expo-haptics";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useTranslation } from "react-i18next";
@@ -40,6 +41,9 @@ export default function Onboarding() {
   const saveTravelPreferences = useMutation(api.users.saveTravelPreferences);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
   const applyReferral = useMutation(api.referrals.applyReferralCode);
+  // Airports missing from lib/airports.ts are resolved server-side via OpenAI.
+  // `as any` because the generated api types lag a `npx convex codegen`.
+  const resolveBaseAirport = useAction((api as any).homeAirportAi.resolveBaseAirport);
   const { token } = useToken();
 
   const hapticFeedback = () => {
@@ -118,11 +122,34 @@ export default function Onboarding() {
       }
       return;
     }
+    // The base airport has to end up as English + IATA — that's what the
+    // low-fare radar, Explore and flight search all key off. A name our own
+    // dataset knows is rewritten offline ("Αθήνα" → "Athens, Greece ATH");
+    // anything it doesn't ("Kalamata", "Podgorica") goes to the server, which
+    // asks OpenAI for the nearest airport and hands back the canonical label.
+    // If both miss, we store what the user typed, exactly as before.
     setSaving(true);
+    let homeAirportLabel = canonicalHomeAirport(homeAirport)?.label;
+    if (needsAiHomeAirportLookup(homeAirport)) {
+      try {
+        const aiResolved: any = await resolveBaseAirport({
+          token: token || "",
+          query: homeAirport.trim(),
+        });
+        if (aiResolved?.label) {
+          homeAirportLabel = aiResolved.label;
+          // Show the user what we're actually storing.
+          setHomeAirport(aiResolved.label);
+        }
+      } catch (error) {
+        console.warn("Base airport AI lookup failed:", error);
+      }
+    }
+
     try {
       await saveTravelPreferences({
         token: token || "",
-        homeAirport,
+        homeAirport: homeAirportLabel ?? homeAirport,
         defaultBudget: parseInt(defaultBudget) || undefined,
         interests: selectedInterests,
         flightTimePreference,
