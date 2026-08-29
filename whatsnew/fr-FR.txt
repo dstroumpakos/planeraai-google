@@ -1,6 +1,6 @@
 Nouveautés :
-• Les tarifs de vols s'affichent dans votre propre devise
-• Horaires de départ et d'arrivée plus précis dans les résultats
-• Aperçu de destination repensé avec les jours les moins chers pour voler
-• Prise en main et préférences de voyage plus fluides
+• Partagez l'itinéraire de votre voyage sous forme de carte illustrée
+• Enregistrez les cartes d'itinéraire directement dans votre galerie
+• Détection plus intelligente de votre aéroport de départ depuis n'importe quelle ville ou aéroport
+• Optimisez l'ordre des étapes de votre itinéraire
 • Corrections de bugs et améliorations des performances

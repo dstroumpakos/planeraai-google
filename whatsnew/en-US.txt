@@ -1,6 +1,6 @@
 What's new:
-• Flight fares now show in your own currency
-• More accurate departure and arrival times in results
-• Refreshed destination preview with cheapest days to fly
-• Smoother onboarding and travel preferences setup
+• Share your trip route as a beautiful map card
+• Save route cards straight to your photo gallery
+• Smarter home airport detection from any city or airport name
+• Optimize the order of stops in your itinerary
 • Bug fixes and performance improvements

@@ -1,6 +1,6 @@
 Novedades:
-• Las tarifas de vuelos se muestran en tu propia moneda
-• Horarios de salida y llegada más precisos en los resultados
-• Vista previa del destino renovada con los días más baratos para volar
-• Configuración inicial y preferencias de viaje más fluidas
+• Comparte la ruta de tu viaje como una preciosa tarjeta de mapa
+• Guarda las tarjetas de ruta directamente en tu galería
+• Detección más inteligente de tu aeropuerto base desde cualquier ciudad o aeropuerto
+• Optimiza el orden de las paradas de tu itinerario
 • Corrección de errores y mejoras de rendimiento

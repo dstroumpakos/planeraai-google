@@ -1,6 +1,6 @@
 Neuigkeiten:
-• Flugpreise werden in deiner eigenen Währung angezeigt
-• Genauere Abflug- und Ankunftszeiten in den Ergebnissen
-• Überarbeitete Zielvorschau mit den günstigsten Flugtagen
-• Flüssigerer Einstieg und Reiseeinstellungen
+• Teile deine Reiseroute als schöne Kartenansicht
+• Speichere Routenkarten direkt in deiner Galerie
+• Intelligentere Erkennung deines Heimatflughafens aus jeder Stadt oder jedem Flughafen
+• Optimiere die Reihenfolge der Stopps in deiner Reiseroute
 • Fehlerbehebungen und Leistungsverbesserungen
