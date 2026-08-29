@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";
-import { hasTerraApiKey, terraSearchLocations } from "./lib/tripadvisorTerra";
+import { hasTerraApiKey, terraTopRestaurantsNearby } from "./lib/tripadvisorTerra";
+import { geocodeDestinationServer } from "./lib/geocoding";
 
 // ===== WEATHER API INTEGRATION =====
 // Using Open-Meteo (free, no API key required)
@@ -149,6 +150,8 @@ interface RestaurantData {
     reviewCount: number;
     address: string;
     tripAdvisorUrl: string;
+    /** Terra location id — the key for photos, reviews and detail refreshes. */
+    tripAdvisorLocationId?: string | null;
 }
 
 // Detect if the user is asking about restaurants and extract the city
@@ -186,13 +189,19 @@ async function searchRestaurantsForAtlas(destination: string): Promise<Restauran
     }
 
     try {
-        // Terra returns full Location objects inline, so the old per-result
-        // /details fan-out is gone — this is one call instead of 1+N.
-        const places = await terraSearchLocations({
-            query: `restaurants ${destination}`,
-            geoName: destination,
-            category: "RESTAURANT",
-            size: 5,
+        // Terra's search matches venue names, so asking it for "restaurants
+        // <city>" finds nothing. Geocode the city and ask by coordinates.
+        const center = await geocodeDestinationServer(destination);
+        if (!center) {
+            console.log(`[Atlas] Could not geocode ${destination}`);
+            return [];
+        }
+
+        const places = await terraTopRestaurantsNearby({
+            lat: center.lat,
+            lon: center.lng,
+            limit: 5,
+            radius: 5,
         });
 
         return places.map((p) => ({
@@ -203,6 +212,7 @@ async function searchRestaurantsForAtlas(destination: string): Promise<Restauran
             reviewCount: p.reviewCount ?? 0,
             address: p.address || destination,
             tripAdvisorUrl: p.webUrl || `https://www.tripadvisor.com`,
+            tripAdvisorLocationId: p.id,
         }));
     } catch (error) {
         console.error("[Atlas] TripAdvisor API error:", error);

@@ -19,6 +19,7 @@ import {
     hasTerraApiKey,
     terraSearchLocations,
     tripadvisorProfileUrl,
+    terraTopRestaurantsNearby,
 } from "./lib/tripadvisorTerra";
 
 // Helper function to generate travel style guidance for OpenAI prompt
@@ -2202,16 +2203,23 @@ async function searchRestaurants(destination: string) {
     }
 
     try {
-        console.log(`📡 Searching TripAdvisor (Terra) for restaurants in: ${destination}`);
+        // Terra's search endpoint matches venue NAMES, so the obvious-looking
+        // `query: "restaurants " + destination` returns zero rows — nothing is
+        // named that. Restaurants "in a city" is a geographic question, so we
+        // geocode the destination and ask by coordinates instead.
+        const center = await geocodeDestinationServer(destination);
+        if (!center) {
+            console.log(`❌ Could not geocode ${destination}, using fallback restaurants`);
+            return getFallbackRestaurants(destination);
+        }
 
-        // Terra returns full Location objects (rating, price level, profile URL)
-        // inline, so the old per-result /details fan-out is gone. `size` is
-        // capped at 20 per page by Terra, which matches what we asked for anyway.
-        const places = await terraSearchLocations({
-            query: `restaurants ${destination}`,
-            geoName: destination,
-            category: "RESTAURANT",
-            size: 20,
+        console.log(`📡 Searching TripAdvisor (Terra) near ${destination} (${center.lat}, ${center.lng})`);
+
+        const places = await terraTopRestaurantsNearby({
+            lat: center.lat,
+            lon: center.lng,
+            limit: 20,
+            radius: 5,
         });
 
         if (places.length === 0) {
@@ -2227,6 +2235,10 @@ async function searchRestaurants(destination: string) {
             reviewCount: p.reviewCount ?? 0,
             address: p.address || destination,
             tripAdvisorUrl: p.webUrl || tripadvisorProfileUrl(p.id),
+            // Keep the Terra id: photos, reviews and detail refreshes are all
+            // keyed by it, and re-searching to recover it later costs a call
+            // and may not resolve back to the same venue.
+            tripAdvisorLocationId: p.id,
             dataSource: "tripadvisor",
         }));
 
@@ -2250,6 +2262,9 @@ function getFallbackRestaurants(destination: string) {
         address: string;
         tripAdvisorUrl: string;
         dataSource: string;
+        // Hand-written fallbacks are not real Tripadvisor listings, so they
+        // carry no location id — anything keyed by id must skip them.
+        tripAdvisorLocationId?: string | null;
     }
     const destLower = destination.toLowerCase();
     
@@ -2587,6 +2602,13 @@ interface ItineraryActivity {
     tripAdvisorUrl?: string | null;
     tripAdvisorRating?: number | null;
     tripAdvisorReviewCount?: number | null;
+    /**
+     * Terra location id for this venue. Photos, reviews and detail refreshes
+     * are all keyed by it, so keeping it on the stored activity is what makes
+     * those features possible later without re-resolving the venue by name.
+     * Null for AI-named venues and hand-written fallbacks, which have no listing.
+     */
+    tripAdvisorLocationId?: string | null;
     cuisine?: string | null;
     priceRange?: string | null;
     address?: string | null;
@@ -2608,6 +2630,8 @@ interface RestaurantInfo {
     reviewCount?: number;
     address?: string;
     tripAdvisorUrl?: string;
+    /** Terra location id — the key for photos, reviews and detail refreshes. */
+    tripAdvisorLocationId?: string | null;
 }
 
 interface AttractionAffiliateLink {
@@ -2825,27 +2849,23 @@ async function mergeRestaurantDataIntoItinerary(dayByDayItinerary: ItineraryDay[
         
         const existingNames = new Set(availablePool.map(r => r.name?.toLowerCase()));
         
-        // Try different search queries to get more diverse results
-        const extraQueries = [
-            `best restaurants ${destination}`,
-            `top rated dining ${destination}`,
-            `local food ${destination}`,
-            `popular cafes ${destination}`,
-            `traditional cuisine ${destination}`,
-        ];
+        // The old top-up ran five free-text queries ("best restaurants X",
+        // "local food X", ...). Every one of them returns zero rows on Terra,
+        // because search matches names. The geographic equivalent of "look
+        // harder" is a wider radius and more pages, so that is what we do.
+        const extraRadiiKm = [10, 20];
         
-        if (hasTerraApiKey()) {
-            for (const query of extraQueries) {
+        const topUpCenter = hasTerraApiKey() ? await geocodeDestinationServer(destination) : null;
+        if (topUpCenter) {
+            for (const radius of extraRadiiKm) {
                 if (availablePool.length >= totalRestaurantSlots) break;
 
                 try {
-                    // One Terra call per query — the rows already carry rating,
-                    // price level and profile URL, so there is no detail fan-out.
-                    const places = await terraSearchLocations({
-                        query,
-                        geoName: destination,
-                        category: "RESTAURANT",
-                        size: 20,
+                    const places = await terraTopRestaurantsNearby({
+                        lat: topUpCenter.lat,
+                        lon: topUpCenter.lng,
+                        limit: totalRestaurantSlots,
+                        radius,
                     });
 
                     for (const place of places) {
@@ -2861,13 +2881,14 @@ async function mergeRestaurantDataIntoItinerary(dayByDayItinerary: ItineraryDay[
                             reviewCount: place.reviewCount ?? 0,
                             address: place.address || destination,
                             tripAdvisorUrl: place.webUrl || tripadvisorProfileUrl(place.id),
+                            tripAdvisorLocationId: place.id,
                         };
                         availablePool.push(newRestaurant);
                         existingNames.add(nameLower);
                         console.log(`  ➕ Added: ${newRestaurant.name}`);
                     }
                 } catch (e) {
-                    console.log(`⚠️ Extra search failed for: ${query}`);
+                    console.log(`⚠️ Extra search failed at radius ${radius}km`);
                 }
             }
             console.log(`📊 Pool now has ${availablePool.length} restaurants after extra fetches`);
@@ -2938,6 +2959,7 @@ async function mergeRestaurantDataIntoItinerary(dayByDayItinerary: ItineraryDay[
                         tripAdvisorUrl: matchedRestaurant.tripAdvisorUrl || null,
                         tripAdvisorRating: matchedRestaurant.rating || null,
                         tripAdvisorReviewCount: matchedRestaurant.reviewCount || null,
+                        tripAdvisorLocationId: matchedRestaurant.tripAdvisorLocationId || null,
                         cuisine: matchedRestaurant.cuisine || activity.cuisine || null,
                         priceRange: matchedRestaurant.priceRange || activity.priceRange || null,
                         address: matchedRestaurant.address || activity.address || null,
@@ -3053,6 +3075,7 @@ function generateBasicItinerary(trip: TripData, activities: Array<{ title?: stri
             lunchActivity.tripAdvisorUrl = lunchRestaurant.tripAdvisorUrl || null;
             lunchActivity.tripAdvisorRating = lunchRestaurant.rating || null;
             lunchActivity.tripAdvisorReviewCount = lunchRestaurant.reviewCount || null;
+            lunchActivity.tripAdvisorLocationId = lunchRestaurant.tripAdvisorLocationId || null;
             lunchActivity.cuisine = lunchRestaurant.cuisine || null;
             lunchActivity.priceRange = lunchRestaurant.priceRange || null;
             lunchActivity.address = lunchRestaurant.address || null;
@@ -3104,6 +3127,7 @@ function generateBasicItinerary(trip: TripData, activities: Array<{ title?: stri
             dinnerActivity.tripAdvisorUrl = dinnerRestaurant.tripAdvisorUrl || null;
             dinnerActivity.tripAdvisorRating = dinnerRestaurant.rating || null;
             dinnerActivity.tripAdvisorReviewCount = dinnerRestaurant.reviewCount || null;
+            dinnerActivity.tripAdvisorLocationId = dinnerRestaurant.tripAdvisorLocationId || null;
             dinnerActivity.cuisine = dinnerRestaurant.cuisine || null;
             dinnerActivity.priceRange = dinnerRestaurant.priceRange || null;
             dinnerActivity.address = dinnerRestaurant.address || null;

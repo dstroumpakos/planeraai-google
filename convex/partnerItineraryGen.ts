@@ -45,6 +45,10 @@ type TripAdvisorRef = {
   url: string | null;
   rating: number | null;
   review_count: number | null;
+  // Terra location id. Partners can ignore it, but keeping it means a stored
+  // itinerary can later be enriched with photos or reviews without having to
+  // re-search for a venue we already resolved once.
+  location_id: string | null;
 };
 
 type Stop = {
@@ -341,6 +345,10 @@ function normalizeTripAdvisor(ta: any): TripAdvisorRef | null {
     rating: typeof ta?.rating === "number" ? ta.rating : null,
     review_count:
       typeof ta?.review_count === "number" ? ta.review_count : null,
+    location_id:
+      ta?.location_id != null && String(ta.location_id).trim()
+        ? String(ta.location_id).trim()
+        : null,
   };
 }
 
@@ -496,23 +504,30 @@ async function lookupRestaurant(
     category: "RESTAURANT",
     timeoutMs: TA_SEARCH_TIMEOUT_MS,
   });
-  if (places.length === 0) return null;
+  // Terra's `category` filter is advisory — a RESTAURANT search happily
+  // returns hotels and attractions — so keep only rows whose profile URL says
+  // restaurant. Without this a stop can end up linked to a hotel of the same
+  // name. Cafes and bars live under Restaurant_Review too, so this does not
+  // exclude them.
+  const restaurants = places.filter((p) => p.kind === "RESTAURANT");
+  if (restaurants.length === 0) return null;
 
   // Confident match only: exact normalized name, or strong containment.
   const id = matchPoolEntry(
     name,
-    places.map((p) => ({ id: p.id, name: p.name })),
+    restaurants.map((p) => ({ id: p.id, name: p.name })),
     new Set()
   );
   if (!id) return null;
 
-  const match = places.find((p) => p.id === id);
+  const match = restaurants.find((p) => p.id === id);
   if (!match) return null;
 
   return {
     url: match.webUrl ?? tripadvisorProfileUrl(id),
     rating: match.rating,
     review_count: match.reviewCount,
+    location_id: match.id,
   };
 }
 
