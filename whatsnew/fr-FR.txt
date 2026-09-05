@@ -1,6 +1,6 @@
 Nouveautés :
-• Partagez l'itinéraire de votre voyage sous forme de carte illustrée
-• Enregistrez les cartes d'itinéraire directement dans votre galerie
-• Détection plus intelligente de votre aéroport de départ depuis n'importe quelle ville ou aéroport
-• Optimisez l'ordre des étapes de votre itinéraire
+• Planifiez un voyage en le décrivant simplement avec vos propres mots
+• Plus de détails et de photos pour chaque lieu de votre itinéraire
+• Des lieux et une cartographie plus précis à chaque étape
+• Traductions actualisées dans toutes les langues
 • Corrections de bugs et améliorations des performances

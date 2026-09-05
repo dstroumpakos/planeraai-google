@@ -1,6 +1,6 @@
 Neuigkeiten:
-• Teile deine Reiseroute als schöne Kartenansicht
-• Speichere Routenkarten direkt in deiner Galerie
-• Intelligentere Erkennung deines Heimatflughafens aus jeder Stadt oder jedem Flughafen
-• Optimiere die Reihenfolge der Stopps in deiner Reiseroute
+• Plane eine Reise, indem du sie einfach in eigenen Worten beschreibst
+• Mehr Details und Fotos zu jedem Ort in deiner Reiseroute
+• Genauere Orte und Kartendarstellung für jeden Stopp
+• Aktualisierte Übersetzungen in allen Sprachen
 • Fehlerbehebungen und Leistungsverbesserungen

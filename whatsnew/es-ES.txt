@@ -1,6 +1,6 @@
 Novedades:
-• Comparte la ruta de tu viaje como una preciosa tarjeta de mapa
-• Guarda las tarjetas de ruta directamente en tu galería
-• Detección más inteligente de tu aeropuerto base desde cualquier ciudad o aeropuerto
-• Optimiza el orden de las paradas de tu itinerario
+• Planifica un viaje simplemente describiéndolo con tus palabras
+• Más detalles y fotos de cada lugar en tu itinerario
+• Ubicaciones y mapas más precisos en cada parada
+• Traducciones actualizadas en todos los idiomas
 • Corrección de errores y mejoras de rendimiento

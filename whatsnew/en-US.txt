@@ -1,6 +1,6 @@
 What's new:
-• Share your trip route as a beautiful map card
-• Save route cards straight to your photo gallery
-• Smarter home airport detection from any city or airport name
-• Optimize the order of stops in your itinerary
+• Plan a trip just by describing it in your own words
+• Richer place details and photos in your itinerary
+• More accurate locations and mapping for every stop
+• Refreshed translations across all languages
 • Bug fixes and performance improvements
