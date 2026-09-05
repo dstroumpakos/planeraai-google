@@ -15,6 +15,7 @@ import {
 } from "./lib/serpApiFlights";
 import { fetchAccommodations, type Accommodation } from "./lib/searchApiAccommodations";
 import { reportError } from "./helpers/reportError";
+import { geocodeDestinationServer } from "./lib/geocoding";
 import {
     hasTerraApiKey,
     terraSearchLocations,
@@ -2596,6 +2597,7 @@ interface ItineraryActivity {
     skipTheLine?: boolean;
     skipTheLinePrice?: number | null;
     duration?: string;
+    durationMinutes?: number;
     bookingUrl?: string | null;
     tips?: string | null;
     fromTripAdvisor?: boolean;
@@ -2644,6 +2646,8 @@ interface AttractionAffiliateLink {
     currency?: string;
     topSite: boolean;
     travelStyles?: string[];
+    /** Door-to-door length in minutes. Absent = the 3h city-attraction default. */
+    durationMinutes?: number;
     active: boolean;
 }
 
@@ -2703,6 +2707,96 @@ function findMatchingAffiliateLink(
     return undefined;
 }
 
+// Parse a clock string ("09:00", "9:00", "1:00 PM", "9h30") into minutes since
+// midnight. Returns null if unparseable — string comparison is unsafe because
+// "9:00" sorts after "13:00".
+function parseClockToMinutes(raw: any): number | null {
+    if (typeof raw !== "string") return null;
+    const m = raw.trim().match(/^(\d{1,2})[:h.](\d{2})\s*(am|pm)?/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3]?.toLowerCase();
+    if (ap === "pm" && h < 12) h += 12;
+    if (ap === "am" && h === 12) h = 0;
+    if (isNaN(h) || isNaN(min) || h > 23 || min > 59) return null;
+    return h * 60 + min;
+}
+
+// A curated affiliate card is a recommendation bolted onto a day the model has
+// already planned, so it needs a slot that day can actually hold. 11:00 is the
+// slot these cards have always used, and nothing curated should still be running
+// past 19:00 — which leaves a default 3h card its original 16:00 latest start.
+const CURATED_CARD_EARLIEST_MIN = 11 * 60;
+const CURATED_CARD_DAY_END_MIN = 19 * 60;
+// Fallback for a link that declares no length of its own. Matches the "2-3 hours"
+// these cards have always shown.
+const CURATED_CARD_DEFAULT_DURATION_MIN = 3 * 60;
+
+/**
+ * How long a curated card actually takes, door to door. Admin-set per link,
+ * because "2-3 hours" is true of the Panthéon and false of Versailles — which is
+ * a ~6h round trip out of Paris and cannot be slotted like a city-centre stop.
+ * Clamped to something a single day could hold.
+ */
+function curatedCardDurationMin(link: AttractionAffiliateLink): number {
+    const raw = link.durationMinutes;
+    if (typeof raw !== "number" || !isFinite(raw) || raw <= 0) {
+        return CURATED_CARD_DEFAULT_DURATION_MIN;
+    }
+    return Math.min(Math.max(raw, 30), CURATED_CARD_DAY_END_MIN - CURATED_CARD_EARLIEST_MIN);
+}
+
+/**
+ * The duration label on the card. The stated length is the top of the range, so
+ * the default 3h still reads "2-3 hours" exactly as it always has.
+ */
+function formatCuratedDuration(minutes: number): string {
+    if (minutes >= 420) return "Full day";
+    const upper = Math.max(2, Math.ceil(minutes / 60));
+    return `${upper - 1}-${upper} hours`;
+}
+
+function formatClock12(minutes: number): string {
+    const hour24 = Math.floor(minutes / 60) % 24;
+    const minute = minutes % 60;
+    const suffix = hour24 >= 12 ? "PM" : "AM";
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+/**
+ * The time a curated card may claim on this day, or null when the day has no
+ * room for one.
+ *
+ * The day's own activities encode the flight window, so a Day 1 behind a 21:00
+ * landing — which holds nothing earlier than its 22:00 dinner — reports no room
+ * and the card moves to a day the traveler is actually free.
+ */
+function curatedCardTimeForDay(day: any, durationMin: number): string | null {
+    const activities: any[] = Array.isArray(day?.activities) ? day.activities : [];
+
+    const starts = activities
+        .map((a) => parseClockToMinutes(a?.startTime || a?.time))
+        .filter((m): m is number => m != null);
+
+    // The card cannot start before the day itself does.
+    let earliest = CURATED_CARD_EARLIEST_MIN;
+    if (starts.length > 0) earliest = Math.max(earliest, Math.min(...starts));
+
+    // ...and it has to be over by the end of the day, and before the traveler
+    // leaves for the airport. A full-day excursion therefore needs a far earlier
+    // start than a museum, and drops off a day that has already run late.
+    let latest = CURATED_CARD_DAY_END_MIN - durationMin;
+    for (const activity of activities) {
+        if (activity?.type !== "departure") continue;
+        const transfer = parseClockToMinutes(activity?.startTime || activity?.time);
+        if (transfer != null) latest = Math.min(latest, transfer - durationMin);
+    }
+
+    return earliest <= latest ? formatClock12(earliest) : null;
+}
+
 function enrichItineraryWithAffiliateAttractions(
     dayByDayItinerary: ItineraryDay[],
     destination: string,
@@ -2756,9 +2850,14 @@ function enrichItineraryWithAffiliateAttractions(
     const sortedLinks = [...activeLinks].sort((a, b) => Number(b.topSite) - Number(a.topSite));
     let nonTopInserted = 0;
     const nonTopInsertLimit = Math.max(1, dayByDayItinerary.length);
-    // Our curated affiliate cards are shown first: insert at the top of day 1
-    // (preserving top-site-first order) so the bookable card is the most visible.
-    let affiliateInsertPos = 0;
+    // Our curated affiliate cards are shown first: each goes at the top of the
+    // earliest day that can actually hold it (preserving top-site-first order) so
+    // the bookable card is the most visible. Day 1 is skipped when the inbound
+    // flight leaves no daylight on it — a 21:00 landing means Day 1 starts with a
+    // 22:00 dinner, and an attraction card pinned above it would be selling a
+    // morning the traveler spent in the air. The search runs per link because a
+    // full-day excursion fits fewer days than a two-hour museum does.
+    const insertPosByDay = new Map<ItineraryDay, number>();
 
     for (const link of sortedLinks) {
         const key = normalizeAffiliateKey(link.activityTitle);
@@ -2778,17 +2877,33 @@ function enrichItineraryWithAffiliateAttractions(
         const shouldInsert = link.topSite || hasStyleMatch;
         if (!shouldInsert) continue;
 
-        const targetDay = dayByDayItinerary[0];
+        const durationMin = curatedCardDurationMin(link);
+        let targetDay: ItineraryDay | undefined;
+        let curatedCardTime: string | undefined;
+        for (const day of dayByDayItinerary) {
+            const slot = curatedCardTimeForDay(day, durationMin);
+            if (slot) {
+                targetDay = day;
+                curatedCardTime = slot;
+                break;
+            }
+        }
+        // No day in this trip has room for it: skip the card rather than sell a
+        // slot that does not exist.
+        if (!targetDay || !curatedCardTime) continue;
+
         if (!targetDay.activities) {
             targetDay.activities = [];
         }
 
+        const affiliateInsertPos = insertPosByDay.get(targetDay) ?? 0;
         targetDay.activities!.splice(affiliateInsertPos, 0, {
-            time: "11:00 AM",
+            time: curatedCardTime,
             title: link.displayTitle || link.activityTitle,
             description: `Recommended experience in ${destination}`,
             type: "activity",
-            duration: "2-3 hours",
+            duration: formatCuratedDuration(durationMin),
+            durationMinutes: durationMin,
             price: link.price ?? undefined,
             currency: link.currency ?? undefined,
             bookingUrl: link.affiliateUrl,
@@ -2796,7 +2911,7 @@ function enrichItineraryWithAffiliateAttractions(
             affiliateProvider: link.partner || "getyourguide",
             affiliateSource: "admin_forced_insertion",
         });
-        affiliateInsertPos++;
+        insertPosByDay.set(targetDay, affiliateInsertPos + 1);
         existingActivityKeys.push(key);
         if (!link.topSite) nonTopInserted++;
     }

@@ -56,6 +56,7 @@ import type * as users from "../users.js";
 import type * as watchedDestinations from "../watchedDestinations.js";
 import type * as wishlist from "../wishlist.js";
 import type * as worldPrint from "../worldPrint.js";
+import type * as atlasParseTrip from "../atlasParseTrip.js";
 
 import type {
   ApiFromModules,
@@ -64,6 +65,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  atlasParseTrip: typeof atlasParseTrip;
   _features: typeof _features;
   achievements: typeof achievements;
   admin: typeof admin;

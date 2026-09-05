@@ -64,6 +64,7 @@ const attractionFields = {
   currency: v.optional(v.string()),
   topSite: v.optional(v.boolean()),
   travelStyles: v.optional(v.array(v.string())),
+  durationMinutes: v.optional(v.float64()),
   notes: v.optional(v.string()),
   active: v.optional(v.boolean()),
 };
@@ -131,6 +132,7 @@ export const createAttractionLink = mutation({
       currency: args.currency?.trim().toUpperCase() || undefined,
       topSite: !!args.topSite,
       travelStyles: args.travelStyles?.map((s) => normalizeKey(s)).filter(Boolean),
+      durationMinutes: normalizeDurationMinutes(args.durationMinutes),
       notes: args.notes?.trim(),
       active: args.active ?? true,
       createdAt: Date.now(),
@@ -153,6 +155,7 @@ export const updateAttractionLink = mutation({
     currency: v.optional(v.string()),
     topSite: v.optional(v.boolean()),
     travelStyles: v.optional(v.array(v.string())),
+    durationMinutes: v.optional(v.float64()),
     notes: v.optional(v.string()),
     active: v.optional(v.boolean()),
   },
@@ -200,6 +203,8 @@ export const updateAttractionLink = mutation({
     if (args.topSite !== undefined) updates.topSite = !!args.topSite;
     if (args.travelStyles !== undefined)
       updates.travelStyles = args.travelStyles?.map((s: string) => normalizeKey(s)).filter(Boolean);
+    if (args.durationMinutes !== undefined)
+      updates.durationMinutes = normalizeDurationMinutes(args.durationMinutes);
     if (args.notes !== undefined) updates.notes = args.notes?.trim();
     if (args.active !== undefined) updates.active = args.active;
 
@@ -218,6 +223,16 @@ export const deleteAttractionLink = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+/**
+ * Door-to-door minutes for a curated attraction, or undefined to fall back to the
+ * 3h city-attraction default. Rejects junk and anything longer than a day so a
+ * typo can never make a card unschedulable.
+ */
+function normalizeDurationMinutes(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return undefined;
+  return Math.min(Math.round(value), 12 * 60);
+}
 
 function normalizeKey(value: string): string {
   return value
