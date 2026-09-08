@@ -2075,6 +2075,16 @@
     "tripUnavailable": "Este viaje aún no está disponible sin conexión. Ábrelo una vez con conexión para guardarlo."
   },
   "reservations": {
+    "manageBooking": "Gestionar reserva",
+    "manageTitle": "Gestionar reserva",
+    "currentlyOn": "Ahora en tu viaje a {{destination}}",
+    "changeTrip": "Cambiar de viaje",
+    "moveToTrip": "Mover esta reserva a",
+    "removeFromTrip": "Quitar del viaje",
+    "delete": "Eliminar reserva",
+    "deleteTitle": "¿Eliminar esta reserva?",
+    "deleteBody": "Se quitará de tu viaje y de tu lista de reservas. Esta acción no se puede deshacer.",
+    "deleteConfirm": "Eliminar",
     "title": "Reservas",
     "menuSubtitle": "Reenvía las confirmaciones a tus viajes",
     "forwardLabel": "REENVÍA LAS CONFIRMACIONES A",

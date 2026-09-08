@@ -31,6 +31,11 @@
     "android": {
       "package": "com.dstroump.planeraaitravelplanner",
       "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCMlpCiECdTCm8-kxL6x2woGRTnYpm_tl8"
+        }
+      },
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO"
