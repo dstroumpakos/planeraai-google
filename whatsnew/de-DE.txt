@@ -1,6 +1,6 @@
 Neuigkeiten:
-• Plane eine Reise, indem du sie einfach in eigenen Worten beschreibst
-• Mehr Details und Fotos zu jedem Ort in deiner Reiseroute
-• Genauere Orte und Kartendarstellung für jeden Stopp
+• Verwalte deine Reservierungen direkt in deiner Reise
+• Verschiebe eine Buchung mit wenigen Tipps in eine andere Reise
+• Entferne Reservierungen, die du nicht mehr brauchst
 • Aktualisierte Übersetzungen in allen Sprachen
 • Fehlerbehebungen und Leistungsverbesserungen

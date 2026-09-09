@@ -1,6 +1,6 @@
 Novedades:
-• Planifica un viaje simplemente describiéndolo con tus palabras
-• Más detalles y fotos de cada lugar en tu itinerario
-• Ubicaciones y mapas más precisos en cada parada
+• Gestiona tus reservas directamente desde tu viaje
+• Mueve una reserva a otro viaje con un par de toques
+• Elimina las reservas que ya no necesitas
 • Traducciones actualizadas en todos los idiomas
 • Corrección de errores y mejoras de rendimiento

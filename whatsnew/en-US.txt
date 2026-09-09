@@ -1,6 +1,6 @@
 What's new:
-• Plan a trip just by describing it in your own words
-• Richer place details and photos in your itinerary
-• More accurate locations and mapping for every stop
+• Manage your reservations right from your trip
+• Move a booking to a different trip in a couple of taps
+• Remove reservations you no longer need
 • Refreshed translations across all languages
 • Bug fixes and performance improvements
