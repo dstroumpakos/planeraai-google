@@ -116,7 +116,25 @@
       "expo-image",
       "expo-localization",
       "expo-sharing",
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "TripWidget",
+              "label": "Trip countdown",
+              "description": "Days until your next trip, and today's next stop while you're away.",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

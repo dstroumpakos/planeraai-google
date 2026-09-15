@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useDestinationImage } from "@/lib/useImages";
+import { useTrackMarketing } from "@/lib/trackMarketing";
 import { ImageWithAttribution } from "@/components/ImageWithAttribution";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -649,6 +650,7 @@ export default function DestinationPreviewScreen() {
     }, [destination, sightsData, token, i18n.language]);
 
     // Watch destination state
+    const trackMarketing = useTrackMarketing();
     const isWatching = useQuery(api.watchedDestinations.isWatching as any,
         token ? { token, destination: destination || "" } : "skip"
     );
@@ -660,7 +662,8 @@ export default function DestinationPreviewScreen() {
         if (isWatching) {
             await unwatchMutation({ destination });
         } else {
-            await watchMutation({ destination });
+            await watchMutation({ destination, destinationIata: resolveIATA(destination) || undefined });
+            trackMarketing("watch_added", "app-destination-preview");
         }
     };
     
@@ -793,9 +796,19 @@ export default function DestinationPreviewScreen() {
     const cheapestShown = calendarDates.length
         ? Math.min(...calendarDates.map((d) => d.price))
         : null;
-    // The month row only appears once there is a calendar to browse, so routes
-    // with no data keep behaving exactly as before (nothing renders).
-    const showCalendar = calendarDates.length > 0 || selectedMonth != null;
+    // Shown for any route we can actually price. Gating this on "we already have
+    // dates" made an empty near-term window a dead end: the month chips were
+    // hidden precisely when the traveller needed them to look further out, so
+    // the page read as "no flights ever" for a route that is merely quiet for
+    // the next two weeks.
+    const canPriceRoute = Boolean(originIata && arrivalIata);
+    const showCalendar = canPriceRoute;
+    // Why we can't price it, when we can't — never render nothing in silence.
+    const priceBlocker: "no-origin" | "no-airport" | null = !arrivalIata
+        ? "no-airport"
+        : !originIata
+          ? "no-origin"
+          : null;
 
     const formatShortDate = (iso: string) =>
         new Date(iso).toLocaleDateString(i18n.language, { day: "numeric", month: "short" });
@@ -1044,6 +1057,38 @@ export default function DestinationPreviewScreen() {
                     )}
                 </TouchableOpacity>
 
+                {/* Why there are no live fares, when there aren't. Rendering
+                    nothing here is what made the page look broken: the traveller
+                    saw no price and no calendar with no way to tell whether the
+                    route is quiet, their home airport is unset, or we simply
+                    don't know an airport for this place. */}
+                {priceBlocker === "no-origin" && (
+                    <TouchableOpacity
+                        style={[styles.calStatus, styles.calBlocker, { backgroundColor: colors.card, borderColor: colors.border }]}
+                        onPress={() => router.push("/settings/travel-preferences")}
+                        activeOpacity={0.85}
+                    >
+                        <Ionicons name="home-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.calStatusText, { color: colors.textSecondary }]}>
+                            {t('destinationPreview.setHomeAirport', {
+                                defaultValue: 'Set your home airport to see live fares',
+                            })}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                )}
+                {priceBlocker === "no-airport" && (
+                    <View style={[styles.calStatus, styles.calBlocker, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+                        <Text style={[styles.calStatusText, { color: colors.textSecondary }]}>
+                            {t('destinationPreview.noAirportForDestination', {
+                                destination: destinationCity || destination,
+                                defaultValue: `We don't know an airport for ${destinationCity || destination} yet — search flights to pick one`,
+                            })}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Cheapest days to fly — round-trip price calendar for the same
                     resolved origin, browsable by month. Tapping a date opens
                     search prefilled. */}
@@ -1109,10 +1154,14 @@ export default function DestinationPreviewScreen() {
                             <View style={[styles.calStatus, { backgroundColor: colors.card, borderColor: colors.border }]}>
                                 <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
                                 <Text style={[styles.calStatusText, { color: colors.textSecondary }]}>
-                                    {t('destinationPreview.noFaresForMonth', {
-                                        month: activeMonth?.fullLabel ?? "",
-                                        defaultValue: `No fares found for ${activeMonth?.fullLabel ?? ""}`,
-                                    })}
+                                    {activeMonth
+                                        ? t('destinationPreview.noFaresForMonth', {
+                                              month: activeMonth.fullLabel,
+                                              defaultValue: `No fares found for ${activeMonth.fullLabel}`,
+                                          })
+                                        : t('destinationPreview.noFaresSoonest', {
+                                              defaultValue: 'No fares in the next two weeks — try a month above',
+                                          })}
                                 </Text>
                             </View>
                         ) : (
@@ -1387,7 +1436,10 @@ const styles = StyleSheet.create({
     monthChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
     monthChipText: { fontSize: 13, fontWeight: "700", letterSpacing: -0.1 },
     calStatus: { flexDirection: "row", alignItems: "center", gap: 10, padding: 16, borderRadius: 14, borderWidth: 1 },
-    calStatusText: { fontSize: 13.5, fontWeight: "500", flexShrink: 1 },
+    calStatusText: { fontSize: 13.5, fontWeight: "500", flex: 1 },
+    // Same card as calStatus, but standing on its own above the calendar
+    // section rather than inside it, so it needs its own bottom spacing.
+    calBlocker: { marginTop: -14, marginBottom: 26 },
     calRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     calChip: { flexBasis: "22%", flexGrow: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 4, borderRadius: 14, borderWidth: 1.5 },
     calDate: { fontSize: 12.5, fontWeight: "700" },

@@ -28,6 +28,7 @@ import * as Location from "expo-location";
 import { useLocationNotifications } from "@/lib/useLocationNotifications";
 import { TripGuideTooltip, GuideStep } from "@/components/FirstTripGuide";
 import ShareTripCard, { ShareTripCardHandle } from "@/components/ShareTripCard";
+import TripNudges from "@/components/TripNudges";
 import PackageCard from "@/components/PackageCard";
 import PackageInquiryModal from "@/components/PackageInquiryModal";
 import ActivityActionSheet from "@/components/ActivityActionSheet";
@@ -64,6 +65,7 @@ const cleanLocationTitle = (title: string): string => {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar } from 'react-native-calendars';
 import { INTERESTS } from "@/lib/data";
+import { countTripDays, maxEndDate, MAX_TRIP_DAYS } from "@/lib/tripDays";
 
 // Local Experiences categories (same as create-trip)
 const LOCAL_EXPERIENCES = [
@@ -1350,16 +1352,14 @@ export default function TripDetails() {
     const handleDayPress = (day: any) => {
         const newDate = new Date(day.dateString);
         const timestamp = newDate.getTime();
-        const MAX_TRIP_DAYS = 15;
-        
         if (selectingDate === 'start') {
-            // If new start makes trip > 15 days, auto-cap end date
-            const daysDiff = Math.ceil((editForm.endDate - timestamp) / (24 * 60 * 60 * 1000));
+            // If the new start pushes the trip past the max length, auto-cap the end
+            const daysDiff = countTripDays(timestamp, editForm.endDate);
             if (daysDiff > MAX_TRIP_DAYS) {
                 setEditForm(prev => ({
                     ...prev,
                     startDate: timestamp,
-                    endDate: timestamp + MAX_TRIP_DAYS * 24 * 60 * 60 * 1000,
+                    endDate: maxEndDate(timestamp),
                 }));
             } else {
                 setEditForm(prev => ({
@@ -1368,7 +1368,7 @@ export default function TripDetails() {
                 }));
             }
         } else {
-            const daysDiff = Math.ceil((timestamp - editForm.startDate) / (24 * 60 * 60 * 1000));
+            const daysDiff = countTripDays(editForm.startDate, timestamp);
             if (daysDiff > MAX_TRIP_DAYS) {
                 Alert.alert(t('tripDetail.tripTooLong'), t('tripDetail.tripTooLongMsg'));
                 return;
@@ -1670,12 +1670,17 @@ export default function TripDetails() {
     const totalAccommodationCost = supplierStayTotal ?? accommodationPricePerNight * duration;
     const totalDailyExpenses = dailyExpensesPerPerson * travelers * duration;
 
-    // Curated bookable experiences (GetYourGuide etc.): sum their ticket prices
-    // across the itinerary (per person × travelers) so they show in the budget.
+    // Experiences: every priced item in the itinerary — curated bookable
+    // experiences (GetYourGuide etc.) AND the entry tickets the AI prices for
+    // museums/attractions — summed per person × travelers.
+    // Restaurants are excluded on purpose: they carry a "€/€€/€€€" priceRange
+    // rather than a fare, and meals are already covered by daily spending.
     const totalExperiencesCost = (itinerary?.dayByDayItinerary || []).reduce((sum: number, day: any) => {
         const acts = day?.activities || [];
         return sum + acts.reduce((s: number, a: any) => {
-            if (a?.affiliateProvider && typeof a?.price === 'number' && a.price > 0) {
+            const isFood = a?.type === 'restaurant' || a?.type === 'meal' || !!a?.culinaryMoment || !!a?.culinaryType;
+            if (isFood) return s;
+            if (typeof a?.price === 'number' && a.price > 0) {
                 return s + a.price * travelers;
             }
             return s;
@@ -1972,6 +1977,9 @@ export default function TripDetails() {
         color: string;
         subtitle: string;
         cta: string;
+        // Foreground for the badge + CTA, for brands whose colour is too light
+        // to carry white text (e.g. Vueling yellow).
+        onColor?: string;
     }) => (
         <TouchableOpacity
             key={cfg.item}
@@ -1981,7 +1989,7 @@ export default function TripDetails() {
         >
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: cfg.color, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>{cfg.badge}</Text>
+                    <Text style={{ color: cfg.onColor || '#fff', fontWeight: '800', fontSize: 13 }}>{cfg.badge}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{cfg.brand}</Text>
@@ -2017,7 +2025,7 @@ export default function TripDetails() {
                 </View>
             </View>
             <View style={{ backgroundColor: cfg.color, borderRadius: 10, paddingVertical: 12, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{cfg.cta}</Text>
+                <Text style={{ color: cfg.onColor || '#fff', fontSize: 15, fontWeight: '700' }}>{cfg.cta}</Text>
             </View>
         </TouchableOpacity>
     );
@@ -2881,6 +2889,22 @@ export default function TripDetails() {
                         <Text style={[styles.viewMapText, { color: colors.text }]}>{t('tripDetail.exploreRoute')}</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Retention nudges: plan together / add to calendar / recap */}
+                <TripNudges
+                    trip={trip}
+                    collaborators={collaborators as any[] | undefined}
+                    isOwner={!userSettings?.userId || trip.userId === userSettings.userId}
+                    onInvite={async () => {
+                        try {
+                            const result = await createInviteMut({ tripId: trip._id, role: "viewer" });
+                            const inviteUrl = `https://planeraai.app/invite/${result.inviteToken}`;
+                            await Share.share({ message: `${t('tripDetail.joinMyTrip', { destination: trip.destination })}\n${inviteUrl}` });
+                        } catch (err) {
+                            console.error("Invite failed:", err);
+                        }
+                    }}
+                />
 
                 {/* Trip detail guide — Map tooltip */}
                 {currentDetailGuideKey === 'map' && (
@@ -3841,6 +3865,7 @@ export default function TripDetails() {
                             {renderAffiliateFlightCard({ partner: 'volotea', item: 'volotea', brand: 'Volotea', badge: 'VO', color: '#9B1B5A', subtitle: t('tripDetail.searchFlightsOnVolotea'), cta: t('tripDetail.searchOnVolotea') })}
                             {renderAffiliateFlightCard({ partner: 'airserbia', item: 'airserbia', brand: 'Air Serbia', badge: 'JU', color: '#0F2D53', subtitle: t('tripDetail.searchFlightsOnAirSerbia'), cta: t('tripDetail.searchOnAirSerbia') })}
                             {renderAffiliateFlightCard({ partner: 'lot', item: 'lot', brand: 'LOT Polish Airlines', badge: 'LO', color: '#252668', subtitle: t('tripDetail.searchFlightsOnLot'), cta: t('tripDetail.searchOnLot') })}
+                            {renderAffiliateFlightCard({ partner: 'vueling', item: 'vueling', brand: 'Vueling', badge: 'VY', color: '#FFCC00', onColor: '#1A1A1A', subtitle: t('tripDetail.searchFlightsOnVueling'), cta: t('tripDetail.searchOnVueling') })}
                         </View>
                     )}
 

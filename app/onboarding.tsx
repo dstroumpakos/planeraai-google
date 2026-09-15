@@ -7,12 +7,24 @@ import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import { INTERESTS } from "@/lib/data";
 import { AIRPORTS } from "@/lib/airports";
-import { canonicalHomeAirport, needsAiHomeAirportLookup } from "@/lib/homeAirport";
+import { canonicalHomeAirport, hasNonLatinScript, needsAiHomeAirportLookup, searchAirportOptions } from "@/lib/homeAirport";
+import { resolveIATA } from "@/lib/destinationAirports";
+import { WORLD_CITIES } from "@/lib/worldCities";
+import { useTrackMarketing } from "@/lib/trackMarketing";
 import * as Haptics from "expo-haptics";
 import { useToken } from "@/lib/useAuthenticatedMutation";
 import { useTranslation } from "react-i18next";
 
-type OnboardingStep = "welcome" | "preferences" | "referral";
+type OnboardingStep = "welcome" | "preferences" | "watch" | "referral";
+
+// The "pick 3 places" step. A curated dozen with broad appeal from a
+// European home base (the user base), each mapped onto a WorldPrint city so
+// the label, country and IATA resolve from data that already exists.
+const WATCH_SUGGESTION_IDS = [
+  "lisbon-pt", "paris-fr", "rome-it", "barcelona-es", "amsterdam-nl", "london-gb",
+  "istanbul-tr", "prague-cz", "vienna-at", "dubai-ae", "tokyo-jp", "nyc-us",
+];
+const WATCH_TARGET = 3;
 
 export default function Onboarding() {
   const router = useRouter();
@@ -28,6 +40,12 @@ export default function Onboarding() {
   const [skipFlights, setSkipFlights] = useState(false);
   const [skipHotels, setSkipHotels] = useState(false);
   
+  // Watched destinations ("pick 3 places")
+  const [watchPicks, setWatchPicks] = useState<string[]>([]);
+  const [watchQuery, setWatchQuery] = useState("");
+  const watchDestination = useMutation((api as any).watchedDestinations.watch);
+  const trackMarketing = useTrackMarketing();
+
   // Referral code
   const [referralCode, setReferralCode] = useState("");
   const [referralApplying, setReferralApplying] = useState(false);
@@ -56,36 +74,27 @@ export default function Onboarding() {
     switch (step) {
       case "welcome": return 1;
       case "preferences": return 2;
-      case "referral": return 3;
+      case "watch": return 3;
+      case "referral": return 4;
       default: return 1;
     }
   };
 
   const getTotalSteps = (): number => {
-    return 3; // welcome, preferences, referral
+    return 4; // welcome, preferences, watch, referral
   };
 
   const searchAirports = (query: string) => {
-    if (!query || query.length < 2) {
-      setAirportSuggestions([]);
-      setShowAirportSuggestions(false);
-      return;
-    }
-    
-    const lowerQuery = query.toLowerCase();
-    const results = AIRPORTS.filter(airport => 
-      airport.city.toLowerCase().includes(lowerQuery) ||
-      airport.country.toLowerCase().includes(lowerQuery) ||
-      airport.code.toLowerCase().includes(lowerQuery) ||
-      airport.name.toLowerCase().includes(lowerQuery)
-    ).slice(0, 10);
-    
+    // searchAirportOptions also matches localized city names, so a Greek user
+    // typing "Αθήνα" is offered "Athens (ATH)" and picks the English value
+    // instead of free-typing one we can't resolve.
+    const results = searchAirportOptions(query);
     setAirportSuggestions(results);
     setShowAirportSuggestions(results.length > 0);
   };
 
   const selectAirport = (airport: typeof AIRPORTS[0]) => {
-    setHomeAirport(`${airport.city}, ${airport.code}`);
+    setHomeAirport(`${airport.city}, ${airport.country} ${airport.code}`);
     setShowAirportSuggestions(false);
     setAirportSuggestions([]);
     hapticFeedback();
@@ -123,11 +132,13 @@ export default function Onboarding() {
       return;
     }
     // The base airport has to end up as English + IATA — that's what the
-    // low-fare radar, Explore and flight search all key off. A name our own
-    // dataset knows is rewritten offline ("Αθήνα" → "Athens, Greece ATH");
-    // anything it doesn't ("Kalamata", "Podgorica") goes to the server, which
-    // asks OpenAI for the nearest airport and hands back the canonical label.
-    // If both miss, we store what the user typed, exactly as before.
+    // low-fare radar, Explore and flight search all key off. A name we can
+    // translate offline is rewritten silently ("Αθήνα" → "Athens, Greece ATH");
+    // anything our dataset doesn't contain ("Καλαμάτα", "Podgorica") goes to
+    // the server, which asks OpenAI for the nearest airport and hands back the
+    // canonical label. Only when that fails too do we fall back to rejecting a
+    // non-Latin value, because storing one would silently cost the user every
+    // flight feature.
     setSaving(true);
     let homeAirportLabel = canonicalHomeAirport(homeAirport)?.label;
     if (needsAiHomeAirportLookup(homeAirport)) {
@@ -146,6 +157,18 @@ export default function Onboarding() {
       }
     }
 
+    if (!homeAirportLabel && hasNonLatinScript(homeAirport)) {
+      setSaving(false);
+      const title = t('homeAirport.englishOnlyTitle');
+      const message = t('homeAirport.englishOnly');
+      if (Platform.OS !== "web") {
+        Alert.alert(title, message);
+      } else {
+        alert(message);
+      }
+      return;
+    }
+
     try {
       await saveTravelPreferences({
         token: token || "",
@@ -158,7 +181,7 @@ export default function Onboarding() {
       });
 
       hapticFeedback();
-      setStep("referral");
+      setStep("watch");
     } catch (error) {
       console.error("Error saving preferences:", error);
       if (Platform.OS !== "web") {
@@ -169,6 +192,36 @@ export default function Onboarding() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Save the picks and move on. Watching is idempotent server-side and each
+  // call is independent, so a partial failure just means fewer watches —
+  // never a blocked onboarding.
+  const handleSaveWatches = async () => {
+    setSaving(true);
+    try {
+      await Promise.all(
+        watchPicks.map((name) =>
+          watchDestination({
+            token: token || "",
+            destination: name,
+            destinationIata: resolveIATA(name) || undefined,
+          }).catch((e: any) => console.warn("[onboarding] watch failed", name, e)),
+        ),
+      );
+      if (watchPicks.length > 0) trackMarketing("watch_added", "app-onboarding");
+      hapticFeedback();
+    } finally {
+      setSaving(false);
+      setStep("referral");
+    }
+  };
+
+  const toggleWatchPick = (name: string) => {
+    hapticFeedback();
+    setWatchPicks((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
   };
 
   const handleApplyReferral = async () => {
@@ -338,6 +391,7 @@ export default function Onboarding() {
               <Text style={styles.sectionLabel}>{t('onboarding.defaultLocation')}</Text>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>{t('onboarding.homeAirport')} <Text style={styles.required}>*</Text></Text>
+                <Text style={styles.inputHint}>{t('homeAirport.hint')}</Text>
                 <View style={styles.inputWithIconContainer}>
                   <Ionicons name="airplane-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                   <TextInput
@@ -544,6 +598,150 @@ export default function Onboarding() {
   }
 
   // REFERRAL CODE SCREEN
+  // WATCH SCREEN — "pick 3 places you'd go if the price was right"
+  if (step === "watch") {
+    const suggestions = WATCH_SUGGESTION_IDS
+      .map((id) => WORLD_CITIES.find((c) => c.id === id))
+      .filter(Boolean) as typeof WORLD_CITIES;
+    const q = watchQuery.trim().toLowerCase();
+    const searchHits = q.length >= 2
+      ? WORLD_CITIES.filter(
+          (c) =>
+            !WATCH_SUGGESTION_IDS.includes(c.id) &&
+            (c.name.toLowerCase().includes(q) || c.aliases?.some((a) => a.includes(q))),
+        ).slice(0, 6)
+      : [];
+    const flag = (cc: string) =>
+      cc.toUpperCase().replace(/./g, (ch) => String.fromCodePoint(127397 + ch.charCodeAt(0)));
+
+    return (
+      <>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
+        <SafeAreaView style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => setStep("preferences")}>
+              <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+            </TouchableOpacity>
+            <ProgressIndicator />
+            <View style={{ width: 40 }} />
+          </View>
+
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.preferencesHeader}>
+              <View style={styles.preferencesIconContainer}>
+                <Ionicons name="notifications" size={28} color="#1A1A1A" />
+              </View>
+              <Text style={styles.stepTitle}>{t('onboarding.watchTitle')}</Text>
+              <Text style={styles.stepSubtitle}>{t('onboarding.watchSubtitle')}</Text>
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.sectionLabel}>
+                {t('onboarding.watchPicked', { count: watchPicks.length, target: WATCH_TARGET })}
+              </Text>
+              <View style={styles.interestsContainer}>
+                {suggestions.map((city) => {
+                  const isSelected = watchPicks.includes(city.name);
+                  return (
+                    <TouchableOpacity
+                      key={city.id}
+                      style={[styles.interestChip, isSelected && styles.interestChipActive]}
+                      onPress={() => toggleWatchPick(city.name)}
+                    >
+                      <Text style={[styles.interestText, isSelected && styles.interestTextActive]}>
+                        {flag(city.countryCode)} {city.name}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={16} color="#1A1A1A" style={{ marginLeft: 4 }} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                {watchPicks
+                  .filter((name) => !suggestions.some((c) => c.name === name))
+                  .map((name) => (
+                    <TouchableOpacity
+                      key={"custom-" + name}
+                      style={[styles.interestChip, styles.interestChipActive]}
+                      onPress={() => toggleWatchPick(name)}
+                    >
+                      <Text style={[styles.interestText, styles.interestTextActive]}>{name}</Text>
+                      <Ionicons name="checkmark" size={16} color="#1A1A1A" style={{ marginLeft: 4 }} />
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.sectionLabel}>{t('onboarding.watchSearchLabel')}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t('onboarding.watchSearchPlaceholder')}
+                value={watchQuery}
+                onChangeText={setWatchQuery}
+                placeholderTextColor="#9B9B9B"
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              {searchHits.length > 0 && (
+                <View style={styles.interestsContainer}>
+                  {searchHits.map((city) => {
+                    const isSelected = watchPicks.includes(city.name);
+                    return (
+                      <TouchableOpacity
+                        key={city.id}
+                        style={[styles.interestChip, isSelected && styles.interestChipActive]}
+                        onPress={() => { toggleWatchPick(city.name); setWatchQuery(""); }}
+                      >
+                        <Text style={[styles.interestText, isSelected && styles.interestTextActive]}>
+                          {flag(city.countryCode)} {city.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.infoCard}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="trending-down" size={22} color="#1A1A1A" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoTitle}>{t('onboarding.watchBenefitTitle')}</Text>
+                <Text style={styles.infoText}>{t('onboarding.watchBenefitDesc')}</Text>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.primaryButton, (saving || watchPicks.length === 0) && styles.primaryButtonDisabled]}
+              onPress={handleSaveWatches}
+              disabled={saving || watchPicks.length === 0}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Text style={styles.primaryButtonText}>
+                    {watchPicks.length > 0
+                      ? t('onboarding.watchContinue', { count: watchPicks.length })
+                      : t('onboarding.watchPickSome')}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.skipButton} onPress={() => setStep("referral")} disabled={saving}>
+              <Text style={styles.skipButtonText}>{t('onboarding.watchSkip')}</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </>
+    );
+  }
+
   if (step === "referral") {
     const getReferralMessage = () => {
       if (!referralResult) return null;
@@ -562,7 +760,7 @@ export default function Onboarding() {
         <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
         <SafeAreaView style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => setStep("preferences")}>
+            <TouchableOpacity style={styles.backButton} onPress={() => setStep("watch")}>
               <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
             </TouchableOpacity>
             <ProgressIndicator />
@@ -1027,6 +1225,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#1A1A1A",
+    marginBottom: 8,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: -4,
     marginBottom: 8,
   },
   required: {
