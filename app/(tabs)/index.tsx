@@ -28,6 +28,7 @@ import { FirstTripPopup } from "@/components/FirstTripGuide";
 import { LowFareRadar } from "@/components/LowFareRadar";
 import WatchedFaresRow from "@/components/WatchedFaresRow";
 import ThisMonthCard from "@/components/ThisMonthCard";
+import PartnerToursRow from "@/components/PartnerToursRow";
 import TodayCard, { pickLiveTrip } from "@/components/TodayCard";
 import AchievementUnlocked from "@/components/AchievementUnlocked";
 import AirplaneIntro from "@/components/AirplaneIntro";
@@ -568,6 +569,9 @@ export default function HomeScreen() {
             }}
           />
         )}
+
+        {/* Tours by local partners — approved supplier products */}
+        <PartnerToursRow />
 
         {/* Trending Destinations Section */}
         {trendingDestinations && trendingDestinations.length > 0 && (

@@ -2221,5 +2221,18 @@
     "englishOnly": "Nous n’avons pas pu identifier cet aéroport. Saisissez votre aéroport de départ en anglais, par exemple « Athens, Greece ATH ».",
     "englishOnlyTitle": "Saisissez-le en anglais",
     "hint": "Saisissez-le en anglais — c’est ainsi que nous trouvons les vols au départ de votre ville."
+  },
+  "partnerTours": {
+    "title": "Circuits de partenaires locaux",
+    "subtitle": "Voyages sélectionnés par des agences de voyage",
+    "from": "dès",
+    "visitSite": "Voir sur {{partner}}",
+    "disclaimer": "Proposé et réservé directement auprès de {{partner}}.",
+    "type": {
+      "tour": "Circuit",
+      "experience": "Expérience",
+      "hotel": "Hébergement",
+      "other": "Offre"
+    }
   }
 }

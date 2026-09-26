@@ -2221,5 +2221,18 @@
     "englishOnly": "We couldn’t match that to an airport. Please write your base airport in English, for example \"Athens, Greece ATH\".",
     "englishOnlyTitle": "Enter it in English",
     "hint": "Enter it in English — that's how we match flights from your city."
+  },
+  "partnerTours": {
+    "title": "Tours by local partners",
+    "subtitle": "Hand-picked trips from travel agencies",
+    "from": "from",
+    "visitSite": "View on {{partner}}",
+    "disclaimer": "Offered and booked directly with {{partner}}.",
+    "type": {
+      "tour": "Tour",
+      "experience": "Experience",
+      "hotel": "Stay",
+      "other": "Offer"
+    }
   }
 }

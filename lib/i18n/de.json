@@ -2221,5 +2221,18 @@
     "englishOnly": "Wir konnten dazu keinen Flughafen finden. Gib deinen Heimatflughafen auf Englisch ein, zum Beispiel „Athens, Greece ATH“.",
     "englishOnlyTitle": "Bitte auf Englisch eingeben",
     "hint": "Bitte auf Englisch eingeben — so finden wir Flüge ab deiner Stadt."
+  },
+  "partnerTours": {
+    "title": "Touren von lokalen Partnern",
+    "subtitle": "Ausgewählte Reisen von Reisebüros",
+    "from": "ab",
+    "visitSite": "Bei {{partner}} ansehen",
+    "disclaimer": "Angeboten und direkt gebucht bei {{partner}}.",
+    "type": {
+      "tour": "Tour",
+      "experience": "Erlebnis",
+      "hotel": "Unterkunft",
+      "other": "Angebot"
+    }
   }
 }
