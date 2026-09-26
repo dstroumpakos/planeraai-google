@@ -1,6 +1,7 @@
 Nouveautés :
-• Gérez vos réservations directement depuis votre voyage
-• Déplacez une réservation vers un autre voyage en quelques touches
-• Supprimez les réservations dont vous n'avez plus besoin
-• Traductions actualisées dans toutes les langues
-• Corrections de bugs et améliorations des performances
+• Nouveau widget d'écran d'accueil avec le compte à rebours de votre prochain voyage
+• Consultez en un coup d'œil votre prochaine étape du jour
+• Les tarifs suivis s'affichent désormais sur votre écran d'accueil
+• Gérez vos réservations : déplacez-les vers un autre voyage ou supprimez-les
+• Plus d'informations et d'avis sur les lieux de votre itinéraire
+• Traductions actualisées, corrections de bugs et améliorations des performances

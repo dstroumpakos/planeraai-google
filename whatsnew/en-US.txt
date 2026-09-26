@@ -1,6 +1,7 @@
 What's new:
-• Manage your reservations right from your trip
-• Move a booking to a different trip in a couple of taps
-• Remove reservations you no longer need
-• Refreshed translations across all languages
-• Bug fixes and performance improvements
+• New home screen widget with a countdown to your next trip
+• See today's next stop at a glance while you're away
+• Watched fares now appear right on your home screen
+• Manage reservations: move a booking to another trip or remove it
+• Richer places and reviews inside your itinerary
+• Refreshed translations, bug fixes and performance improvements

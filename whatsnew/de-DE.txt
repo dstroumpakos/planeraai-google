@@ -1,6 +1,7 @@
 Neuigkeiten:
-• Verwalte deine Reservierungen direkt in deiner Reise
-• Verschiebe eine Buchung mit wenigen Tipps in eine andere Reise
-• Entferne Reservierungen, die du nicht mehr brauchst
-• Aktualisierte Übersetzungen in allen Sprachen
-• Fehlerbehebungen und Leistungsverbesserungen
+• Neues Startbildschirm-Widget mit Countdown bis zu deiner nächsten Reise
+• Sieh auf einen Blick, was heute als Nächstes ansteht
+• Beobachtete Flugpreise erscheinen jetzt direkt auf dem Startbildschirm
+• Buchungen verwalten: in eine andere Reise verschieben oder entfernen
+• Mehr Details und Bewertungen zu Orten in deiner Reiseroute
+• Aktualisierte Übersetzungen, Fehlerbehebungen und Leistungsverbesserungen

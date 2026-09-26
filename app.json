@@ -2,7 +2,7 @@
   "expo": {
     "name": "Planera AI Travel Planner",
     "slug": "planera-ai-travel-planner",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "orientation": "portrait",
     "icon": "./assets/images/appicon-1024x1024-01-9h6cls.jpg",
     "scheme": "planera",
@@ -116,6 +116,13 @@
       "expo-image",
       "expo-localization",
       "expo-sharing",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Planera adds your trips to your calendar so your travel dates and day-by-day plan are always at hand.",
+          "remindersPermission": "Planera can add reminders for your planned trip activities."
+        }
+      ],
       "expo-build-properties",
       [
         "react-native-android-widget",

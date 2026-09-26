@@ -1,6 +1,7 @@
 Novedades:
-• Gestiona tus reservas directamente desde tu viaje
-• Mueve una reserva a otro viaje con un par de toques
-• Elimina las reservas que ya no necesitas
-• Traducciones actualizadas en todos los idiomas
-• Corrección de errores y mejoras de rendimiento
+• Nuevo widget de pantalla de inicio con la cuenta atrás de tu próximo viaje
+• Consulta de un vistazo tu siguiente parada del día
+• Las tarifas que sigues aparecen ahora en tu pantalla de inicio
+• Gestiona tus reservas: muévelas a otro viaje o elimínalas
+• Más información y opiniones de lugares en tu itinerario
+• Traducciones actualizadas, correcciones y mejoras de rendimiento
