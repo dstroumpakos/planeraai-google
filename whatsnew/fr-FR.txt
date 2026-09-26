@@ -1,7 +1,7 @@
 Nouveautés :
+• Demandez à l'IA d'ajouter n'importe quelle activité à l'heure de votre choix
 • Nouveau widget d'écran d'accueil avec le compte à rebours de votre prochain voyage
 • Consultez en un coup d'œil votre prochaine étape du jour
 • Les tarifs suivis s'affichent désormais sur votre écran d'accueil
 • Gérez vos réservations : déplacez-les vers un autre voyage ou supprimez-les
-• Plus d'informations et d'avis sur les lieux de votre itinéraire
 • Traductions actualisées, corrections de bugs et améliorations des performances

@@ -1,7 +1,7 @@
 Neuigkeiten:
+• Lass die KI jede Aktivität zur gewünschten Uhrzeit hinzufügen
 • Neues Startbildschirm-Widget mit Countdown bis zu deiner nächsten Reise
 • Sieh auf einen Blick, was heute als Nächstes ansteht
 • Beobachtete Flugpreise erscheinen jetzt direkt auf dem Startbildschirm
 • Buchungen verwalten: in eine andere Reise verschieben oder entfernen
-• Mehr Details und Bewertungen zu Orten in deiner Reiseroute
 • Aktualisierte Übersetzungen, Fehlerbehebungen und Leistungsverbesserungen

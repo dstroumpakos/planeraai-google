@@ -1,7 +1,7 @@
 Novedades:
+• Pide a la IA que añada cualquier actividad a la hora que quieras
 • Nuevo widget de pantalla de inicio con la cuenta atrás de tu próximo viaje
 • Consulta de un vistazo tu siguiente parada del día
 • Las tarifas que sigues aparecen ahora en tu pantalla de inicio
 • Gestiona tus reservas: muévelas a otro viaje o elimínalas
-• Más información y opiniones de lugares en tu itinerario
 • Traducciones actualizadas, correcciones y mejoras de rendimiento

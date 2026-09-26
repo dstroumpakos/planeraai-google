@@ -1,7 +1,7 @@
 What's new:
+• Ask AI to add any activity to your itinerary, at the time you want
 • New home screen widget with a countdown to your next trip
 • See today's next stop at a glance while you're away
 • Watched fares now appear right on your home screen
 • Manage reservations: move a booking to another trip or remove it
-• Richer places and reviews inside your itinerary
 • Refreshed translations, bug fixes and performance improvements
