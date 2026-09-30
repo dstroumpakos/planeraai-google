@@ -19,6 +19,7 @@ import { api } from "@/convex/_generated/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { AirlineLogo } from "@/components/AirlineLogo";
+import { isChristmasTrip, isWorthBuying } from "@/lib/christmas";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 64;
@@ -59,6 +60,8 @@ interface FlightDeal {
   price: number;
   totalPrice?: number;
   originalPrice?: number;
+  /** Route's typical fare from the last refresh — the "worth buying" benchmark. */
+  typicalPrice?: number;
   currency: string;
   cabinBaggage?: string;
   checkedBaggage?: string;
@@ -89,7 +92,11 @@ interface LowFareRadarProps {
   onBookingClick?: (dealId: string) => void;
 }
 
-type Filter = "all" | "recommended" | "wishlist";
+type Filter = "all" | "recommended" | "wishlist" | "christmas";
+
+/** Christmas-dated AND worth buying — the tab only vouches for real deals. */
+const isChristmasDeal = (d: FlightDeal) =>
+  isChristmasTrip(d.outboundDate, d.returnDate) && isWorthBuying(d);
 
 export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip, onPlanFromWishlist, onBookingClick }: LowFareRadarProps) {
   const { colors } = useTheme();
@@ -155,7 +162,9 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
       ? deals.filter((d) => d.isRecommended || d.matchesPreference)
       : filter === "wishlist"
         ? deals.filter((d) => d.matchesWishlist && (!wishlistFilter || d.destinationCity.toLowerCase() === wishlistFilter.toLowerCase()))
-        : deals;
+        : filter === "christmas"
+          ? deals.filter(isChristmasDeal)
+          : deals;
 
   // Apply the destination dropdown filter on top of the active tab.
   const filteredDeals = destFilter
@@ -262,6 +271,7 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
   ).length;
 
   const wishlistCount = deals.filter((d) => d.matchesWishlist).length;
+  const christmasCount = deals.filter(isChristmasDeal).length;
 
   // Build a summary of wishlisted destinations that have deals from homeIata
   const wishlistWithDeals = wishlistDestinations?.filter((w) =>
@@ -425,6 +435,31 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
             >
               {t("lowFare.wishlist", { defaultValue: "Wishlist" })} (
               {wishlistCount})
+            </Text>
+          </TouchableOpacity>
+        )}
+        {christmasCount > 0 && (
+          <TouchableOpacity
+            style={[
+              styles.filterBtn,
+              {
+                backgroundColor:
+                  filter === "christmas" ? "#B91C1C" : colors.card,
+                borderColor:
+                  filter === "christmas" ? "#B91C1C" : colors.border,
+              },
+            ]}
+            onPress={() => { setFilter("christmas"); setWishlistFilter(null); }}
+          >
+            <Text style={{ fontSize: 13 }}>🎄</Text>
+            <Text
+              style={[
+                styles.filterText,
+                { color: filter === "christmas" ? "#FFF" : colors.text },
+              ]}
+            >
+              {t("lowFare.christmas", { defaultValue: "Christmas" })} (
+              {christmasCount})
             </Text>
           </TouchableOpacity>
         )}
@@ -645,6 +680,19 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
                   >
                     <Ionicons name="flame" size={12} color="#FFF" />
                     <Text style={styles.dealTagText}>{deal.dealTag}</Text>
+                  </View>
+                )}
+                {!deal.isExpired && isChristmasDeal(deal) && (
+                  <View
+                    style={[
+                      styles.dealTagBadge,
+                      { backgroundColor: "#B91C1C" },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 11 }}>🎄</Text>
+                    <Text style={styles.dealTagText}>
+                      {t("lowFare.christmas", { defaultValue: "Christmas" })}
+                    </Text>
                   </View>
                 )}
                 {deal.matchesWishlist && (

@@ -245,7 +245,8 @@
     "wishlistDeals": "Deals to your wishlist",
     "wishlisted": "Wishlisted",
     "stop": "stop",
-    "stops": "stops"
+    "stops": "stops",
+    "christmas": "Christmas"
   },
   "dealTrip": {
     "title": "Plan Your Trip",
@@ -2234,5 +2235,27 @@
       "hotel": "Stay",
       "other": "Offer"
     }
+  },
+  "christmas": {
+    "title": "Christmas trips",
+    "subtitle": "Book holiday flights now — fares only climb from here",
+    "subtitleDeals": "{{count}} holiday fares worth booking now",
+    "from": "from",
+    "belowTypical": "{{pct}}% below typical",
+    "greatPrice": "Great price",
+    "planTrip": "Plan a Christmas trip",
+    "vibe": {
+      "markets": "Christmas markets",
+      "snow": "Snow & Santa",
+      "city": "City lights",
+      "sun": "Winter sun"
+    },
+    "subtitleFrom": "Holiday flights from {{price}} — before fares climb",
+    "countdown_one": "{{count}} day to Christmas",
+    "countdown_other": "{{count}} days to Christmas",
+    "merry": "Merry Christmas!",
+    "fromOrigin": "From {{origin}}",
+    "dealBadge": "Deal",
+    "indicative": "Indicative round-trip fares for a December week · tap to see live prices"
   }
 }

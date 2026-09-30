@@ -245,7 +245,8 @@
     "wishlistDeals": "Angebote für deine Wunschliste",
     "wishlisted": "Auf der Wunschliste",
     "stop": "Stopp",
-    "stops": "Stopps"
+    "stops": "Stopps",
+    "christmas": "Weihnachten"
   },
   "dealTrip": {
     "title": "Planen Sie Ihre Reise",
@@ -2234,5 +2235,27 @@
       "hotel": "Unterkunft",
       "other": "Angebot"
     }
+  },
+  "christmas": {
+    "title": "Weihnachtsreisen",
+    "subtitle": "Jetzt Feiertagsflüge buchen – die Preise steigen nur noch",
+    "subtitleDeals": "{{count}} Feiertagsflüge, die sich jetzt lohnen",
+    "from": "ab",
+    "belowTypical": "{{pct}}% unter dem Üblichen",
+    "greatPrice": "Top-Preis",
+    "planTrip": "Weihnachtsreise planen",
+    "vibe": {
+      "markets": "Weihnachtsmärkte",
+      "snow": "Schnee & Weihnachtsmann",
+      "city": "Lichter der Stadt",
+      "sun": "Wintersonne"
+    },
+    "subtitleFrom": "Feiertagsflüge ab {{price}} — bevor die Preise steigen",
+    "countdown_one": "Noch {{count}} Tag bis Weihnachten",
+    "countdown_other": "Noch {{count}} Tage bis Weihnachten",
+    "merry": "Frohe Weihnachten!",
+    "fromOrigin": "Ab {{origin}}",
+    "dealBadge": "Deal",
+    "indicative": "Richtpreise für Hin- und Rückflug, eine Woche im Dezember · tippen für aktuelle Preise"
   }
 }

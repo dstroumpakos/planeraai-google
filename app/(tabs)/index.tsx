@@ -27,6 +27,7 @@ import { LanguagePickerModal } from "@/components/LanguagePickerModal";
 import { FirstTripPopup } from "@/components/FirstTripGuide";
 import { LowFareRadar } from "@/components/LowFareRadar";
 import WatchedFaresRow from "@/components/WatchedFaresRow";
+import ChristmasRow from "@/components/ChristmasRow";
 import ThisMonthCard from "@/components/ThisMonthCard";
 import PartnerToursRow from "@/components/PartnerToursRow";
 import TodayCard, { pickLiveTrip } from "@/components/TodayCard";
@@ -493,6 +494,9 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Watched fares — the between-trips reason to open the app */}
+        {/* Christmas trips — seasonal (mid-Sep → Boxing Day) */}
+        <ChristmasRow deals={lowFareDeals} homeIata={homeIata} />
+
         <WatchedFaresRow />
 
         {/* This month — replaces the daily streak */}

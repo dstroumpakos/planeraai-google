@@ -21,6 +21,7 @@ import {
     Modal,
     Linking,
     Dimensions,
+    Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,6 +31,7 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/convex/_generated/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useToken } from "@/lib/useAuthenticatedMutation";
 
 type PartnerProduct = {
     _id: string;
@@ -84,9 +86,13 @@ function prettyPlace(s?: string): string | undefined {
 export default function PartnerToursRow() {
     const { t } = useTranslation();
     const { colors } = useTheme();
-    const products = useQuery((api as any).partnerProducts.listForHome, {}) as
-        | PartnerProduct[]
-        | undefined;
+    // Market-guarded: the token lets the server match listings to the user's
+    // home airport, so wait for it rather than briefly showing the wrong set.
+    const { token, isLoading: tokenLoading } = useToken();
+    const products = useQuery(
+        (api as any).partnerProducts.listForHome,
+        tokenLoading ? "skip" : token ? { token } : {}
+    ) as PartnerProduct[] | undefined;
     const getImages = useAction(api.images.getDestinationImages);
     const trackClick = useMutation((api as any).partnerProducts.trackHomeClick);
     const [fallbacks, setFallbacks] = useState<Record<string, string | null>>(fallbackCache);
@@ -126,8 +132,17 @@ export default function PartnerToursRow() {
     const imageFor = (p: PartnerProduct) =>
         p.imageUrl || (p.destination ? fallbacks[p.destination] : null) || null;
 
+    const track = (p: PartnerProduct, kind: "open" | "site") => {
+        trackClick({
+            productId: p._id,
+            kind,
+            source: Platform.OS,
+            ...(token ? { token } : {}),
+        }).catch(() => {});
+    };
+
     const open = (p: PartnerProduct) => {
-        trackClick({ productId: p._id }).catch(() => {});
+        track(p, "open");
         setSelected(p);
     };
 
@@ -177,6 +192,7 @@ export default function PartnerToursRow() {
                 product={selected}
                 imageUrl={selected ? imageFor(selected) : null}
                 onClose={() => setSelected(null)}
+                onVisitSite={(p) => track(p, "site")}
             />
         </View>
     );
@@ -289,10 +305,12 @@ function ProductSheet({
     product,
     imageUrl,
     onClose,
+    onVisitSite,
 }: {
     product: PartnerProduct | null;
     imageUrl: string | null;
     onClose: () => void;
+    onVisitSite: (p: PartnerProduct) => void;
 }) {
     const { t } = useTranslation();
     const { colors } = useTheme();
@@ -352,7 +370,10 @@ function ProductSheet({
                             <TouchableOpacity
                                 style={[styles.cta, { backgroundColor: colors.primary }]}
                                 activeOpacity={0.85}
-                                onPress={() => Linking.openURL(product.bookingUrl!).catch(() => {})}
+                                onPress={() => {
+                                    onVisitSite(product);
+                                    Linking.openURL(product.bookingUrl!).catch(() => {});
+                                }}
                             >
                                 <Text style={styles.ctaText}>
                                     {t("partnerTours.visitSite", {

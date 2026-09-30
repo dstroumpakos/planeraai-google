@@ -245,7 +245,8 @@
     "wishlistDeals": "Offres pour votre liste de souhaits",
     "wishlisted": "Dans la liste",
     "stop": "escale",
-    "stops": "escales"
+    "stops": "escales",
+    "christmas": "Noël"
   },
   "dealTrip": {
     "title": "Planifiez votre Voyage",
@@ -2234,5 +2235,27 @@
       "hotel": "Hébergement",
       "other": "Offre"
     }
+  },
+  "christmas": {
+    "title": "Voyages de Noël",
+    "subtitle": "Réservez vos vols des fêtes maintenant — les prix ne font que monter",
+    "subtitleDeals": "{{count}} vols des fêtes à réserver maintenant",
+    "from": "dès",
+    "belowTypical": "{{pct}}% sous le prix habituel",
+    "greatPrice": "Super prix",
+    "planTrip": "Planifier un voyage",
+    "vibe": {
+      "markets": "Marchés de Noël",
+      "snow": "Neige & Père Noël",
+      "city": "Lumières de la ville",
+      "sun": "Soleil d'hiver"
+    },
+    "subtitleFrom": "Vols des fêtes dès {{price}} — avant la hausse des prix",
+    "countdown_one": "Noël dans {{count}} jour",
+    "countdown_other": "Noël dans {{count}} jours",
+    "merry": "Joyeux Noël !",
+    "fromOrigin": "Depuis {{origin}}",
+    "dealBadge": "Bon plan",
+    "indicative": "Prix indicatifs aller-retour pour une semaine en décembre · touchez pour les prix en direct"
   }
 }
