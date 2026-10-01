@@ -1,7 +1,6 @@
 Neuigkeiten:
-• Lass die KI jede Aktivität zur gewünschten Uhrzeit hinzufügen
-• Neues Startbildschirm-Widget mit Countdown bis zu deiner nächsten Reise
-• Sieh auf einen Blick, was heute als Nächstes ansteht
-• Beobachtete Flugpreise erscheinen jetzt direkt auf dem Startbildschirm
-• Buchungen verwalten: in eine andere Reise verschieben oder entfernen
+• Weihnachtsreisen: festliche Ziele, Feiertagspreise und ein Countdown bis zum Fest
+• Neuer Weihnachts-Filter im Low Fare Radar – nur Angebote, die sich wirklich lohnen
+• Touren lokaler Partner: handverlesene Reisen und Erlebnisse von Reisebüros
+• Mehr Details und Bewertungen zu Orten in deiner Reiseroute
 • Aktualisierte Übersetzungen, Fehlerbehebungen und Leistungsverbesserungen
