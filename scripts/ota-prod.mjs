@@ -15,8 +15,8 @@
  *   5. Restores the original .env.local.
  *
  * Usage:
- *   node scripts/ota-prod.mjs --platform ios --message "My message"
- *   npm run ota:prod -- --platform ios --message "My message"
+ *   node scripts/ota-prod.mjs --message "My message"
+ *   npm run ota:prod -- --message "My message"
  */
 
 import { execSync } from "node:child_process";
@@ -34,7 +34,17 @@ function arg(name, fallback) {
   return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-const platform = arg("platform", "ios");
+// Both mobile repos publish to the SAME EAS project and "production" branch.
+// Each repo may only ship its own platform: an `all` publish from here would
+// push this repo's iOS bundle onto iOS devices with a matching runtime.
+const REPO_PLATFORM = "android";
+const platform = arg("platform", REPO_PLATFORM);
+if (platform !== REPO_PLATFORM) {
+  console.error(`
+[31m[ota-prod] ABORT:[0m this repo only publishes --platform ${REPO_PLATFORM} (got "${platform}"). Publish ${platform} from its own repo.
+`);
+  process.exit(1);
+}
 const message = arg("message", `Prod OTA ${new Date().toISOString()}`);
 
 function log(msg) {

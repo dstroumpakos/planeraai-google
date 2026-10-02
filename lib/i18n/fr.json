@@ -1564,7 +1564,7 @@
     "s5Title": "5. Partage des Informations",
     "s5Text": "Nous pouvons partager vos informations uniquement :",
     "s5b1": "• Avec OpenAI, Inc. — pour fournir les fonctionnalités de planification de voyage propulsées par l'IA (voir Section 4 ci-dessus)",
-    "s5b2": "• Avec les prestataires qui font fonctionner le Service : Convex (hébergement), SearchAPI.io et SerpApi (recherche de voyages), TripAdvisor, Viator et GetYourGuide (lieux et activités), Unsplash (images), Open-Meteo (météo), Mapbox et OpenStreetMap (cartes, géocodage et itinéraires), Postmark (e-mail) et Expo (notifications push)",
+    "s5b2": "• Avec les prestataires qui font fonctionner le Service : Convex (hébergement), SearchAPI.io et SerpApi (recherche de voyages), TripAdvisor, Viator, GetYourGuide et Tiqets (lieux et activités), Unsplash (images), Open-Meteo (météo), Mapbox et OpenStreetMap (cartes, géocodage et itinéraires), Postmark (e-mail) et Expo (notifications push)",
     "s5b3": "• Pour respecter les obligations légales",
     "s5b4": "• Pour protéger nos droits, nos utilisateurs ou la sécurité du Service",
     "s5b5": "• Avec Apple, Google et Stripe — pour traiter les paiements d'abonnement et vérifier le statut de votre abonnement",
@@ -1650,7 +1650,7 @@
     "h5b5": "• Assurer la conformité avec les exigences de visa, de santé et d'entrée",
     "h5b6": "• Prendre les décisions finales de voyage",
     "h6": "6. Services et Liens Tiers",
-    "h6p1": "Planera intègre ou renvoie vers des services tiers, notamment OpenAI, TripAdvisor, Viator, GetYourGuide, Unsplash, Open-Meteo, Mapbox et OpenStreetMap, Google, Apple, Stripe, Postmark, des fournisseurs de données de voyage ainsi que diverses compagnies aériennes, prestataires d'hébergement et plateformes de réservation. Ces services sont régis par leurs propres conditions et politiques de confidentialité.",
+    "h6p1": "Planera intègre ou renvoie vers des services tiers, notamment OpenAI, TripAdvisor, Viator, GetYourGuide, Tiqets, Unsplash, Open-Meteo, Mapbox et OpenStreetMap, Google, Apple, Stripe, Postmark, des fournisseurs de données de voyage ainsi que diverses compagnies aériennes, prestataires d'hébergement et plateformes de réservation. Ces services sont régis par leurs propres conditions et politiques de confidentialité.",
     "h6p2": "Planera :",
     "h6b1": "• N'est pas responsable du contenu, de la disponibilité, des prix ou des services tiers",
     "h6b2": "• Ne garantit pas les réservations, remboursements ou le support client des tiers",
@@ -2257,5 +2257,11 @@
     "fromOrigin": "Depuis {{origin}}",
     "dealBadge": "Bon plan",
     "indicative": "Prix indicatifs aller-retour pour une semaine en décembre · touchez pour les prix en direct"
+  },
+  "tiqets": {
+    "title": "Billets pour musées et attractions",
+    "titleIn": "Billets pour les meilleures attractions à {{place}}",
+    "desc": "Évitez la file d'attente avec des billets mobiles instantanés pour musées, monuments et expériences.",
+    "cta": "Trouver des billets sur Tiqets"
   }
 }

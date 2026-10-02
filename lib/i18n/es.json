@@ -1564,7 +1564,7 @@
     "s5Title": "5. Compartición de Información",
     "s5Text": "Podemos compartir tu información únicamente:",
     "s5b1": "• Con OpenAI, Inc. — para proporcionar funciones de planificación de viajes impulsadas por IA (ver Sección 4)",
-    "s5b2": "• Con los proveedores de servicios que hacen funcionar el Servicio: Convex (alojamiento), SearchAPI.io y SerpApi (búsqueda de viajes), TripAdvisor, Viator y GetYourGuide (lugares y actividades), Unsplash (imágenes), Open-Meteo (meteorología), Mapbox y OpenStreetMap (mapas, geocodificación y rutas), Postmark (correo) y Expo (notificaciones push)",
+    "s5b2": "• Con los proveedores de servicios que hacen funcionar el Servicio: Convex (alojamiento), SearchAPI.io y SerpApi (búsqueda de viajes), TripAdvisor, Viator, GetYourGuide y Tiqets (lugares y actividades), Unsplash (imágenes), Open-Meteo (meteorología), Mapbox y OpenStreetMap (mapas, geocodificación y rutas), Postmark (correo) y Expo (notificaciones push)",
     "s5b3": "• Para cumplir con obligaciones legales",
     "s5b4": "• Para proteger nuestros derechos, usuarios o la seguridad del Servicio",
     "s5b5": "• Con Apple, Google y Stripe, para procesar los pagos de suscripción y verificar el estado de tu suscripción",
@@ -1650,7 +1650,7 @@
     "h5b5": "• Asegurarte de cumplir con los requisitos de visado, salud y entrada",
     "h5b6": "• Tomar las decisiones finales de viaje",
     "h6": "6. Servicios y Enlaces de Terceros",
-    "h6p1": "Planera integra o enlaza a servicios de terceros, incluidos OpenAI, TripAdvisor, Viator, GetYourGuide, Unsplash, Open-Meteo, Mapbox y OpenStreetMap, Google, Apple, Stripe, Postmark, proveedores de datos de viaje y diversas aerolíneas, proveedores de alojamiento y plataformas de reserva. Estos servicios se rigen por sus propios términos y políticas de privacidad.",
+    "h6p1": "Planera integra o enlaza a servicios de terceros, incluidos OpenAI, TripAdvisor, Viator, GetYourGuide, Tiqets, Unsplash, Open-Meteo, Mapbox y OpenStreetMap, Google, Apple, Stripe, Postmark, proveedores de datos de viaje y diversas aerolíneas, proveedores de alojamiento y plataformas de reserva. Estos servicios se rigen por sus propios términos y políticas de privacidad.",
     "h6p2": "Planera:",
     "h6b1": "• No es responsable del contenido, disponibilidad, precios o servicios de terceros",
     "h6b2": "• No garantiza reservas, reembolsos o atención al cliente de terceros",
@@ -2257,5 +2257,11 @@
     "fromOrigin": "Desde {{origin}}",
     "dealBadge": "Oferta",
     "indicative": "Precios orientativos ida y vuelta para una semana de diciembre · toca para ver precios en vivo"
+  },
+  "tiqets": {
+    "title": "Entradas para museos y atracciones",
+    "titleIn": "Entradas para las mejores atracciones de {{place}}",
+    "desc": "Evita las colas con entradas móviles al instante para museos, monumentos y experiencias.",
+    "cta": "Buscar entradas en Tiqets"
   }
 }

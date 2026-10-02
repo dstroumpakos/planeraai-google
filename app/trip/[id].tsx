@@ -47,7 +47,9 @@ import {
     HotelLinkParams,
     FlightPartnerKey,
     HotelPartnerKey,
+    buildTiqetsLink,
 } from "@/lib/affiliateLinks";
+import TiqetsCard from "@/components/TiqetsCard";
 import { normalizeDestinationToEnglish } from "@/lib/destinationTranslations";
 
 // Sanitize location titles for maps deep links by stripping descriptions, ratings, etc.
@@ -4080,6 +4082,12 @@ export default function TripDetails() {
                                     )}
                                 </View>
                             )}
+
+                            {/* Tiqets museum & attraction tickets (partner link) */}
+                            <TiqetsCard
+                                destination={trip.destination}
+                                onPress={() => openPartnerLink(buildTiqetsLink({ query: trip.destination, lang: i18n.language }), 'activity', 'tiqets')}
+                            />
                         </>
                     )}
 

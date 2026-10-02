@@ -1564,7 +1564,7 @@
     "s5Title": "5. Sharing of Information",
     "s5Text": "We may share your information only:",
     "s5b1": "• With OpenAI, Inc. — to provide AI-powered travel planning features (see Section 4 above)",
-    "s5b2": "• With the service providers that run the Service: Convex (hosting), SearchAPI.io and SerpApi (travel search), TripAdvisor, Viator and GetYourGuide (places and activities), Unsplash (images), Open-Meteo (weather), Mapbox and OpenStreetMap (maps, geocoding and routing), Postmark (email), and Expo (push notifications)",
+    "s5b2": "• With the service providers that run the Service: Convex (hosting), SearchAPI.io and SerpApi (travel search), TripAdvisor, Viator, GetYourGuide and Tiqets (places and activities), Unsplash (images), Open-Meteo (weather), Mapbox and OpenStreetMap (maps, geocoding and routing), Postmark (email), and Expo (push notifications)",
     "s5b3": "• To comply with legal obligations",
     "s5b4": "• To protect our rights, users, or the security of the Service",
     "s5b5": "• With Apple, Google, and Stripe — to process subscription payments and verify your subscription status",
@@ -1650,7 +1650,7 @@
     "h5b5": "• Ensuring compliance with visa, health, and entry requirements",
     "h5b6": "• Making final travel decisions",
     "h6": "6. Third‑Party Services & Links",
-    "h6p1": "Planera integrates or links to third-party services, including OpenAI, TripAdvisor, Viator, GetYourGuide, Unsplash, Open-Meteo, Mapbox and OpenStreetMap, Google, Apple, Stripe, Postmark, travel data providers, and various airlines, accommodation providers, and booking platforms. These services are governed by their own terms and privacy policies.",
+    "h6p1": "Planera integrates or links to third-party services, including OpenAI, TripAdvisor, Viator, GetYourGuide, Tiqets, Unsplash, Open-Meteo, Mapbox and OpenStreetMap, Google, Apple, Stripe, Postmark, travel data providers, and various airlines, accommodation providers, and booking platforms. These services are governed by their own terms and privacy policies.",
     "h6p2": "Planera:",
     "h6b1": "• Is not responsible for third‑party content, availability, pricing, or services",
     "h6b2": "• Does not guarantee bookings, refunds, or customer support from third parties",
@@ -2257,5 +2257,11 @@
     "fromOrigin": "From {{origin}}",
     "dealBadge": "Deal",
     "indicative": "Indicative round-trip fares for a December week · tap to see live prices"
+  },
+  "tiqets": {
+    "title": "Museum & attraction tickets",
+    "titleIn": "Tickets for top attractions in {{place}}",
+    "desc": "Skip the queue with instant mobile tickets for museums, landmarks and experiences.",
+    "cta": "Find tickets on Tiqets"
   }
 }
