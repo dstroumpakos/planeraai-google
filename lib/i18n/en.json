@@ -256,7 +256,8 @@
     "wishlisted": "Wishlisted",
     "stop": "stop",
     "stops": "stops",
-    "christmas": "Christmas"
+    "christmas": "Christmas",
+    "scanning": "Scanning for low fares…"
   },
   "dealTrip": {
     "title": "Plan Your Trip",
@@ -1441,7 +1442,9 @@
     "optimizeUnavailable": "Couldn't work out a shorter route right now. Please try again later.",
     "walkableStops": "{{count}} of {{total}} stops within a {{minutes}}-min walk",
     "searchFlightsOnVueling": "Low-cost flights via Barcelona",
-    "searchOnVueling": "Book Flights on Vueling"
+    "searchOnVueling": "Book Flights on Vueling",
+    "tripReadyTitle": "Your trip is ready!",
+    "tripReadySubtitle": "Your {{destination}} itinerary is waiting."
   },
   "interests": {
     "Adventure": "Adventure",

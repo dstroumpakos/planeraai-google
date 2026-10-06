@@ -256,7 +256,8 @@
     "wishlisted": "En tu lista",
     "stop": "escala",
     "stops": "escalas",
-    "christmas": "Navidad"
+    "christmas": "Navidad",
+    "scanning": "Buscando tarifas bajas…"
   },
   "dealTrip": {
     "title": "Planifica tu Viaje",
@@ -1441,7 +1442,9 @@
     "optimizeUnavailable": "No se pudo calcular una ruta más corta ahora mismo. Inténtalo de nuevo más tarde.",
     "walkableStops": "{{count}} de {{total}} paradas a {{minutes}} min a pie",
     "searchFlightsOnVueling": "Vuelos de bajo coste vía Barcelona",
-    "searchOnVueling": "Reservar Vuelos en Vueling"
+    "searchOnVueling": "Reservar Vuelos en Vueling",
+    "tripReadyTitle": "¡Tu viaje está listo!",
+    "tripReadySubtitle": "Tu itinerario para {{destination}} te espera."
   },
   "interests": {
     "Adventure": "Aventura",

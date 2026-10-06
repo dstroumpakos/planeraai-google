@@ -256,7 +256,8 @@
     "wishlisted": "في قائمة الرغبات",
     "stop": "توقف",
     "stops": "توقفات",
-    "christmas": "الكريسماس"
+    "christmas": "الكريسماس",
+    "scanning": "جارٍ البحث عن أسعار منخفضة…"
   },
   "dealTrip": {
     "title": "خطط لرحلتك",
@@ -1446,7 +1447,9 @@
     "optimizeUnavailable": "تعذّر حساب مسار أقصر الآن. يرجى المحاولة لاحقاً.",
     "walkableStops": "{{count}} من {{total}} محطات على بُعد {{minutes}} دقيقة سيراً",
     "searchFlightsOnVueling": "رحلات اقتصادية عبر برشلونة",
-    "searchOnVueling": "احجز رحلات على Vueling"
+    "searchOnVueling": "احجز رحلات على Vueling",
+    "tripReadyTitle": "رحلتك جاهزة!",
+    "tripReadySubtitle": "خطة رحلتك إلى {{destination}} بانتظارك."
   },
   "interests": {
     "Adventure": "مغامرة",

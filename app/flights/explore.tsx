@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { BrandLoader } from "@/components/BrandLoader";
 import {
   ActivityIndicator,
   Dimensions,
@@ -540,7 +541,7 @@ export default function ExploreScreen() {
           {/* Results */}
           {loading ? (
             <View style={styles.stateBox}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <BrandLoader />
               <Text style={[styles.stateText, { color: colors.textMuted }]}>
                 {t("explore.loading", { defaultValue: "Finding places you can go…" })}
               </Text>

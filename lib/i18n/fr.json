@@ -256,7 +256,8 @@
     "wishlisted": "Dans la liste",
     "stop": "escale",
     "stops": "escales",
-    "christmas": "Noël"
+    "christmas": "Noël",
+    "scanning": "Recherche de petits prix…"
   },
   "dealTrip": {
     "title": "Planifiez votre Voyage",
@@ -1446,7 +1447,9 @@
     "optimizeUnavailable": "Impossible de calculer un itinéraire plus court pour le moment. Réessayez plus tard.",
     "walkableStops": "{{count}} arrêts sur {{total}} à {{minutes}} min à pied",
     "searchFlightsOnVueling": "Vols low-cost via Barcelone",
-    "searchOnVueling": "Réserver des Vols sur Vueling"
+    "searchOnVueling": "Réserver des Vols sur Vueling",
+    "tripReadyTitle": "Votre voyage est prêt !",
+    "tripReadySubtitle": "Votre itinéraire pour {{destination}} vous attend."
   },
   "interests": {
     "Adventure": "Aventure",
