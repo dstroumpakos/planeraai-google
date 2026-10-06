@@ -65,6 +65,8 @@ interface FlightDeal {
   currency: string;
   cabinBaggage?: string;
   checkedBaggage?: string;
+  /** Parsed from the booked fare (convex/lib/baggage.ts); preferred over the free-text fields. */
+  baggage?: { carryOn?: BagInfo; checked?: BagInfo };
   isRecommended?: boolean;
   dealTag?: string;
   bookingUrl?: string;
@@ -77,6 +79,15 @@ interface FlightDeal {
   matchesWishlist?: boolean;
   isExpired?: boolean;
 }
+
+interface BagInfo {
+  status: "included" | "fee" | "none";
+  count?: number;
+  feeMin?: number;
+  feeMax?: number;
+}
+
+const BAG_TONE = { included: "#34C759", fee: "#FF9500" } as const;
 
 interface WishlistDestination {
   destination: string;
@@ -236,6 +247,37 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
       DKK: "kr",
     };
     return symbols[currency] || currency;
+  };
+
+  const bagLabel = (kind: "carryOn" | "checked", bag: BagInfo, currency: string) => {
+    const carry = kind === "carryOn";
+    if (bag.status === "included") {
+      if (carry) return t("lowFare.bagCarryOnIncluded", { defaultValue: "Carry-on included" });
+      return (bag.count ?? 1) > 1
+        ? t("lowFare.bagCheckedIncludedMulti", {
+            count: bag.count,
+            defaultValue: "{{count}} checked bags included",
+          })
+        : t("lowFare.bagCheckedIncluded", { defaultValue: "Checked bag included" });
+    }
+    if (bag.status === "none") {
+      return carry
+        ? t("lowFare.bagCarryOnNone", { defaultValue: "Carry-on not included" })
+        : t("lowFare.bagCheckedNone", { defaultValue: "Checked bag not included" });
+    }
+    if (bag.feeMin == null) {
+      return carry
+        ? t("lowFare.bagCarryOnFeeUnknown", { defaultValue: "Carry-on for a fee" })
+        : t("lowFare.bagCheckedFeeUnknown", { defaultValue: "Checked bag for a fee" });
+    }
+    const sym = getCurrencySymbol(currency);
+    const price =
+      bag.feeMax != null && bag.feeMax !== bag.feeMin
+        ? `${sym}${bag.feeMin}–${bag.feeMax}`
+        : `${sym}${bag.feeMin}`;
+    return carry
+      ? t("lowFare.bagCarryOnFee", { price, defaultValue: "Carry-on: +{{price}}" })
+      : t("lowFare.bagCheckedFee", { price, defaultValue: "Checked bag: +{{price}}" });
   };
 
   const getPriceChange = (deal: FlightDeal) => {
@@ -1032,6 +1074,46 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
                       })}
                     </Text>
                     <View style={styles.baggageRow}>
+                      {deal.baggage
+                        ? (["carryOn", "checked"] as const).map((kind) => {
+                            const bag = deal.baggage?.[kind];
+                            if (!bag) return null;
+                            const tone =
+                              bag.status === "none"
+                                ? colors.textMuted
+                                : BAG_TONE[bag.status];
+                            return (
+                              <View
+                                key={kind}
+                                style={[
+                                  styles.baggageItem,
+                                  { backgroundColor: colors.secondary },
+                                ]}
+                              >
+                                <Ionicons
+                                  name={
+                                    bag.status === "included"
+                                      ? "checkmark-circle"
+                                      : bag.status === "fee"
+                                        ? "cash-outline"
+                                        : "close-circle-outline"
+                                  }
+                                  size={16}
+                                  color={tone}
+                                />
+                                <Text
+                                  style={[
+                                    styles.baggageText,
+                                    { color: colors.text },
+                                  ]}
+                                >
+                                  {bagLabel(kind, bag, deal.currency)}
+                                </Text>
+                              </View>
+                            );
+                          })
+                        : (
+                        <>
                       {deal.cabinBaggage && (
                         <View
                           style={[
@@ -1088,7 +1170,24 @@ export function LowFareRadar({ deals, homeIata, wishlistDestinations, onPlanTrip
                           })}
                         </Text>
                       )}
+                        </>
+                      )}
                     </View>
+                    {deal.baggage &&
+                      (deal.baggage.carryOn?.status === "fee" ||
+                        deal.baggage.checked?.status === "fee") && (
+                        <Text
+                          style={[
+                            styles.baggageNote,
+                            { color: colors.textMuted },
+                          ]}
+                        >
+                          {t("lowFare.bagFeeNote", {
+                            defaultValue:
+                              "Bag fees are per person and may change. Confirm when booking.",
+                          })}
+                        </Text>
+                      )}
                   </View>
 
                   {/* Return flight info — styled like outbound */}
@@ -1554,6 +1653,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     flex: 1,
     flexShrink: 1,
+  },
+  baggageNote: {
+    fontSize: 11,
+    marginTop: 6,
   },
   returnRow: {
     gap: 4,
