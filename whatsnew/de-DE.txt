@@ -1,6 +1,7 @@
 Neuigkeiten:
-• Weihnachtsreisen: festliche Ziele, Feiertagspreise und ein Countdown bis zum Fest
-• Neuer Weihnachts-Filter im Low Fare Radar – nur Angebote, die sich wirklich lohnen
-• Touren lokaler Partner: handverlesene Reisen und Erlebnisse von Reisebüros
-• Mehr Details und Bewertungen zu Orten in deiner Reiseroute
-• Aktualisierte Übersetzungen, Fehlerbehebungen und Leistungsverbesserungen
+? Benachrichtigungs-Posteingang: Angebote und Reiseerinnerungen an einem Ort, mit Filtern
+? Tickets f?r Museen und Sehensw?rdigkeiten von Tiqets direkt in deiner Reise
+? Inklusive Gep?ck und Gep?ckgeb?hren bei jedem Flugangebot
+? Wunschliste: ganze L?nder speichern, nicht nur St?dte
+? Neue Animationen beim Start, wenn deine Reise fertig ist und f?r Premium
+? Fehlerbehebungen und Leistungsverbesserungen

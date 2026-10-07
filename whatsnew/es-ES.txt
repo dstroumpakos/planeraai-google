@@ -1,6 +1,7 @@
 Novedades:
-• Viajes de Navidad: destinos festivos, tarifas navideñas y cuenta atrás
-• Nuevo filtro de Navidad en Low Fare Radar, solo con ofertas que merecen la pena
-• Circuitos de socios locales: viajes y experiencias seleccionados por agencias
-• Más información y opiniones de lugares en tu itinerario
-• Traducciones actualizadas, correcciones y mejoras de rendimiento
+? Bandeja de notificaciones: alertas de ofertas y recordatorios de viaje en un solo lugar, con filtros
+? Entradas a museos y atracciones de Tiqets, dentro de tu viaje
+? Consulta el equipaje incluido y sus tarifas en cada vuelo
+? Lista de deseos: guarda un pa?s entero, no solo una ciudad
+? Nuevas animaciones al abrir la app, al terminar tu viaje y al activar Premium
+? Correcciones y mejoras de rendimiento

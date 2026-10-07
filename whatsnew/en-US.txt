@@ -1,6 +1,7 @@
 What's new:
-• Christmas trips: festive destinations, holiday fares and a countdown to the big day
-• New Christmas filter in Low Fare Radar, showing only deals worth booking
-• Tours by local partners: hand-picked trips and experiences from travel agencies
-• Richer places and reviews inside your itinerary
-• Refreshed translations, bug fixes and performance improvements
+? Notification inbox: all your deal alerts and trip reminders in one place, with filters
+? Museum & attraction tickets from Tiqets, right inside your trip
+? See included bags and bag fees on every flight offer
+? Wishlist: save a whole country, not just a city
+? New animations for launch, trip ready and Premium unlocked
+? Bug fixes and performance improvements

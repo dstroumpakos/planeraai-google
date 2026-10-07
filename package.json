@@ -1,7 +1,7 @@
 {
   "name": "planera-ai-travel-planner",
   "main": "index.ts",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
