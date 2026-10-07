@@ -328,6 +328,7 @@ function createNativeAuthClient() {
           args: {
             idToken: userInfo.data.idToken,
             displayName: userInfo.data.user?.name,
+            platform: Platform.OS,
           },
         }),
       });
@@ -441,6 +442,7 @@ console.log("[Auth] Apple credential raw:", {
       // ✅ Build args OUTSIDE JSON.stringify
 const appleArgs: any = {
   identityToken: credential.identityToken,
+  platform: Platform.OS,
 };
 
 // only include email if it's a real string
@@ -539,6 +541,7 @@ const response = await fetch(`${CONVEX_URL}/api/action`, {
                 email,
                 password,
                 isSignUp: false,
+                platform: Platform.OS,
               },
             }),
           });
@@ -688,6 +691,7 @@ const response = await fetch(`${CONVEX_URL}/api/action`, {
                 password,
                 isSignUp: true,
                 name,
+                platform: Platform.OS,
               },
             }),
           });
