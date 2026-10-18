@@ -1,7 +1,7 @@
 Novedades:
-? Bandeja de notificaciones: alertas de ofertas y recordatorios de viaje en un solo lugar, con filtros
-? Entradas a museos y atracciones de Tiqets, dentro de tu viaje
-? Consulta el equipaje incluido y sus tarifas en cada vuelo
-? Lista de deseos: guarda un pa?s entero, no solo una ciudad
-? Nuevas animaciones al abrir la app, al terminar tu viaje y al activar Premium
-? Correcciones y mejoras de rendimiento
+• Conoce a Maia, tu asistente de viajes con IA rediseñado y con un chat totalmente nuevo
+• Pregunta a Maia por el tiempo, tipos de cambio, festivos y tus propios viajes
+• ¿Comprar o esperar? Un veredicto claro sobre precios de vuelos y ofertas de Low-Fare Radar
+• Pide presupuesto de tours y paquetes a medida a socios locales
+• Nueva opción de privacidad para la medición de anuncios en el menú de tu perfil
+• Correcciones y mejoras de rendimiento

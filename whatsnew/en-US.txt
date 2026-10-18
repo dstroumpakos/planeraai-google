@@ -1,7 +1,7 @@
 What's new:
-? Notification inbox: all your deal alerts and trip reminders in one place, with filters
-? Museum & attraction tickets from Tiqets, right inside your trip
-? See included bags and bag fees on every flight offer
-? Wishlist: save a whole country, not just a city
-? New animations for launch, trip ready and Premium unlocked
-? Bug fixes and performance improvements
+• Meet Maia, your redesigned AI travel assistant with a brand-new chat
+• Ask Maia about live weather, exchange rates, holidays and your own trips
+• Buy or wait? A clear fare verdict on flight prices and Low-Fare Radar deals
+• Request quotes for tailor-made tours and packages from local partners
+• New ad-measurement privacy choice in your profile menu
+• Bug fixes and performance improvements

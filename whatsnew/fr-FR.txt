@@ -1,7 +1,7 @@
-Nouveaut?s :
-? Bo?te de notifications : alertes bons plans et rappels de voyage au m?me endroit, avec filtres
-? Billets pour mus?es et attractions avec Tiqets, directement dans votre voyage
-? Bagages inclus et frais de bagages affich?s pour chaque vol
-? Liste d'envies : enregistrez un pays entier, pas seulement une ville
-? Nouvelles animations au lancement, voyage pr?t et Premium activ?
-? Corrections de bugs et am?liorations des performances
+Nouveautés :
+• Voici Maia, votre assistante de voyage IA repensée, avec un tout nouveau chat
+• Demandez à Maia la météo, les taux de change, les jours fériés et vos voyages
+• Acheter ou attendre ? Un verdict clair sur les prix des vols et les offres Low-Fare Radar
+• Demandez un devis pour des circuits sur mesure auprès de partenaires locaux
+• Nouveau choix de confidentialité pour la mesure publicitaire dans le menu du profil
+• Corrections de bugs et améliorations des performances

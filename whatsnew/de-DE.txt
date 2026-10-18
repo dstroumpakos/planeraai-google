@@ -1,7 +1,7 @@
 Neuigkeiten:
-? Benachrichtigungs-Posteingang: Angebote und Reiseerinnerungen an einem Ort, mit Filtern
-? Tickets f?r Museen und Sehensw?rdigkeiten von Tiqets direkt in deiner Reise
-? Inklusive Gep?ck und Gep?ckgeb?hren bei jedem Flugangebot
-? Wunschliste: ganze L?nder speichern, nicht nur St?dte
-? Neue Animationen beim Start, wenn deine Reise fertig ist und f?r Premium
-? Fehlerbehebungen und Leistungsverbesserungen
+• Lerne Maia kennen, deine neu gestaltete KI-Reiseassistentin mit brandneuem Chat
+• Frag Maia nach Wetter, Wechselkursen, Feiertagen und deinen eigenen Reisen
+• Kaufen oder warten? Eine klare Preiseinschätzung für Flüge und Low-Fare-Radar-Deals
+• Angebote für maßgeschneiderte Touren und Pakete von lokalen Partnern anfragen
+• Neue Datenschutzoption zur Anzeigenmessung im Profilmenü
+• Fehlerbehebungen und Leistungsverbesserungen
