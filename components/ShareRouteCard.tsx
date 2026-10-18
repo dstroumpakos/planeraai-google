@@ -102,7 +102,7 @@ const ShareRouteCard = forwardRef<ShareRouteCardHandle, {}>((_props, ref) => {
   const doSave = useCallback(async () => {
     try {
       setBusy(true);
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== "granted") {
         Alert.alert(t("common.error"), t("shareCard.galleryPermission"));
         return;
