@@ -1,7 +1,7 @@
 {
   "name": "planera-ai-travel-planner",
   "main": "index.ts",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -59,6 +59,7 @@
     "expo-store-review": "~55.0.18",
     "expo-symbols": "~55.0.9",
     "expo-system-ui": "~55.0.22",
+    "expo-tracking-transparency": "~55.0.18",
     "expo-updates": "~55.0.33",
     "expo-web-browser": "~55.0.20",
     "i18next": "^25.8.14",
@@ -71,6 +72,7 @@
     "react-native": "0.83.10",
     "react-native-android-widget": "^0.22.1",
     "react-native-calendars": "^1.1313.0",
+    "react-native-fbsdk-next": "^13.4.3",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-maps": "1.27.2",
     "react-native-reanimated": "4.2.1",
